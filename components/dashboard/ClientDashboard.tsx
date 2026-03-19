@@ -173,7 +173,6 @@ function InvestorProfileCard({
   pnl,
   fundCount,
   cashBalance,
-  latestDate,
 }: {
   totalValue: number;
   totalCost: number;
@@ -182,69 +181,46 @@ function InvestorProfileCard({
   cashBalance: number;
   latestDate: string;
 }) {
-  return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-      {/* Datos del inversor */}
-      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-[#1e3a5f]">
-          <User className="h-4 w-4 text-[#c9a94e]" />
-          Resumen de Cartera
-        </h3>
-        <div className="space-y-3">
-          <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-            <span className="text-sm text-gray-500">Patrimonio Total</span>
-            <span className="text-lg font-bold text-[#1e3a5f]">{formatEur(totalValue)}</span>
-          </div>
-          <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-            <span className="text-sm text-gray-500">Coste de Adquisicion</span>
-            <span className="text-sm font-medium text-gray-700">{formatEur(totalCost)}</span>
-          </div>
-          <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-            <span className="text-sm text-gray-500">Plusvalia / Minusvalia</span>
-            <span className={`text-sm font-bold ${pnl >= 0 ? "text-green-600" : "text-red-600"}`}>
-              {pnl >= 0 ? "+" : ""}{formatEur(totalValue - totalCost)} ({pnl >= 0 ? "+" : ""}{pnl.toFixed(2)}%)
-            </span>
-          </div>
-          <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-            <span className="text-sm text-gray-500">Efectivo disponible</span>
-            <span className="text-sm font-medium text-gray-700">{formatEur(cashBalance)}</span>
-          </div>
-          <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-            <span className="text-sm text-gray-500">Numero de fondos</span>
-            <span className="text-sm font-medium text-gray-700">{fundCount}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-500">Ultimo corte</span>
-            <span className="text-sm font-medium text-gray-700">{latestDate}</span>
-          </div>
-        </div>
-      </div>
+  const kpis = [
+    {
+      label: "Patrimonio Total",
+      value: formatEur(totalValue),
+      color: "text-[#1e3a5f]",
+    },
+    {
+      label: "Plusvalia",
+      value: `${pnl >= 0 ? "+" : ""}${formatEur(totalValue - totalCost)} (${pnl >= 0 ? "+" : ""}${pnl.toFixed(2)}%)`,
+      color: pnl >= 0 ? "text-green-600" : "text-red-600",
+    },
+    {
+      label: "Efectivo",
+      value: formatEur(cashBalance),
+      color: "text-[#1e3a5f]",
+    },
+    {
+      label: "Fondos",
+      value: String(fundCount),
+      color: "text-[#1e3a5f]",
+    },
+  ];
 
-      {/* KPI visual cards - estilo informe */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="flex flex-col items-center justify-center rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-          <Wallet className="mb-2 h-8 w-8 text-[#c9a94e]" />
-          <p className="text-center text-xs font-medium uppercase tracking-wider text-gray-400">Patrimonio</p>
-          <p className="mt-1 text-xl font-bold text-[#1e3a5f]">{formatEur(totalValue)}</p>
-        </div>
-        <div className="flex flex-col items-center justify-center rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-          <TrendingUp className={`mb-2 h-8 w-8 ${pnl >= 0 ? "text-green-500" : "text-red-500"}`} />
-          <p className="text-center text-xs font-medium uppercase tracking-wider text-gray-400">Rendimiento</p>
-          <p className={`mt-1 text-xl font-bold ${pnl >= 0 ? "text-green-600" : "text-red-600"}`}>
-            {pnl >= 0 ? "+" : ""}{pnl.toFixed(2)}%
+  return (
+    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      {kpis.map((kpi) => (
+        <div
+          key={kpi.label}
+          className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white px-5 py-5 shadow-sm"
+        >
+          {/* Gold animated top line */}
+          <div className="absolute inset-x-0 top-0 h-[3px] origin-left scale-x-0 bg-[#C9A84C] transition-transform duration-300 group-hover:scale-x-100" />
+          <p className="text-xs font-medium uppercase tracking-wider text-gray-400">
+            {kpi.label}
+          </p>
+          <p className={`mt-2 text-xl font-bold ${kpi.color}`}>
+            {kpi.value}
           </p>
         </div>
-        <div className="flex flex-col items-center justify-center rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-          <BarChart3 className="mb-2 h-8 w-8 text-[#c9a94e]" />
-          <p className="text-center text-xs font-medium uppercase tracking-wider text-gray-400">Fondos</p>
-          <p className="mt-1 text-xl font-bold text-[#1e3a5f]">{fundCount}</p>
-        </div>
-        <div className="flex flex-col items-center justify-center rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-          <Clock className="mb-2 h-8 w-8 text-[#c9a94e]" />
-          <p className="text-center text-xs font-medium uppercase tracking-wider text-gray-400">Corte</p>
-          <p className="mt-1 text-center text-sm font-bold text-[#1e3a5f]">{latestDate}</p>
-        </div>
-      </div>
+      ))}
     </div>
   );
 }
