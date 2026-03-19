@@ -3,16 +3,17 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-950 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+  "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rowell-navy focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
   {
     variants: {
       variant: {
-        default: "bg-[#1e3a8a] text-white hover:bg-[#1e3a8a]/90",
+        default: "bg-rowell-navy text-white hover:bg-rowell-navy/90",
         destructive: "bg-red-500 text-white hover:bg-red-500/90",
-        outline: "border border-gray-200 bg-white hover:bg-gray-100 hover:text-gray-900",
-        secondary: "bg-gray-100 text-gray-900 hover:bg-gray-100/80",
-        ghost: "hover:bg-gray-100 hover:text-gray-900",
-        link: "text-[#1e3a8a] underline-offset-4 hover:underline",
+        outline: "border border-gray-200 bg-white hover:bg-gray-100 hover:text-rowell-dark",
+        secondary: "bg-gray-100 text-rowell-dark hover:bg-gray-100/80",
+        ghost: "hover:bg-gray-100 hover:text-rowell-dark",
+        link: "text-rowell-navy underline-offset-4 hover:underline",
+        gold: "bg-rowell-gold text-white hover:bg-rowell-gold/90",
       },
       size: {
         default: "h-10 px-4 py-2",

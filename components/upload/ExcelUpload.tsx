@@ -18,22 +18,19 @@ import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Loader2, X } from "
 
 interface FileSlot {
   label: string;
-  key: "posiciones" | "operaciones" | "liquidez";
+  key: "posiciones" | "operaciones" | "saldos";
   file: File | null;
 }
 
 export interface UploadResult {
   success: boolean;
-  data?: {
-    positions: unknown[];
-    operations: unknown[];
-    liquidity: unknown[];
+  inserted?: {
+    positions: number;
+    operations: number;
+    balances: number;
+    newAccounts: number;
   };
-  stats?: {
-    positions: { totalRows: number; validRows: number; skippedRows: number; errors: string[] };
-    operations: { totalRows: number; validRows: number; skippedRows: number; errors: string[] };
-    liquidity: { totalRows: number; validRows: number; skippedRows: number; errors: string[] };
-  };
+  stats?: Record<string, { totalRows: number; validRows: number; skippedRows: number; errors: string[] }>;
   error?: string;
 }
 
@@ -57,7 +54,7 @@ export default function ExcelUpload({ onUploadComplete }: ExcelUploadProps) {
   const [slots, setSlots] = useState<FileSlot[]>([
     { label: "Posiciones", key: "posiciones", file: null },
     { label: "Operaciones", key: "operaciones", file: null },
-    { label: "Liquidez", key: "liquidez", file: null },
+    { label: "Saldos", key: "saldos", file: null },
   ]);
 
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
@@ -70,7 +67,6 @@ export default function ExcelUpload({ onUploadComplete }: ExcelUploadProps) {
 
       const file = fileList[0];
 
-      // Validar extension
       const ext = file.name.toLowerCase().split(".").pop();
       if (ext !== "xlsx" && ext !== "xls") {
         setStatus("error");
@@ -78,7 +74,6 @@ export default function ExcelUpload({ onUploadComplete }: ExcelUploadProps) {
         return;
       }
 
-      // Validar tamano
       if (file.size > MAX_FILE_SIZE_BYTES) {
         setStatus("error");
         setMessage(
@@ -93,7 +88,6 @@ export default function ExcelUpload({ onUploadComplete }: ExcelUploadProps) {
         return updated;
       });
 
-      // Limpiar errores previos
       if (status === "error") {
         setStatus("idle");
         setMessage("");
@@ -108,7 +102,6 @@ export default function ExcelUpload({ onUploadComplete }: ExcelUploadProps) {
       updated[index] = { ...updated[index], file: null };
       return updated;
     });
-    // Reset the file input
     const input = fileInputRefs.current[index];
     if (input) input.value = "";
   }, []);
@@ -149,12 +142,13 @@ export default function ExcelUpload({ onUploadComplete }: ExcelUploadProps) {
 
       setStatus("success");
 
-      const posCount = result.stats?.positions.validRows ?? 0;
-      const opsCount = result.stats?.operations.validRows ?? 0;
-      const liqCount = result.stats?.liquidity.validRows ?? 0;
+      const posCount = result.inserted?.positions ?? 0;
+      const opsCount = result.inserted?.operations ?? 0;
+      const salCount = result.inserted?.balances ?? 0;
+      const newAccs = result.inserted?.newAccounts ?? 0;
 
       setMessage(
-        `Procesado correctamente: ${posCount} posiciones, ${opsCount} operaciones, ${liqCount} movimientos de liquidez.`
+        `Insertado correctamente: ${posCount} posiciones, ${opsCount} operaciones, ${salCount} saldos. ${newAccs} cuentas nuevas descubiertas.`
       );
 
       onUploadComplete?.(result);
@@ -171,18 +165,18 @@ export default function ExcelUpload({ onUploadComplete }: ExcelUploadProps) {
   return (
     <Card className="w-full max-w-2xl border bg-white shadow-sm">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-[#1e3a8a]">
+        <CardTitle className="flex items-center gap-2 text-rowell-navy">
           <Upload className="h-5 w-5" />
           Cargar Archivos Excel
         </CardTitle>
         <CardDescription>
-          Sube los archivos Excel de Mapfre para procesar tu cartera.
+          Sube los archivos Excel de Mapfre para actualizar las carteras.
           Formatos aceptados: .xlsx, .xls (max {MAX_FILE_SIZE_MB}MB cada uno).
         </CardDescription>
       </CardHeader>
 
       <CardContent className="space-y-6">
-        {/* --- File Slots --- */}
+        {/* File Slots */}
         {slots.map((slot, index) => (
           <div key={slot.key} className="space-y-2">
             <Label htmlFor={`file-${slot.key}`} className="text-gray-700">
@@ -231,7 +225,7 @@ export default function ExcelUpload({ onUploadComplete }: ExcelUploadProps) {
           </div>
         ))}
 
-        {/* --- Submit Button --- */}
+        {/* Submit Button */}
         <Button
           onClick={handleSubmit}
           disabled={!hasAnyFile || status === "loading"}
@@ -241,17 +235,17 @@ export default function ExcelUpload({ onUploadComplete }: ExcelUploadProps) {
           {status === "loading" ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Procesando...
+              Procesando y guardando en base de datos...
             </>
           ) : (
             <>
               <Upload className="mr-2 h-4 w-4" />
-              Procesar Excel
+              Procesar y Guardar
             </>
           )}
         </Button>
 
-        {/* --- Status Message --- */}
+        {/* Status Message */}
         {message && (
           <div
             className={`flex items-start gap-2 rounded-md p-3 text-sm ${

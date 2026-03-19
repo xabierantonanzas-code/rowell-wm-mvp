@@ -3,16 +3,16 @@ import * as XLSX from "xlsx";
 import {
   PositionSchema,
   OperationSchema,
-  LiquiditySchema,
+  CashBalanceSchema,
   POSITION_COLUMN_ALIASES,
   OPERATION_COLUMN_ALIASES,
-  LIQUIDITY_COLUMN_ALIASES,
+  CASH_BALANCE_COLUMN_ALIASES,
 } from "@/lib/types/excel";
 
 import type {
   Position,
   Operation,
-  Liquidity,
+  CashBalance,
   ParseResult,
   ParseStats,
 } from "@/lib/types/excel";
@@ -29,24 +29,19 @@ function normalize(value: string): string {
   return value
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") // quitar acentos
+    .replace(/[\u0300-\u036f]/g, "")
     .replace(/\s+/g, " ")
     .trim();
 }
 
 /**
- * Convierte una fecha en formato DD/MM/YYYY a un objeto Date.
+ * Convierte una fecha en formato DD/MM/YYYY o DD-MM-YYYY a un objeto Date.
  * Retorna null si el formato no es valido.
- *
- * @example
- * parseEuropeanDate("15/03/2024") // → Date(2024, 2, 15)
- * parseEuropeanDate("invalid")    // → null
  */
 function parseEuropeanDate(raw: unknown): Date | null {
   if (raw instanceof Date) return raw;
 
   if (typeof raw === "number") {
-    // Excel serial date number
     const parsed = XLSX.SSF.parse_date_code(raw);
     if (parsed) {
       return new Date(parsed.y, parsed.m - 1, parsed.d);
@@ -68,7 +63,6 @@ function parseEuropeanDate(raw: unknown): Date | null {
 
   const date = new Date(year, month - 1, day);
 
-  // Verificar que la fecha es valida (ej. 31/02 no lo es)
   if (
     date.getFullYear() !== year ||
     date.getMonth() !== month - 1 ||
@@ -83,12 +77,6 @@ function parseEuropeanDate(raw: unknown): Date | null {
 /**
  * Convierte un numero en formato europeo "1.234,56" a number 1234.56.
  * Tambien acepta numeros ya parseados.
- * Retorna null si no puede convertir.
- *
- * @example
- * parseEuropeanNumber("1.234,56")  // → 1234.56
- * parseEuropeanNumber("-500,00")   // → -500
- * parseEuropeanNumber(42)          // → 42
  */
 function parseEuropeanNumber(raw: unknown): number | null {
   if (typeof raw === "number") {
@@ -100,7 +88,6 @@ function parseEuropeanNumber(raw: unknown): number | null {
   const trimmed = raw.trim().replace(/\s/g, "");
   if (trimmed === "" || trimmed === "-") return null;
 
-  // Formato europeo: quitar puntos de millar, cambiar coma por punto
   const normalized = trimmed.replace(/\./g, "").replace(",", ".");
   const num = Number(normalized);
 
@@ -108,10 +95,7 @@ function parseEuropeanNumber(raw: unknown): number | null {
 }
 
 /**
- * Busca la primera hoja valida en un workbook. Estrategia:
- * 1. Si hay una sola hoja, usar esa.
- * 2. Si alguna hoja coincide con los nombres hint, usar esa.
- * 3. Usar la primera hoja.
+ * Busca la primera hoja valida en un workbook.
  */
 function findSheet(
   workbook: XLSX.WorkBook,
@@ -127,7 +111,6 @@ function findSheet(
     return workbook.Sheets[names[0]];
   }
 
-  // Buscar por nombre hint
   for (const hint of hints) {
     const normalizedHint = normalize(hint);
     const found = names.find((n) => normalize(n).includes(normalizedHint));
@@ -136,7 +119,6 @@ function findSheet(
     }
   }
 
-  // Fallback: primera hoja
   return workbook.Sheets[names[0]];
 }
 
@@ -150,7 +132,6 @@ function extractRows(
   columnAliases: Record<string, string[]>,
   minMatchingHeaders: number,
 ): { rows: Record<string, unknown>[]; columnMap: Record<string, string> } {
-  // Convertir toda la hoja a array de arrays (sin parsear fechas/numeros)
   const rawRows: unknown[][] = XLSX.utils.sheet_to_json(sheet, {
     header: 1,
     raw: true,
@@ -161,9 +142,8 @@ function extractRows(
     return { rows: [], columnMap: {} };
   }
 
-  // --- Detectar fila de headers ---
   let headerRowIndex = -1;
-  let columnMap: Record<string, string> = {}; // canonicalName → headerText
+  let columnMap: Record<string, string> = {};
 
   for (let i = 0; i < Math.min(rawRows.length, 15); i++) {
     const row = rawRows[i];
@@ -193,7 +173,6 @@ function extractRows(
 
     if (matches >= minMatchingHeaders) {
       headerRowIndex = i;
-      // Guardar mapeo canonical → indice de columna
       columnMap = Object.fromEntries(
         Object.entries(candidateMap).map(([key, colIdx]) => [
           key,
@@ -213,14 +192,12 @@ function extractRows(
     );
   }
 
-  // --- Convertir filas de datos a objetos ---
   const dataRows: Record<string, unknown>[] = [];
 
   for (let i = headerRowIndex + 1; i < rawRows.length; i++) {
     const row = rawRows[i];
     if (!Array.isArray(row)) continue;
 
-    // Ignorar filas completamente vacias
     const hasData = row.some(
       (cell) => cell != null && String(cell).trim() !== "",
     );
@@ -237,9 +214,6 @@ function extractRows(
   return { rows: dataRows, columnMap };
 }
 
-/**
- * Crea un objeto ParseStats inicial.
- */
 function createStats(): ParseStats {
   return {
     totalRows: 0,
@@ -249,14 +223,10 @@ function createStats(): ParseStats {
   };
 }
 
-/**
- * Lee un workbook XLSX a partir de un Buffer.
- * NO usa el filesystem (compatible con Edge Runtime).
- */
 function readWorkbook(buffer: Buffer): XLSX.WorkBook {
   return XLSX.read(buffer, {
     type: "buffer",
-    cellDates: false,    // manejar fechas manualmente
+    cellDates: false,
     cellNF: false,
     cellStyles: false,
   });
@@ -268,28 +238,18 @@ function readWorkbook(buffer: Buffer): XLSX.WorkBook {
 
 /**
  * Parsea un archivo Excel de posiciones de Mapfre.
- *
- * @param buffer - Buffer del archivo .xlsx
- * @returns Posiciones validadas y estadisticas del parsing
- *
- * @example
- * ```ts
- * const file = await readFile("posiciones_enero.xlsx");
- * const { data, stats } = parsePositions(file);
- * console.log(`${stats.validRows} posiciones parseadas`);
- * ```
+ * Sheet: "Consulta masiva Posiciones"
  */
 export function parsePositions(buffer: Buffer): ParseResult<Position> {
   const stats = createStats();
   const workbook = readWorkbook(buffer);
-  const sheet = findSheet(workbook, ["posiciones", "posicion", "cartera"]);
+  const sheet = findSheet(workbook, [
+    "consulta masiva posiciones",
+    "posiciones",
+    "posicion",
+  ]);
 
-  const { rows } = extractRows(
-    sheet,
-    POSITION_COLUMN_ALIASES,
-    4, // minimo 4 columnas reconocidas para validar header
-  );
-
+  const { rows } = extractRows(sheet, POSITION_COLUMN_ALIASES, 5);
   stats.totalRows = rows.length;
 
   if (rows.length === 0) {
@@ -303,36 +263,50 @@ export function parsePositions(buffer: Buffer): ParseResult<Position> {
     const rowNum = i + 1;
 
     try {
-      const date = parseEuropeanDate(row.date);
-      if (!date) {
+      const snapshotDate = parseEuropeanDate(row.snapshotDate);
+      if (!snapshotDate) {
         stats.skippedRows++;
-        stats.errors.push(`Fila ${rowNum}: fecha invalida → "${String(row.date)}"`);
+        stats.errors.push(`Fila ${rowNum}: fecha invalida → "${String(row.snapshotDate)}"`);
         continue;
       }
 
-      const shares = parseEuropeanNumber(row.shares);
+      const accountNumber = String(row.accountNumber ?? "").trim();
+      if (!accountNumber) {
+        stats.skippedRows++;
+        stats.errors.push(`Fila ${rowNum}: cuenta de valores vacia`);
+        continue;
+      }
+
+      const units = parseEuropeanNumber(row.units);
       const avgCost = parseEuropeanNumber(row.avgCost);
       const marketPrice = parseEuropeanNumber(row.marketPrice);
-      const totalValue = parseEuropeanNumber(row.totalValue);
+      const positionValue = parseEuropeanNumber(row.positionValue);
 
-      if (shares === null || avgCost === null || marketPrice === null || totalValue === null) {
+      if (units === null || avgCost === null || marketPrice === null || positionValue === null) {
         stats.skippedRows++;
         stats.errors.push(
-          `Fila ${rowNum}: numero invalido en campos numericos ` +
-            `(shares=${String(row.shares)}, avgCost=${String(row.avgCost)}, ` +
-            `marketPrice=${String(row.marketPrice)}, totalValue=${String(row.totalValue)})`,
+          `Fila ${rowNum}: numero invalido (units=${String(row.units)}, avgCost=${String(row.avgCost)}, ` +
+            `marketPrice=${String(row.marketPrice)}, positionValue=${String(row.positionValue)})`,
         );
         continue;
       }
 
+      const fxRate = parseEuropeanNumber(row.fxRate) ?? 1;
+      const purchaseDate = parseEuropeanDate(row.purchaseDate) ?? undefined;
+
       const candidate = {
-        date,
+        snapshotDate,
+        accountNumber,
         isin: String(row.isin ?? "").trim(),
         productName: String(row.productName ?? "").trim(),
-        shares,
+        manager: row.manager ? String(row.manager).trim() : undefined,
+        currency: String(row.currency ?? "EUR").trim() || "EUR",
+        units,
         avgCost,
         marketPrice,
-        totalValue,
+        positionValue,
+        fxRate,
+        purchaseDate,
       };
 
       const result = PositionSchema.safeParse(candidate);
@@ -359,44 +333,102 @@ export function parsePositions(buffer: Buffer): ParseResult<Position> {
 }
 
 // ===========================================================================
+// Parser: SALDOS DE EFECTIVO
+// ===========================================================================
+
+/**
+ * Parsea un archivo Excel de saldos de efectivo de Mapfre.
+ * Sheet: "Consulta masiva saldos"
+ */
+export function parseCashBalances(buffer: Buffer): ParseResult<CashBalance> {
+  const stats = createStats();
+  const workbook = readWorkbook(buffer);
+  const sheet = findSheet(workbook, [
+    "consulta masiva saldos",
+    "saldos",
+    "saldo",
+    "efectivo",
+  ]);
+
+  const { rows } = extractRows(sheet, CASH_BALANCE_COLUMN_ALIASES, 3);
+  stats.totalRows = rows.length;
+
+  if (rows.length === 0) {
+    return { data: [], stats };
+  }
+
+  const data: CashBalance[] = [];
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const rowNum = i + 1;
+
+    try {
+      const snapshotDate = parseEuropeanDate(row.snapshotDate);
+      if (!snapshotDate) {
+        stats.skippedRows++;
+        stats.errors.push(`Fila ${rowNum}: fecha invalida → "${String(row.snapshotDate)}"`);
+        continue;
+      }
+
+      const cashAccountNumber = String(row.cashAccountNumber ?? "").trim();
+      if (!cashAccountNumber) {
+        stats.skippedRows++;
+        stats.errors.push(`Fila ${rowNum}: cuenta de efectivo vacia`);
+        continue;
+      }
+
+      const balance = parseEuropeanNumber(row.balance) ?? 0;
+
+      const candidate = {
+        snapshotDate,
+        cashAccountNumber,
+        currency: String(row.currency ?? "EUR").trim() || "EUR",
+        balance,
+        sign: String(row.sign ?? "+").trim() || "+",
+      };
+
+      const result = CashBalanceSchema.safeParse(candidate);
+
+      if (result.success) {
+        data.push(result.data);
+        stats.validRows++;
+      } else {
+        stats.skippedRows++;
+        const issues = result.error.issues
+          .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
+          .join("; ");
+        stats.errors.push(`Fila ${rowNum}: validacion Zod fallida → ${issues}`);
+      }
+    } catch (err) {
+      stats.skippedRows++;
+      stats.errors.push(
+        `Fila ${rowNum}: error inesperado → ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
+  return { data, stats };
+}
+
+// ===========================================================================
 // Parser: OPERACIONES
 // ===========================================================================
 
-/** Mapa para normalizar tipos de operacion con variantes */
-const OPERATION_TYPE_MAP: Record<string, Operation["type"]> = {
-  compra: "Compra",
-  venta: "Venta",
-  aportacion: "Aportacion",
-  aportación: "Aportacion",
-  reembolso: "Reembolso",
-  suscripcion: "Compra",
-  suscripción: "Compra",
-};
-
 /**
- * Parsea un archivo Excel de operaciones de Mapfre.
- *
- * @param buffer - Buffer del archivo .xlsx
- * @returns Operaciones validadas y estadisticas del parsing
- *
- * @example
- * ```ts
- * const file = await readFile("operaciones_enero.xlsx");
- * const { data, stats } = parseOperations(file);
- * console.log(`${stats.validRows} operaciones parseadas`);
- * ```
+ * Parsea un archivo Excel de operaciones historicas de Mapfre.
+ * Sheet: "Consulta masiva Operaciones"
  */
 export function parseOperations(buffer: Buffer): ParseResult<Operation> {
   const stats = createStats();
   const workbook = readWorkbook(buffer);
-  const sheet = findSheet(workbook, ["operaciones", "movimientos", "ordenes"]);
+  const sheet = findSheet(workbook, [
+    "consulta masiva operaciones",
+    "operaciones",
+    "movimientos",
+  ]);
 
-  const { rows } = extractRows(
-    sheet,
-    OPERATION_COLUMN_ALIASES,
-    4,
-  );
-
+  const { rows } = extractRows(sheet, OPERATION_COLUMN_ALIASES, 5);
   stats.totalRows = rows.length;
 
   if (rows.length === 0) {
@@ -410,43 +442,45 @@ export function parseOperations(buffer: Buffer): ParseResult<Operation> {
     const rowNum = i + 1;
 
     try {
-      const date = parseEuropeanDate(row.date);
-      if (!date) {
+      const operationDate = parseEuropeanDate(row.operationDate);
+      if (!operationDate) {
         stats.skippedRows++;
-        stats.errors.push(`Fila ${rowNum}: fecha invalida → "${String(row.date)}"`);
+        stats.errors.push(`Fila ${rowNum}: fecha invalida → "${String(row.operationDate)}"`);
         continue;
       }
 
-      // Normalizar tipo de operacion
-      const rawType = normalize(String(row.type ?? ""));
-      const operationType = OPERATION_TYPE_MAP[rawType];
+      const accountNumber = String(row.accountNumber ?? "").trim();
+      if (!accountNumber) {
+        stats.skippedRows++;
+        stats.errors.push(`Fila ${rowNum}: cuenta valores cliente vacia`);
+        continue;
+      }
 
+      const operationType = String(row.operationType ?? "").trim();
       if (!operationType) {
         stats.skippedRows++;
-        stats.errors.push(
-          `Fila ${rowNum}: tipo de operacion desconocido → "${String(row.type)}"`,
-        );
+        stats.errors.push(`Fila ${rowNum}: tipo de operacion vacio`);
         continue;
       }
 
-      const amount = parseEuropeanNumber(row.amount);
-      const shares = parseEuropeanNumber(row.shares);
-
-      if (amount === null || shares === null) {
-        stats.skippedRows++;
-        stats.errors.push(
-          `Fila ${rowNum}: numero invalido (amount=${String(row.amount)}, shares=${String(row.shares)})`,
-        );
-        continue;
-      }
+      const settlementDate = parseEuropeanDate(row.settlementDate) ?? undefined;
 
       const candidate = {
-        date,
-        type: operationType,
-        isin: String(row.isin ?? "").trim(),
-        name: String(row.name ?? "").trim(),
-        amount,
-        shares,
+        operationNumber: String(row.operationNumber ?? "").trim(),
+        operationType,
+        isin: row.isin ? String(row.isin).trim() : undefined,
+        productName: row.productName ? String(row.productName).trim() : undefined,
+        accountNumber,
+        operationDate,
+        settlementDate,
+        currency: String(row.currency ?? "EUR").trim() || "EUR",
+        units: parseEuropeanNumber(row.units) ?? undefined,
+        grossAmount: parseEuropeanNumber(row.grossAmount) ?? undefined,
+        netAmount: parseEuropeanNumber(row.netAmount) ?? undefined,
+        fxRate: parseEuropeanNumber(row.fxRate) ?? 1,
+        eurAmount: parseEuropeanNumber(row.eurAmount) ?? undefined,
+        withholding: parseEuropeanNumber(row.withholding) ?? 0,
+        commission: parseEuropeanNumber(row.commission) ?? 0,
       };
 
       const result = OperationSchema.safeParse(candidate);
@@ -473,90 +507,26 @@ export function parseOperations(buffer: Buffer): ParseResult<Operation> {
 }
 
 // ===========================================================================
-// Parser: LIQUIDEZ
+// Utilidad: extraer cuentas unicas
 // ===========================================================================
 
 /**
- * Parsea un archivo Excel de movimientos de liquidez de Mapfre.
- *
- * @param buffer - Buffer del archivo .xlsx
- * @returns Movimientos de liquidez validados y estadisticas del parsing
- *
- * @example
- * ```ts
- * const file = await readFile("liquidez_enero.xlsx");
- * const { data, stats } = parseLiquidity(file);
- * console.log(`Saldo final: €${data.at(-1)?.balance}`);
- * ```
+ * Extrae todas las cuentas de valores unicas de los datos parseados.
+ * Util para auto-crear accounts en Supabase.
  */
-export function parseLiquidity(buffer: Buffer): ParseResult<Liquidity> {
-  const stats = createStats();
-  const workbook = readWorkbook(buffer);
-  const sheet = findSheet(workbook, ["liquidez", "efectivo", "cash", "saldo"]);
+export function extractUniqueAccounts(
+  positions: Position[],
+  operations: Operation[],
+): string[] {
+  const accounts = new Set<string>();
 
-  const { rows } = extractRows(
-    sheet,
-    LIQUIDITY_COLUMN_ALIASES,
-    3, // solo 4 columnas, con 3 matcheadas basta
-  );
-
-  stats.totalRows = rows.length;
-
-  if (rows.length === 0) {
-    return { data: [], stats };
+  for (const p of positions) {
+    accounts.add(p.accountNumber);
   }
 
-  const data: Liquidity[] = [];
-
-  for (let i = 0; i < rows.length; i++) {
-    const row = rows[i];
-    const rowNum = i + 1;
-
-    try {
-      const date = parseEuropeanDate(row.date);
-      if (!date) {
-        stats.skippedRows++;
-        stats.errors.push(`Fila ${rowNum}: fecha invalida → "${String(row.date)}"`);
-        continue;
-      }
-
-      const amount = parseEuropeanNumber(row.amount);
-      const balance = parseEuropeanNumber(row.balance);
-
-      if (amount === null || balance === null) {
-        stats.skippedRows++;
-        stats.errors.push(
-          `Fila ${rowNum}: numero invalido (amount=${String(row.amount)}, balance=${String(row.balance)})`,
-        );
-        continue;
-      }
-
-      const candidate = {
-        date,
-        type: String(row.type ?? "").trim(),
-        amount,
-        balance,
-      };
-
-      const result = LiquiditySchema.safeParse(candidate);
-
-      if (result.success) {
-        data.push(result.data);
-        stats.validRows++;
-      } else {
-        stats.skippedRows++;
-        const issues = result.error.issues
-          .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
-          .join("; ");
-        stats.errors.push(`Fila ${rowNum}: validacion Zod fallida → ${issues}`);
-      }
-    } catch (err) {
-      stats.skippedRows++;
-      stats.errors.push(
-        `Fila ${rowNum}: error inesperado → ${err instanceof Error ? err.message : String(err)}`,
-      );
-    }
+  for (const o of operations) {
+    accounts.add(o.accountNumber);
   }
 
-  return { data, stats };
+  return Array.from(accounts).sort();
 }

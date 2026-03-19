@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import defaultTheme from "tailwindcss/defaultTheme";
 
 const config: Config = {
   content: [
@@ -7,7 +8,20 @@ const config: Config = {
     "./lib/**/*.{ts,tsx}",
   ],
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        rowell: {
+          navy: "#1e3a5f",
+          gold: "#c9a94e",
+          light: "#f5f3ee",
+          dark: "#0f1f33",
+        },
+      },
+      fontFamily: {
+        sans: ["var(--font-inter)", ...defaultTheme.fontFamily.sans],
+        display: ["var(--font-playfair)", "serif"],
+      },
+    },
   },
   plugins: [],
 };

@@ -1,63 +1,70 @@
 import { z } from "zod";
 
 // ===========================================================================
-// Zod Schemas — Validacion de filas parseadas de los Excel de Mapfre
+// Zod Schemas — Validacion de filas parseadas de los Excel REALES de Mapfre
+// Actualizados para mapear las columnas de los archivos descargados
 // ===========================================================================
 
 /**
  * Schema para una posicion individual del portfolio.
- * Mapea las columnas: FECHA, ISIN, NOMBRE PRODUCTO, TOTAL TITULOS,
- * COSTE MEDIO, PRECIO MERCADO, POSICION.
+ * Sheet: "Consulta masiva Posiciones"
+ * Columnas: FECHA, CUENTA DE VALORES, ISIN, NOMBRE PRODUCTO,
+ * DESCRIPCION GESTORA, DIVISA, TOTAL TITULOS, COSTE MEDIO POSICION,
+ * PRECIO MERCADO, POSICION, CAMBIO EUR, FECHA VALOR
  */
 export const PositionSchema = z.object({
-  /** Fecha del extracto */
-  date: z.date(),
-  /** Codigo ISIN del instrumento (ej. ES0138011009) */
+  snapshotDate: z.date(),
+  accountNumber: z.string().min(1),
   isin: z.string().min(1),
-  /** Nombre del producto/fondo */
-  productName: z.string().min(1),
-  /** Numero de participaciones / titulos */
-  shares: z.number().finite(),
-  /** Coste medio de adquisicion por titulo (EUR) */
+  productName: z.string(),
+  manager: z.string().optional(),
+  currency: z.string().default("EUR"),
+  units: z.number().finite(),
   avgCost: z.number().finite(),
-  /** Precio de mercado actual por titulo (EUR) */
   marketPrice: z.number().finite(),
-  /** Valor total de la posicion (EUR) */
-  totalValue: z.number().finite(),
+  positionValue: z.number().finite(),
+  fxRate: z.number().positive().default(1),
+  purchaseDate: z.date().optional(),
 });
 
 /**
- * Schema para una operacion (compra, venta, etc.).
- * Mapea las columnas: FECHA, TIPO, ISIN, NOMBRE, IMPORTE, TITULOS.
+ * Schema para un saldo de efectivo.
+ * Sheet: "Consulta masiva saldos"
+ * Columnas: FECHA, CUENTA DE EFECTIVO, DIVISA, SALDO, SIGNO
+ */
+export const CashBalanceSchema = z.object({
+  snapshotDate: z.date(),
+  cashAccountNumber: z.string().min(1),
+  currency: z.string().default("EUR"),
+  balance: z.number().finite(),
+  sign: z.string().default("+"),
+});
+
+/**
+ * Schema para una operacion historica.
+ * Sheet: "Consulta masiva Operaciones"
+ * Columnas: NUMERO OPERACION, TIPO DE OPERACION IB, CODIGO ISIN,
+ * NOMBRE PRODUCTO, CUENTA VALORES CLIENTE, FECHA DE CONTRATACION,
+ * FECHA VALOR/EJEC/LIQUI, DIVISA, NUMERO DE TITULOS, EFECTIVO BRUTO,
+ * EFECTIVO NETO, CAMBIO DE LA DIVISA, CONTRAVALOR EFECTIVO NETO,
+ * IMPORTE RETENCION, IMPORTE COMISION
  */
 export const OperationSchema = z.object({
-  /** Fecha de la operacion */
-  date: z.date(),
-  /** Tipo: Compra | Venta | Aportacion | Reembolso */
-  type: z.enum(["Compra", "Venta", "Aportacion", "Reembolso"]),
-  /** Codigo ISIN del instrumento */
-  isin: z.string().min(1),
-  /** Nombre del producto */
-  name: z.string().min(1),
-  /** Importe de la operacion (EUR) */
-  amount: z.number().finite(),
-  /** Numero de titulos afectados */
-  shares: z.number().finite(),
-});
-
-/**
- * Schema para un movimiento de liquidez.
- * Mapea las columnas: FECHA, TIPO, IMPORTE, SALDO.
- */
-export const LiquiditySchema = z.object({
-  /** Fecha del movimiento */
-  date: z.date(),
-  /** Descripcion del tipo de movimiento */
-  type: z.string().min(1),
-  /** Importe del movimiento (EUR) */
-  amount: z.number().finite(),
-  /** Saldo resultante tras el movimiento (EUR) */
-  balance: z.number().finite(),
+  operationNumber: z.string(),
+  operationType: z.string().min(1),
+  isin: z.string().optional(),
+  productName: z.string().optional(),
+  accountNumber: z.string().min(1),
+  operationDate: z.date(),
+  settlementDate: z.date().optional(),
+  currency: z.string().default("EUR"),
+  units: z.number().finite().optional(),
+  grossAmount: z.number().finite().optional(),
+  netAmount: z.number().finite().optional(),
+  fxRate: z.number().positive().default(1),
+  eurAmount: z.number().finite().optional(),
+  withholding: z.number().finite().default(0),
+  commission: z.number().finite().default(0),
 });
 
 // ===========================================================================
@@ -67,11 +74,11 @@ export const LiquiditySchema = z.object({
 /** Posicion individual del portfolio */
 export type Position = z.infer<typeof PositionSchema>;
 
+/** Saldo de efectivo */
+export type CashBalance = z.infer<typeof CashBalanceSchema>;
+
 /** Operacion ejecutada */
 export type Operation = z.infer<typeof OperationSchema>;
-
-/** Movimiento de liquidez */
-export type Liquidity = z.infer<typeof LiquiditySchema>;
 
 // ===========================================================================
 // Tipos genericos del parser
@@ -98,36 +105,47 @@ export interface ParseResult<T> {
 }
 
 // ===========================================================================
-// Mapeo de columnas esperadas por cada tipo de Excel
+// Mapeo de columnas — Headers REALES de los archivos Mapfre
+// Se comparan en minusculas y sin acentos via normalize()
 // ===========================================================================
 
-/**
- * Aliases de columna: cada clave es el nombre canonico y el array
- * contiene variantes que Mapfre podria usar en los headers.
- * Se comparan en minusculas y sin acentos.
- */
 export const POSITION_COLUMN_ALIASES: Record<string, string[]> = {
-  date: ["fecha"],
-  isin: ["isin", "cod isin", "codigo isin"],
-  productName: ["nombre producto", "producto", "nombre", "descripcion"],
-  shares: ["total titulos", "titulos", "participaciones", "num titulos"],
-  avgCost: ["coste medio", "precio medio", "coste adquisicion"],
-  marketPrice: ["precio mercado", "precio actual", "valoracion unitaria"],
-  totalValue: ["posicion", "valor posicion", "importe", "valor total", "valoracion"],
+  snapshotDate: ["fecha"],
+  accountNumber: ["cuenta de valores"],
+  isin: ["isin"],
+  productName: ["nombre producto"],
+  manager: ["descripcion gestora"],
+  currency: ["divisa"],
+  units: ["total titulos"],
+  avgCost: ["coste medio posicion"],
+  marketPrice: ["precio mercado"],
+  positionValue: ["posicion"],
+  fxRate: ["cambio eur"],
+  purchaseDate: ["fecha valor"],
+};
+
+export const CASH_BALANCE_COLUMN_ALIASES: Record<string, string[]> = {
+  snapshotDate: ["fecha"],
+  cashAccountNumber: ["cuenta de efectivo"],
+  currency: ["divisa"],
+  balance: ["saldo"],
+  sign: ["signo"],
 };
 
 export const OPERATION_COLUMN_ALIASES: Record<string, string[]> = {
-  date: ["fecha", "fecha operacion", "fecha valor"],
-  type: ["tipo", "tipo operacion"],
-  isin: ["isin", "cod isin", "codigo isin"],
-  name: ["nombre", "nombre producto", "producto", "descripcion"],
-  amount: ["importe", "importe bruto", "importe neto", "valor"],
-  shares: ["titulos", "participaciones", "num titulos", "total titulos"],
-};
-
-export const LIQUIDITY_COLUMN_ALIASES: Record<string, string[]> = {
-  date: ["fecha", "fecha valor", "fecha operacion"],
-  type: ["tipo", "concepto", "descripcion", "tipo movimiento"],
-  amount: ["importe", "cargo/abono", "movimiento"],
-  balance: ["saldo", "saldo disponible", "saldo actual"],
+  operationNumber: ["numero operacion"],
+  operationType: ["tipo de operacion ib"],
+  isin: ["codigo isin"],
+  productName: ["nombre producto"],
+  accountNumber: ["cuenta valores cliente"],
+  operationDate: ["fecha de contratacion"],
+  settlementDate: ["fecha valor/ejec/liqui"],
+  currency: ["divisa"],
+  units: ["numero de titulos"],
+  grossAmount: ["efectivo bruto"],
+  netAmount: ["efectivo neto"],
+  fxRate: ["cambio de la divisa"],
+  eurAmount: ["contravalor efectivo neto"],
+  withholding: ["importe retencion"],
+  commission: ["importe comision"],
 };
