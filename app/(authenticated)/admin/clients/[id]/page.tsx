@@ -121,12 +121,14 @@ export default async function AccountDetailPage({
   return (
     <ClientDashboard
       clientName={clientName}
+      clientId={account.clients?.id ?? undefined}
       accounts={accountOptions}
       availableYears={availableYears}
       initialData={initialData}
       fetchUrl="/api/dashboard"
       showBackLink
       backHref="/admin"
+      isAdmin
     />
   );
 }

@@ -23,6 +23,7 @@ import {
 import PositionsTable from "@/components/dashboard/PositionsTable";
 import EvolutionChart from "@/components/dashboard/EvolutionChart";
 import DistributionChart from "@/components/dashboard/DistributionChart";
+import CommunicationPanel from "@/components/dashboard/CommunicationPanel";
 import {
   PieChart,
   Pie,
@@ -70,12 +71,14 @@ interface DashboardData {
 
 interface ClientDashboardProps {
   clientName: string;
+  clientId?: string;
   accounts: AccountOption[];
   availableYears: number[];
   initialData: DashboardData;
   fetchUrl: string;
   showBackLink?: boolean;
   backHref?: string;
+  isAdmin?: boolean;
 }
 
 // ===========================================================================
@@ -463,12 +466,14 @@ function PortfolioTable({ positions }: { positions: Position[] }) {
 
 export default function ClientDashboard({
   clientName,
+  clientId,
   accounts,
   availableYears,
   initialData,
   fetchUrl,
   showBackLink,
   backHref,
+  isAdmin = false,
 }: ClientDashboardProps) {
   const [selectedAccountId, setSelectedAccountId] = useState<string | "all">(
     accounts.length === 1 ? accounts[0].id : "all"
@@ -825,6 +830,21 @@ export default function ClientDashboard({
             </>
           )}
         </div>
+      )}
+
+      {/* ================================================================= */}
+      {/* 5. ESPACIO PERSONAL – Comunicacion y Documentos                    */}
+      {/* ================================================================= */}
+      {clientId && (
+        <>
+          <SectionDivider />
+          <SectionHeader number="5" title="Tu Espacio Personal" />
+          <CommunicationPanel
+            clientId={clientId}
+            clientName={clientName}
+            isAdmin={isAdmin}
+          />
+        </>
       )}
 
       {/* ================================================================= */}

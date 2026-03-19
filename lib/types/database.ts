@@ -306,3 +306,47 @@ export type OperationInsert = Database["public"]["Tables"]["operations"]["Insert
 
 export type Upload = Database["public"]["Tables"]["uploads"]["Row"];
 export type UploadInsert = Database["public"]["Tables"]["uploads"]["Insert"];
+
+// ===========================================================================
+// MVP3 – Communication & Documents
+// ===========================================================================
+
+export interface Meeting {
+  id: string;
+  client_id: string;
+  created_by: string;
+  title: string;
+  meeting_date: string;
+  summary: string | null;
+  key_points: string[] | null;
+  agreed_actions: string[] | null;
+  next_meeting_date: string | null;
+  pdf_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Message {
+  id: string;
+  client_id: string;
+  sender_id: string;
+  content: string;
+  is_from_advisor: boolean;
+  read_at: string | null;
+  created_at: string;
+}
+
+export type DocType = "minuta" | "informe" | "contrato" | "otro";
+
+export interface Document {
+  id: string;
+  client_id: string;
+  uploaded_by: string;
+  name: string;
+  description: string | null;
+  file_path: string;
+  file_size: number | null;
+  doc_type: DocType;
+  meeting_id: string | null;
+  created_at: string;
+}

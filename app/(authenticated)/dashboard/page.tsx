@@ -130,9 +130,12 @@ export default async function DashboardPage({
     label: a.label,
   }));
 
+  const clientId = accounts[0].clients?.id ?? undefined;
+
   return (
     <ClientDashboard
       clientName={clientName}
+      clientId={clientId}
       accounts={accountOptions}
       availableYears={availableYears}
       initialData={initialData}
