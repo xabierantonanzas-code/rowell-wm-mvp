@@ -176,6 +176,7 @@ function InvestorProfileCard({
   pnl,
   fundCount,
   cashBalance,
+  latestDate,
 }: {
   totalValue: number;
   totalCost: number;
@@ -186,42 +187,56 @@ function InvestorProfileCard({
 }) {
   const kpis = [
     {
-      label: "Patrimonio Total",
+      label: "Patrimonio total",
       value: formatEur(totalValue),
-      color: "text-[#1e3a5f]",
+      sub: `Coste: ${formatEur(totalCost)}`,
+      accent: false,
     },
     {
-      label: "Plusvalia",
-      value: `${pnl >= 0 ? "+" : ""}${formatEur(totalValue - totalCost)} (${pnl >= 0 ? "+" : ""}${pnl.toFixed(2)}%)`,
-      color: pnl >= 0 ? "text-green-600" : "text-red-600",
+      label: "Plusvalía / Minusvalía",
+      value: `${pnl >= 0 ? "+" : ""}${pnl.toFixed(2)}%`,
+      sub: `${pnl >= 0 ? "+" : ""}${formatEur(totalValue - totalCost)}`,
+      accent: true,
+      positive: pnl >= 0,
     },
     {
-      label: "Efectivo",
+      label: "Efectivo disponible",
       value: formatEur(cashBalance),
-      color: "text-[#1e3a5f]",
+      sub: "Liquidez",
+      accent: false,
     },
     {
-      label: "Fondos",
+      label: "Fondos en cartera",
       value: String(fundCount),
-      color: "text-[#1e3a5f]",
+      sub: latestDate,
+      accent: false,
     },
   ];
 
   return (
     <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-      {kpis.map((kpi) => (
+      {kpis.map((kpi, i) => (
         <div
           key={kpi.label}
-          className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white px-5 py-5 shadow-sm"
+          className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+          style={{ animationDelay: `${i * 80}ms` }}
         >
-          {/* Gold animated top line */}
-          <div className="absolute inset-x-0 top-0 h-[3px] origin-left scale-x-0 bg-[#C9A84C] transition-transform duration-300 group-hover:scale-x-100" />
-          <p className="text-xs font-medium uppercase tracking-wider text-gray-400">
+          <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#C9A84C] to-[#E8C870] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+          <p className="mb-2 text-xs font-medium uppercase tracking-wider text-gray-400">
             {kpi.label}
           </p>
-          <p className={`mt-2 text-xl font-bold ${kpi.color}`}>
+          <p
+            className={`font-display text-2xl font-bold ${
+              kpi.accent
+                ? kpi.positive
+                  ? "text-green-600"
+                  : "text-red-600"
+                : "text-[#0B1D3A]"
+            }`}
+          >
             {kpi.value}
           </p>
+          <p className="mt-1 text-xs text-gray-400">{kpi.sub}</p>
         </div>
       ))}
     </div>

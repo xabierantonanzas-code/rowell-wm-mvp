@@ -24,7 +24,6 @@ export default function PositionsTable({ positions }: PositionsTableProps) {
     );
   }
 
-  // Calcular totales
   const totalValue = positions.reduce((sum, p) => sum + (p.position_value ?? 0), 0);
   const totalCost = positions.reduce(
     (sum, p) => sum + (p.units ?? 0) * (p.avg_cost ?? 0),
@@ -32,19 +31,19 @@ export default function PositionsTable({ positions }: PositionsTableProps) {
   );
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-gray-200">
+    <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">
       <table className="w-full text-left text-sm">
         <thead>
           <tr className="bg-[#0B1D3A] text-xs uppercase text-white">
-            <th className="px-3 py-2.5 font-medium">ISIN</th>
-            <th className="px-3 py-2.5 font-medium">Producto</th>
-            <th className="px-3 py-2.5 font-medium">Gestora</th>
-            <th className="px-3 py-2.5 text-right font-medium">Titulos</th>
-            <th className="px-3 py-2.5 text-right font-medium">Coste Medio</th>
-            <th className="px-3 py-2.5 text-right font-medium">Precio</th>
-            <th className="px-3 py-2.5 text-right font-medium">P&L</th>
-            <th className="px-3 py-2.5 text-right font-medium">Valor</th>
-            <th className="px-3 py-2.5 text-right font-medium">Peso</th>
+            <th className="px-4 py-3 font-medium">Producto</th>
+            <th className="px-4 py-3 font-medium">ISIN</th>
+            <th className="px-4 py-3 font-medium">Gestora</th>
+            <th className="px-4 py-3 text-right font-medium">Títulos</th>
+            <th className="px-4 py-3 text-right font-medium">Coste medio</th>
+            <th className="px-4 py-3 text-right font-medium">Precio</th>
+            <th className="px-4 py-3 text-right font-medium">P&L</th>
+            <th className="px-4 py-3 text-right font-medium">Valor</th>
+            <th className="px-4 py-3 text-right font-medium">Peso</th>
           </tr>
         </thead>
         <tbody>
@@ -52,55 +51,56 @@ export default function PositionsTable({ positions }: PositionsTableProps) {
             const cost = (pos.units ?? 0) * (pos.avg_cost ?? 0);
             const pnl = (pos.position_value ?? 0) - cost;
             const pnlPct = cost > 0 ? (pnl / cost) * 100 : 0;
-            const weight = totalValue > 0 ? ((pos.position_value ?? 0) / totalValue) * 100 : 0;
+            const weight = totalValue > 0
+              ? ((pos.position_value ?? 0) / totalValue) * 100
+              : 0;
 
             return (
               <tr
                 key={pos.id}
-                className={`border-b border-gray-100 last:border-0 ${
-                  idx % 2 === 0 ? "bg-white" : "bg-gray-50/60"
-                } hover:bg-gray-50`}
+                className={`border-b border-gray-100 last:border-0 transition-colors duration-100 hover:bg-[#F5F3EE] ${
+                  idx % 2 === 0 ? "bg-white" : "bg-gray-50/40"
+                }`}
               >
-                <td className="px-3 py-2 font-mono text-xs">{pos.isin}</td>
-                <td className="max-w-[200px] truncate px-3 py-2 text-xs">
-                  {pos.product_name}
+                <td className="max-w-[180px] px-4 py-3">
+                  <p className="truncate text-xs font-semibold text-[#0B1D3A]">
+                    {pos.product_name}
+                  </p>
                 </td>
-                <td className="max-w-[150px] truncate px-3 py-2 text-xs text-gray-500">
+                <td className="px-4 py-3 font-mono text-[10px] text-gray-400">
+                  {pos.isin}
+                </td>
+                <td className="max-w-[120px] px-4 py-3 text-xs text-gray-500 truncate">
                   {pos.manager ?? "—"}
                 </td>
-                <td className="px-3 py-2 text-right text-xs">
-                  {(pos.units ?? 0).toLocaleString("es-ES", {
-                    maximumFractionDigits: 4,
-                  })}
+                <td className="px-4 py-3 text-right text-xs">
+                  {(pos.units ?? 0).toLocaleString("es-ES", { maximumFractionDigits: 4 })}
                 </td>
-                <td className="px-3 py-2 text-right text-xs">
+                <td className="px-4 py-3 text-right text-xs text-gray-600">
                   {formatEur(pos.avg_cost ?? 0)}
                 </td>
-                <td className="px-3 py-2 text-right text-xs">
+                <td className="px-4 py-3 text-right text-xs text-gray-600">
                   {formatEur(pos.market_price ?? 0)}
                 </td>
-                <td
-                  className={`px-3 py-2 text-right text-xs font-medium ${
-                    pnl >= 0 ? "text-green-600" : "text-red-600"
-                  }`}
-                >
-                  {pnl >= 0 ? "+" : ""}
-                  {pnlPct.toFixed(1)}%
+                <td className={`px-4 py-3 text-right text-xs font-semibold ${
+                  pnl >= 0 ? "text-green-600" : "text-red-600"
+                }`}>
+                  {pnl >= 0 ? "+" : ""}{pnlPct.toFixed(2)}%
                 </td>
-                <td className="px-3 py-2 text-right text-xs font-semibold">
+                <td className="px-4 py-3 text-right text-xs font-bold text-[#0B1D3A]">
                   {formatEur(pos.position_value ?? 0)}
                 </td>
-                <td className="px-3 py-2 text-right text-xs">
+                <td className="px-4 py-3">
                   <div className="flex items-center justify-end gap-2">
-                    <div className="h-2 w-16 overflow-hidden rounded-full bg-gray-200">
+                    <span className="text-xs text-gray-500 tabular-nums">
+                      {weight.toFixed(1)}%
+                    </span>
+                    <div className="h-1.5 w-14 overflow-hidden rounded-full bg-gray-100">
                       <div
-                        className="h-full rounded-full bg-[#C9A84C]"
+                        className="h-full rounded-full bg-[#C9A84C] transition-all duration-500"
                         style={{ width: `${Math.min(weight, 100)}%` }}
                       />
                     </div>
-                    <span className="min-w-[3rem] text-right text-gray-600">
-                      {weight.toFixed(1)}%
-                    </span>
                   </div>
                 </td>
               </tr>
@@ -108,26 +108,23 @@ export default function PositionsTable({ positions }: PositionsTableProps) {
           })}
         </tbody>
         <tfoot>
-          <tr className="border-t-2 border-[#C9A84C] bg-gray-50 font-semibold">
-            <td colSpan={6} className="px-3 py-2.5 text-right text-sm">
-              Total
+          <tr className="border-t-2 border-[#C9A84C] bg-[#F5F3EE]">
+            <td colSpan={6} className="px-4 py-3 text-right text-xs font-bold uppercase tracking-wider text-[#0B1D3A]">
+              Total cartera
             </td>
-            <td
-              className={`px-3 py-2.5 text-right text-sm ${
-                totalValue - totalCost >= 0 ? "text-green-600" : "text-red-600"
-              }`}
-            >
+            <td className={`px-4 py-3 text-right text-xs font-bold ${
+              totalValue - totalCost >= 0 ? "text-green-600" : "text-red-600"
+            }`}>
               {totalCost > 0
                 ? `${totalValue - totalCost >= 0 ? "+" : ""}${(
-                    ((totalValue - totalCost) / totalCost) *
-                    100
-                  ).toFixed(1)}%`
+                    ((totalValue - totalCost) / totalCost) * 100
+                  ).toFixed(2)}%`
                 : "—"}
             </td>
-            <td className="px-3 py-2.5 text-right text-sm text-[#0B1D3A]">
+            <td className="px-4 py-3 text-right text-xs font-bold text-[#0B1D3A]">
               {formatEur(totalValue)}
             </td>
-            <td className="px-3 py-2.5 text-right text-sm text-gray-500">
+            <td className="px-4 py-3 text-right text-xs font-bold text-gray-500">
               100%
             </td>
           </tr>
