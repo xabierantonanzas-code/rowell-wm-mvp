@@ -177,6 +177,7 @@ function InvestorProfileCard({
   fundCount,
   cashBalance,
   latestDate,
+  positions,
 }: {
   totalValue: number;
   totalCost: number;
@@ -184,7 +185,12 @@ function InvestorProfileCard({
   fundCount: number;
   cashBalance: number;
   latestDate: string;
+  positions: Position[];
 }) {
+  const investedValue = totalValue - cashBalance;
+  const cashPct = totalValue > 0 ? (cashBalance / totalValue) * 100 : 0;
+  const isinCount = new Set(positions.map((p) => p.isin).filter(Boolean)).size;
+
   const kpis = [
     {
       label: "Patrimonio total",
@@ -193,11 +199,10 @@ function InvestorProfileCard({
       accent: false,
     },
     {
-      label: "Plusvalía / Minusvalía",
-      value: `${pnl >= 0 ? "+" : ""}${pnl.toFixed(2)}%`,
-      sub: `${pnl >= 0 ? "+" : ""}${formatEur(totalValue - totalCost)}`,
-      accent: true,
-      positive: pnl >= 0,
+      label: "Patrimonio invertido",
+      value: formatEur(investedValue),
+      sub: `${fundCount} posiciones`,
+      accent: false,
     },
     {
       label: "Efectivo disponible",
@@ -206,9 +211,35 @@ function InvestorProfileCard({
       accent: false,
     },
     {
-      label: "Fondos en cartera",
+      label: "% Efectivo",
+      value: `${cashPct.toFixed(1)}%`,
+      sub: "Sobre patrimonio total",
+      accent: false,
+    },
+    {
+      label: "Plusvalia latente",
+      value: `${pnl >= 0 ? "+" : ""}${formatEur(totalValue - totalCost)}`,
+      sub: `${pnl >= 0 ? "+" : ""}${pnl.toFixed(2)}% sobre coste`,
+      accent: true,
+      positive: pnl >= 0,
+    },
+    {
+      label: "Plusvalia latente %",
+      value: `${pnl >= 0 ? "+" : ""}${pnl.toFixed(2)}%`,
+      sub: `Coste: ${formatEur(totalCost)}`,
+      accent: true,
+      positive: pnl >= 0,
+    },
+    {
+      label: "N° fondos",
       value: String(fundCount),
       sub: latestDate,
+      accent: false,
+    },
+    {
+      label: "N° ISINs",
+      value: String(isinCount),
+      sub: `${isinCount} instrumentos unicos`,
       accent: false,
     },
   ];
@@ -239,6 +270,92 @@ function InvestorProfileCard({
           <p className="mt-1 text-xs text-gray-400">{kpi.sub}</p>
         </div>
       ))}
+    </div>
+  );
+}
+
+// ===========================================================================
+// Sub-component: Top Holdings
+// ===========================================================================
+
+function TopHoldings({ positions }: { positions: Position[] }) {
+  if (positions.length === 0) return null;
+
+  const totalValue = positions.reduce((s, p) => s + (p.position_value ?? 0), 0);
+  const top = [...positions]
+    .sort((a, b) => (b.position_value ?? 0) - (a.position_value ?? 0))
+    .slice(0, 10);
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+      <div className="border-b border-gray-100 px-6 py-4">
+        <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-[#0B1D3A]">
+          <Target className="h-4 w-4 text-[#C9A84C]" />
+          Top 10 Posiciones
+        </h3>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-left text-sm">
+          <thead>
+            <tr className="bg-[#0B1D3A] text-xs uppercase text-white">
+              <th className="px-4 py-2.5 font-medium">Producto</th>
+              <th className="px-4 py-2.5 font-medium">Gestora</th>
+              <th className="px-4 py-2.5 text-right font-medium">Valor</th>
+              <th className="px-4 py-2.5 text-right font-medium">Peso</th>
+              <th className="px-4 py-2.5 text-right font-medium">P&L %</th>
+            </tr>
+          </thead>
+          <tbody>
+            {top.map((pos, idx) => {
+              const cost = (pos.units ?? 0) * (pos.avg_cost ?? 0);
+              const pnl = (pos.position_value ?? 0) - cost;
+              const pnlPct = cost > 0 ? (pnl / cost) * 100 : 0;
+              const weight = totalValue > 0
+                ? ((pos.position_value ?? 0) / totalValue) * 100
+                : 0;
+
+              return (
+                <tr
+                  key={pos.id}
+                  className={`border-b border-gray-100 last:border-0 transition-colors hover:bg-[#F5F3EE] ${
+                    idx % 2 === 0 ? "bg-white" : "bg-gray-50/40"
+                  }`}
+                >
+                  <td className="max-w-[200px] truncate px-4 py-2.5 text-xs font-semibold text-[#0B1D3A]">
+                    {pos.product_name}
+                  </td>
+                  <td className="max-w-[120px] truncate px-4 py-2.5 text-xs text-gray-500">
+                    {pos.manager ?? "—"}
+                  </td>
+                  <td className="px-4 py-2.5 text-right text-xs font-bold text-[#0B1D3A]">
+                    {formatEur(pos.position_value ?? 0)}
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <div className="flex items-center justify-end gap-2">
+                      <span className="text-xs tabular-nums text-gray-500">
+                        {weight.toFixed(1)}%
+                      </span>
+                      <div className="h-1.5 w-12 overflow-hidden rounded-full bg-gray-100">
+                        <div
+                          className="h-full rounded-full bg-[#C9A84C] transition-all duration-500"
+                          style={{ width: `${Math.min(weight, 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  </td>
+                  <td
+                    className={`px-4 py-2.5 text-right text-xs font-semibold ${
+                      pnl >= 0 ? "text-green-600" : "text-red-600"
+                    }`}
+                  >
+                    {pnl >= 0 ? "+" : ""}{pnlPct.toFixed(2)}%
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -679,7 +796,13 @@ export default function ClientDashboard({
         fundCount={data.positions.length}
         cashBalance={data.cashBalance}
         latestDate={latestDate}
+        positions={data.positions}
       />
+
+      {/* Top Holdings */}
+      <div className="mt-4">
+        <TopHoldings positions={data.positions} />
+      </div>
 
       <SectionDivider />
 

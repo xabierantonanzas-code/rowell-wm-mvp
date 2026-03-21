@@ -6,6 +6,7 @@ import {
   parseOperations,
   parseCashBalances,
   extractUniqueAccounts,
+  detectFileType,
 } from "@/lib/parsers/excel-parser";
 import type { ParseStats } from "@/lib/types/excel";
 import type { PositionInsert, OperationInsert, CashBalanceInsert } from "@/lib/types/database";
@@ -79,10 +80,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const formData = await request.formData();
 
-    // --- Extraer archivos opcionales ---
-    const posFile = formData.get("posiciones") as File | null;
-    const opsFile = formData.get("operaciones") as File | null;
-    const salFile = formData.get("saldos") as File | null;
+    // --- Extraer archivos: campo específico o auto-detección ---
+    let posFile = formData.get("posiciones") as File | null;
+    let opsFile = formData.get("operaciones") as File | null;
+    let salFile = formData.get("saldos") as File | null;
+
+    // Auto-detect from generic "files" field
+    const genericFiles = formData.getAll("files") as File[];
+    for (const f of genericFiles) {
+      const type = detectFileType(f.name);
+      if (type === "posiciones" && !posFile) posFile = f;
+      else if (type === "saldos" && !salFile) salFile = f;
+      else if (type === "operaciones" && !opsFile) opsFile = f;
+    }
 
     if (!posFile && !opsFile && !salFile) {
       return NextResponse.json(
@@ -244,7 +254,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
       for (let i = 0; i < balanceRows.length; i += 500) {
         const batch = balanceRows.slice(i, i + 500);
-        const { error } = await adminDb.from("cash_balances").insert(batch);
+        const { error } = await adminDb
+          .from("cash_balances")
+          .upsert(batch, { onConflict: "account_id,snapshot_date,cash_account_number" });
 
         if (error) {
           console.error(`Error insertando saldos batch ${i}:`, error);

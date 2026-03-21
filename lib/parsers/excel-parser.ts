@@ -380,12 +380,16 @@ export function parseCashBalances(buffer: Buffer): ParseResult<CashBalance> {
 
       const balance = parseEuropeanNumber(row.balance) ?? 0;
 
+      // Apply sign to balance value
+      const sign = String(row.sign ?? "+").trim() || "+";
+      const signedBalance = sign === "-" ? -Math.abs(balance) : Math.abs(balance);
+
       const candidate = {
         snapshotDate,
         cashAccountNumber,
         currency: String(row.currency ?? "EUR").trim() || "EUR",
-        balance,
-        sign: String(row.sign ?? "+").trim() || "+",
+        balance: signedBalance,
+        sign,
       };
 
       const result = CashBalanceSchema.safeParse(candidate);
@@ -504,6 +508,66 @@ export function parseOperations(buffer: Buffer): ParseResult<Operation> {
   }
 
   return { data, stats };
+}
+
+// ===========================================================================
+// Clasificacion de operaciones por taxonomia Mapfre
+// ===========================================================================
+
+const COMPRAS = new Set([
+  "SUSCRIPCIÓN FONDOS INVERSIÓN",
+  "SUSC.TRASPASO EXT.",
+  "SUSC.TRASPASO. INT.",
+  "SUSCRIPCION POR FUSION",
+  "COMPRA RV CONTADO",
+  "COMPRA SICAVS",
+  "ALTA IIC SWITCH",
+]);
+
+const VENTAS = new Set([
+  "REEMBOLSO FONDO INVERSIÓN",
+  "REEMBOLSO POR TRASPASO EXT.",
+  "REEMBOLSO POR TRASPASO INT.",
+  "REEMBOLSO OBLIGATORIO IIC",
+  "REEMBOLSO POR FUSION",
+  "VENTA RV CONTADO",
+]);
+
+const TRASPASOS = new Set([
+  "RECEPCION INTERNA IIC LP",
+  "TRASPASO INTERNO IIC LP",
+]);
+
+const CORPORATIVOS = new Set([
+  "AJUSTE PARTICIP SUSCRITAS",
+  "ALTA DE NUEVO VALOR POR SPLIT",
+  "BAJA DE VALOR POR SPLIT",
+  "LIQUIDACION IICS",
+]);
+
+export type OperationCategory = "compra" | "venta" | "traspaso" | "corporativo" | "otro";
+
+export function classifyOperation(operationType: string): OperationCategory {
+  const upper = operationType.toUpperCase().trim();
+  if (COMPRAS.has(upper)) return "compra";
+  if (VENTAS.has(upper)) return "venta";
+  if (TRASPASOS.has(upper)) return "traspaso";
+  if (CORPORATIVOS.has(upper)) return "corporativo";
+  return "otro";
+}
+
+// ===========================================================================
+// Deteccion de tipo de archivo por nombre
+// ===========================================================================
+
+export type FileType = "posiciones" | "saldos" | "operaciones" | "unknown";
+
+export function detectFileType(fileName: string): FileType {
+  const lower = fileName.toLowerCase();
+  if (lower.includes("_pos") || lower.includes("posicion")) return "posiciones";
+  if (lower.includes("_saldo") || lower.includes("saldo")) return "saldos";
+  if (lower.includes("operacion") || lower.includes("registro")) return "operaciones";
+  return "unknown";
 }
 
 // ===========================================================================
