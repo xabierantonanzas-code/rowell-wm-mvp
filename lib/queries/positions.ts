@@ -409,14 +409,18 @@ export async function getPatrimonyHistory(
 /**
  * Obtiene todas las snapshot_dates disponibles para una cuenta (o varias).
  * Util para determinar los anos con datos.
+ * Si accountIds tiene más de 50 elementos, consulta sin filtro.
  */
 export async function getAvailableYears(accountIds: string[]): Promise<number[]> {
   const supabase = await createClient();
 
-  const { data, error } = await supabase
-    .from("positions")
-    .select("snapshot_date")
-    .in("account_id", accountIds);
+  let query = supabase.from("positions").select("snapshot_date");
+
+  if (accountIds.length > 0 && accountIds.length <= 50) {
+    query = query.in("account_id", accountIds);
+  }
+
+  const { data, error } = await query;
 
   if (error) throw error;
 
@@ -426,5 +430,90 @@ export async function getAvailableYears(accountIds: string[]): Promise<number[]>
     years.add(year);
   }
 
-  return Array.from(years).sort((a, b) => b - a); // Mas reciente primero
+  return Array.from(years).sort((a, b) => b - a);
+}
+
+// ===========================================================================
+// All-accounts queries (admin view, no account filter)
+// ===========================================================================
+
+export async function getAllLatestPositions(year?: number): Promise<Position[]> {
+  const supabase = await createClient();
+
+  let dateQuery = supabase
+    .from("positions")
+    .select("snapshot_date")
+    .order("snapshot_date", { ascending: false })
+    .limit(1);
+
+  if (year) {
+    dateQuery = dateQuery
+      .gte("snapshot_date", `${year}-01-01`)
+      .lte("snapshot_date", `${year}-12-31`);
+  }
+
+  const { data: latestRow } = await dateQuery;
+  if (!latestRow || latestRow.length === 0) return [];
+
+  const latestDate = latestRow[0].snapshot_date;
+
+  // Paginate to get all positions (Supabase default limit is 1000)
+  const allPositions: Position[] = [];
+  let from = 0;
+  while (true) {
+    const { data, error } = await supabase
+      .from("positions")
+      .select("*")
+      .eq("snapshot_date", latestDate)
+      .order("position_value", { ascending: false })
+      .range(from, from + 999);
+
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    allPositions.push(...(data as Position[]));
+    if (data.length < 1000) break;
+    from += 1000;
+  }
+
+  return allPositions;
+}
+
+export async function getAllPositionHistory(year?: number) {
+  const supabase = await createClient();
+
+  const grouped = new Map<string, number>();
+  let from = 0;
+
+  while (true) {
+    let query = supabase
+      .from("positions")
+      .select("snapshot_date, position_value")
+      .order("snapshot_date")
+      .range(from, from + 4999);
+
+    if (year) {
+      query = query
+        .gte("snapshot_date", `${year}-01-01`)
+        .lte("snapshot_date", `${year}-12-31`);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+
+    for (const row of data) {
+      grouped.set(
+        row.snapshot_date,
+        (grouped.get(row.snapshot_date) ?? 0) + (row.position_value ?? 0)
+      );
+    }
+
+    if (data.length < 5000) break;
+    from += 5000;
+  }
+
+  return Array.from(grouped.entries()).map(([date, total]) => ({
+    date,
+    totalValue: total,
+  }));
 }

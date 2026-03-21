@@ -15,23 +15,35 @@ type AccountWithClient = {
 export async function getAllAccounts(): Promise<AccountWithClient[]> {
   const supabase = await createClient();
 
-  const { data, error } = await supabase
-    .from("accounts")
-    .select(`
-      id,
-      account_number,
-      label,
-      created_at,
-      clients (
-        id,
-        full_name,
-        email
-      )
-    `)
-    .order("account_number");
+  // Paginate to handle 400+ accounts (Supabase default limit is 1000)
+  const allAccounts: AccountWithClient[] = [];
+  let from = 0;
 
-  if (error) throw error;
-  return (data ?? []) as unknown as AccountWithClient[];
+  while (true) {
+    const { data, error } = await supabase
+      .from("accounts")
+      .select(`
+        id,
+        account_number,
+        label,
+        created_at,
+        clients (
+          id,
+          full_name,
+          email
+        )
+      `)
+      .order("account_number")
+      .range(from, from + 999);
+
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    allAccounts.push(...(data as unknown as AccountWithClient[]));
+    if (data.length < 1000) break;
+    from += 1000;
+  }
+
+  return allAccounts;
 }
 
 /**

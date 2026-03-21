@@ -2,12 +2,17 @@
 
 /**
  * Script de carga masiva de datos historicos de Mapfre.
- * Lee todos los .xlsx de data/customer data/ y data/mapfre/
- * y los sube a Supabase.
  *
- * Uso: node scripts/load-historical-data.mjs
+ * Uso:
+ *   node scripts/load-historical-data.mjs --dir "data/mapfre" --dry-run
+ *   node scripts/load-historical-data.mjs --dir "data/mapfre"
+ *   node scripts/load-historical-data.mjs  (default: data/customer data + data/mapfre)
  *
- * Requiere .env.local con NEXT_PUBLIC_SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY
+ * Flags:
+ *   --dir <path>   Solo procesar archivos de este directorio
+ *   --dry-run      Mostrar conteos sin escribir en Supabase
+ *
+ * IMPORTANTE: Nunca crea cuentas nuevas. Si un CV/CE no existe en accounts, se skipea.
  */
 
 import { readFileSync, readdirSync, existsSync } from "fs";
@@ -16,7 +21,6 @@ import { createClient } from "@supabase/supabase-js";
 import XLSX from "xlsx";
 import dotenv from "dotenv";
 
-// Load env
 dotenv.config({ path: ".env.local" });
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -26,6 +30,12 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
   console.error("❌ Falta NEXT_PUBLIC_SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY en .env.local");
   process.exit(1);
 }
+
+// Parse CLI args
+const args = process.argv.slice(2);
+const dryRun = args.includes("--dry-run");
+const dirIdx = args.indexOf("--dir");
+const customDir = dirIdx !== -1 ? args[dirIdx + 1] : null;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
@@ -65,9 +75,9 @@ function formatDate(date) {
 
 function detectType(fileName) {
   const lower = fileName.toLowerCase();
-  if (lower.includes("_pos") || lower.includes("posicion")) return "posiciones";
-  if (lower.includes("_saldo") || lower.includes("saldo")) return "saldos";
-  if (lower.includes("operacion") || lower.includes("registro")) return "operaciones";
+  if (lower.includes("_pos") && !lower.includes("ppension")) return "posiciones";
+  if (lower.includes("_saldo")) return "saldos";
+  if (lower.includes("registro_operaciones")) return "operaciones";
   return "unknown";
 }
 
@@ -84,11 +94,9 @@ function readSheet(filePath) {
 
 function parsePositions(filePath) {
   const rows = readSheet(filePath);
-  // Find header row (row with "FECHA" and "ISIN")
   let headerIdx = -1;
   for (let i = 0; i < Math.min(rows.length, 10); i++) {
-    const row = rows[i];
-    if (Array.isArray(row) && row.some((c) => String(c).includes("ISIN"))) {
+    if (Array.isArray(rows[i]) && rows[i].some((c) => String(c).includes("ISIN"))) {
       headerIdx = i;
       break;
     }
@@ -135,8 +143,7 @@ function parseSaldos(filePath) {
   const rows = readSheet(filePath);
   let headerIdx = -1;
   for (let i = 0; i < Math.min(rows.length, 10); i++) {
-    const row = rows[i];
-    if (Array.isArray(row) && row.some((c) => String(c).includes("SALDO"))) {
+    if (Array.isArray(rows[i]) && rows[i].some((c) => String(c).includes("SALDO"))) {
       headerIdx = i;
       break;
     }
@@ -173,8 +180,7 @@ function parseOperaciones(filePath) {
   const rows = readSheet(filePath);
   let headerIdx = -1;
   for (let i = 0; i < Math.min(rows.length, 10); i++) {
-    const row = rows[i];
-    if (Array.isArray(row) && row.some((c) => String(c).includes("NUMERO OPERACION"))) {
+    if (Array.isArray(rows[i]) && rows[i].some((c) => String(c).includes("NUMERO OPERACION"))) {
       headerIdx = i;
       break;
     }
@@ -214,49 +220,54 @@ function parseOperaciones(filePath) {
 }
 
 // ============================================================
-// Account resolution
+// Account resolution — NEVER creates new accounts
 // ============================================================
 
 const accountCache = new Map();
 
-async function resolveAccountId(accountNumber) {
-  if (accountCache.has(accountNumber)) return accountCache.get(accountNumber);
-
-  const { data } = await supabase
-    .from("accounts")
-    .select("id")
-    .eq("account_number", accountNumber)
-    .limit(1);
-
-  if (data && data.length > 0) {
-    accountCache.set(accountNumber, data[0].id);
-    return data[0].id;
+async function loadAccountCache() {
+  // Pre-load all accounts into cache to avoid N+1 queries
+  let from = 0;
+  while (true) {
+    const { data } = await supabase
+      .from("accounts")
+      .select("id, account_number, ce")
+      .range(from, from + 999);
+    if (!data || data.length === 0) break;
+    for (const acc of data) {
+      accountCache.set(acc.account_number, acc.id);
+      // Also map CE -> account ID for saldo lookups
+      if (acc.ce) accountCache.set(acc.ce, acc.id);
+    }
+    from += 1000;
+    if (data.length < 1000) break;
   }
+  console.log(`   ${accountCache.size} cuentas en cache (CV + CE)\n`);
+}
 
-  // Create new account
-  const { data: newAcc, error } = await supabase
-    .from("accounts")
-    .insert({ account_number: accountNumber })
-    .select("id")
-    .single();
-
-  if (error) {
-    console.error(`  ⚠ Error creando cuenta ${accountNumber}:`, error.message);
-    return null;
-  }
-
-  accountCache.set(accountNumber, newAcc.id);
-  return newAcc.id;
+function resolveAccountId(accountNumber) {
+  return accountCache.get(accountNumber) ?? null;
 }
 
 // ============================================================
-// Batch insert
+// Batch upsert with dedup
 // ============================================================
 
 async function batchUpsert(table, rows, conflictCols) {
+  const colNames = conflictCols.split(",").map((c) => c.trim());
+  const seen = new Set();
+  const deduped = [];
+  for (const row of rows) {
+    const key = colNames.map((c) => row[c] ?? "").join("|");
+    if (!seen.has(key)) {
+      seen.add(key);
+      deduped.push(row);
+    }
+  }
+
   let inserted = 0;
-  for (let i = 0; i < rows.length; i += 500) {
-    const batch = rows.slice(i, i + 500);
+  for (let i = 0; i < deduped.length; i += 500) {
+    const batch = deduped.slice(i, i + 500);
     const { error } = await supabase
       .from(table)
       .upsert(batch, { onConflict: conflictCols });
@@ -274,27 +285,30 @@ async function batchUpsert(table, rows, conflictCols) {
 // ============================================================
 
 async function main() {
-  const dirs = [
-    "data/customer data",
-    "data/mapfre",
-  ];
+  const dirs = customDir ? [customDir] : ["data/customer data", "data/mapfre"];
 
   const allFiles = [];
   for (const dir of dirs) {
-    if (!existsSync(dir)) continue;
+    if (!existsSync(dir)) {
+      console.error(`❌ Directorio no encontrado: ${dir}`);
+      continue;
+    }
     const files = readdirSync(dir)
       .filter((f) => f.endsWith(".xlsx"))
       .map((f) => join(dir, f));
     allFiles.push(...files);
   }
 
-  // Sort chronologically
   allFiles.sort((a, b) => basename(a).localeCompare(basename(b)));
 
-  console.log(`\n📊 Rowell — Carga masiva de datos historicos`);
-  console.log(`   ${allFiles.length} archivos encontrados\n`);
+  console.log(`\n📊 Rowell — Carga masiva de datos historicos ${dryRun ? "(DRY RUN)" : ""}`);
+  console.log(`   Directorio(s): ${dirs.join(", ")}`);
+  console.log(`   ${allFiles.length} archivos encontrados`);
 
-  const totals = { posiciones: 0, saldos: 0, operaciones: 0, skipped: 0 };
+  // Pre-load account cache
+  await loadAccountCache();
+
+  const totals = { posiciones: 0, saldos: 0, operaciones: 0, skipped: 0, skippedRows: 0 };
 
   for (const filePath of allFiles) {
     const fileName = basename(filePath);
@@ -312,49 +326,65 @@ async function main() {
       if (type === "posiciones") {
         const parsed = parsePositions(filePath);
         const rows = [];
+        let fileSkipped = 0;
         for (const p of parsed) {
-          const accountId = await resolveAccountId(p.account_number);
-          if (!accountId) continue;
+          const accountId = resolveAccountId(p.account_number);
+          if (!accountId) { fileSkipped++; continue; }
           const { account_number, ...rest } = p;
           rows.push({ ...rest, account_id: accountId });
         }
-        const count = await batchUpsert("positions", rows, "account_id,snapshot_date,isin");
-        console.log(`${count} filas OK`);
-        totals.posiciones += count;
+
+        if (dryRun) {
+          console.log(`${rows.length} filas (${fileSkipped} skipped)`);
+          totals.posiciones += rows.length;
+        } else {
+          const count = await batchUpsert("positions", rows, "account_id,snapshot_date,isin");
+          console.log(`${count} filas OK (${fileSkipped} skipped)`);
+          totals.posiciones += count;
+        }
+        totals.skippedRows += fileSkipped;
 
       } else if (type === "saldos") {
         const parsed = parseSaldos(filePath);
         const rows = [];
+        let fileSkipped = 0;
         for (const s of parsed) {
-          const accountId = await resolveAccountId(s.account_number);
-          if (!accountId) continue;
+          const accountId = resolveAccountId(s.account_number);
+          if (!accountId) { fileSkipped++; continue; }
           const { account_number, ...rest } = s;
           rows.push({ ...rest, account_id: accountId, cash_account_number: account_number });
         }
-        const count = await batchUpsert("cash_balances", rows, "account_id,snapshot_date,cash_account_number");
-        console.log(`${count} filas OK`);
-        totals.saldos += count;
+
+        if (dryRun) {
+          console.log(`${rows.length} filas (${fileSkipped} skipped)`);
+          totals.saldos += rows.length;
+        } else {
+          const count = await batchUpsert("cash_balances", rows, "account_id,snapshot_date,cash_account_number");
+          console.log(`${count} filas OK (${fileSkipped} skipped)`);
+          totals.saldos += count;
+        }
+        totals.skippedRows += fileSkipped;
 
       } else if (type === "operaciones") {
         const parsed = parseOperaciones(filePath);
-        // Dedup by operation_number
-        const { data: existingOps } = await supabase
-          .from("operations")
-          .select("operation_number");
-        const existing = new Set((existingOps ?? []).map((o) => o.operation_number));
-
         const rows = [];
+        let fileSkipped = 0;
         for (const o of parsed) {
-          if (existing.has(o.operation_number)) continue;
-          const accountId = await resolveAccountId(o.account_number);
-          if (!accountId) continue;
+          const accountId = resolveAccountId(o.account_number);
+          if (!accountId) { fileSkipped++; continue; }
           const { account_number, ...rest } = o;
           rows.push({ ...rest, account_id: accountId });
-          existing.add(o.operation_number);
         }
-        const count = await batchUpsert("operations", rows, "id");
-        console.log(`${count} filas OK`);
-        totals.operaciones += count;
+
+        if (dryRun) {
+          console.log(`${rows.length} filas (${fileSkipped} skipped)`);
+          totals.operaciones += rows.length;
+        } else {
+          const count = await batchUpsert("operations", rows, "id");
+          console.log(`${count} filas OK (${fileSkipped} skipped)`);
+          totals.operaciones += count;
+        }
+        totals.skippedRows += fileSkipped;
       }
     } catch (err) {
       console.log(`❌ Error: ${err.message}`);
@@ -362,11 +392,12 @@ async function main() {
   }
 
   console.log(`\n${"═".repeat(50)}`);
-  console.log(`✅ Carga completada:`);
-  console.log(`   Posiciones:  ${totals.posiciones}`);
-  console.log(`   Saldos:      ${totals.saldos}`);
-  console.log(`   Operaciones: ${totals.operaciones}`);
-  console.log(`   Saltados:    ${totals.skipped}`);
+  console.log(`${dryRun ? "📋 Dry run" : "✅ Carga"} completada:`);
+  console.log(`   Posiciones:    ${totals.posiciones}`);
+  console.log(`   Saldos:        ${totals.saldos}`);
+  console.log(`   Operaciones:   ${totals.operaciones}`);
+  console.log(`   Archivos skip: ${totals.skipped}`);
+  console.log(`   Filas skip:    ${totals.skippedRows} (cuenta no encontrada)`);
   console.log(`${"═".repeat(50)}\n`);
 }
 

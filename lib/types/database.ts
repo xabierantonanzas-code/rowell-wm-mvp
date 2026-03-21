@@ -13,6 +13,9 @@ export type Database = {
           email: string | null;
           phone: string | null;
           notes: string | null;
+          agent: string | null;
+          dni_hash: string | null;
+          alias: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -22,6 +25,9 @@ export type Database = {
           email?: string | null;
           phone?: string | null;
           notes?: string | null;
+          agent?: string | null;
+          dni_hash?: string | null;
+          alias?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -31,6 +37,9 @@ export type Database = {
           email?: string | null;
           phone?: string | null;
           notes?: string | null;
+          agent?: string | null;
+          dni_hash?: string | null;
+          alias?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -42,6 +51,10 @@ export type Database = {
           client_id: string | null;
           account_number: string;
           label: string | null;
+          ce: string | null;
+          aportacion_mensual: number | null;
+          is_active: boolean;
+          agent: string | null;
           created_at: string;
         };
         Insert: {
@@ -49,6 +62,10 @@ export type Database = {
           client_id?: string | null;
           account_number: string;
           label?: string | null;
+          ce?: string | null;
+          aportacion_mensual?: number | null;
+          is_active?: boolean;
+          agent?: string | null;
           created_at?: string;
         };
         Update: {
@@ -56,6 +73,10 @@ export type Database = {
           client_id?: string | null;
           account_number?: string;
           label?: string | null;
+          ce?: string | null;
+          aportacion_mensual?: number | null;
+          is_active?: boolean;
+          agent?: string | null;
           created_at?: string;
         };
         Relationships: [

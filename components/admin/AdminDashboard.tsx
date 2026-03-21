@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import type { Position, Operation } from "@/lib/types/database";
 import {
@@ -27,6 +27,7 @@ import {
 import PositionsTable from "@/components/dashboard/PositionsTable";
 import EvolutionChart from "@/components/dashboard/EvolutionChart";
 import DistributionChart from "@/components/dashboard/DistributionChart";
+import CommunicationPanel from "@/components/dashboard/CommunicationPanel";
 
 // ===========================================================================
 // Types
@@ -120,6 +121,162 @@ function getOpColor(type: string | null): string {
 }
 
 // ===========================================================================
+// Sub-component: Client Dropdown with search
+// ===========================================================================
+
+function ClientDropdown({
+  clients,
+  filteredClients,
+  selectedClient,
+  searchQuery,
+  setSearchQuery,
+  totalAccounts,
+  onSelect,
+}: {
+  clients: ClientInfo[];
+  filteredClients: ClientInfo[];
+  selectedClient: string | null;
+  searchQuery: string;
+  setSearchQuery: (q: string) => void;
+  totalAccounts: number;
+  onSelect: (id: string | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Close on outside click
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Focus input when opened
+  useEffect(() => {
+    if (open && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [open]);
+
+  const selectedName = selectedClient
+    ? clients.find((c) => c.id === selectedClient)?.name ?? "Cliente"
+    : "Todos los clientes";
+
+  const selectedAccounts = selectedClient
+    ? clients.find((c) => c.id === selectedClient)?.accounts.length ?? 0
+    : totalAccounts;
+
+  return (
+    <div ref={dropdownRef} className="relative">
+      {/* Trigger button */}
+      <button
+        onClick={() => { setOpen(!open); setSearchQuery(""); }}
+        className="flex w-full items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm transition-all hover:border-[#C9A84C]/50 hover:shadow-md"
+      >
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#0B1D3A]/5">
+            <Users className="h-4 w-4 text-[#0B1D3A]" />
+          </div>
+          <div className="text-left">
+            <p className="text-sm font-semibold text-[#0B1D3A]">{selectedName}</p>
+            <p className="text-xs text-gray-400">
+              {selectedAccounts} cartera{selectedAccounts !== 1 ? "s" : ""} · {clients.length} clientes total
+            </p>
+          </div>
+        </div>
+        <svg
+          className={`h-4 w-4 text-gray-400 transition-transform ${open ? "rotate-180" : ""}`}
+          fill="none" viewBox="0 0 24 24" stroke="currentColor"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {/* Dropdown panel */}
+      {open && (
+        <div className="absolute left-0 right-0 z-50 mt-2 max-h-[420px] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl">
+          {/* Search input */}
+          <div className="border-b border-gray-100 p-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <input
+                ref={inputRef}
+                type="text"
+                placeholder="Buscar por nombre, alias o cuenta..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-10 pr-3 text-sm text-gray-700 placeholder:text-gray-400 focus:border-[#C9A84C] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#C9A84C]"
+              />
+            </div>
+          </div>
+
+          {/* Options list */}
+          <div className="max-h-[340px] overflow-y-auto">
+            {/* "Todos" option */}
+            <button
+              onClick={() => { onSelect(null); setOpen(false); }}
+              className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-[#F5F3EE] ${
+                !selectedClient ? "bg-[#0B1D3A]/5" : ""
+              }`}
+            >
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#C9A84C]/10">
+                <Users className="h-4 w-4 text-[#C9A84C]" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-[#0B1D3A]">Todos los clientes</p>
+                <p className="text-xs text-gray-400">{totalAccounts} cuentas</p>
+              </div>
+              {!selectedClient && (
+                <div className="h-2 w-2 rounded-full bg-[#C9A84C]" />
+              )}
+            </button>
+
+            <div className="h-px bg-gray-100" />
+
+            {filteredClients.length === 0 ? (
+              <p className="px-4 py-6 text-center text-sm text-gray-400">
+                No se encontraron clientes
+              </p>
+            ) : (
+              filteredClients.map((client) => (
+                <button
+                  key={client.id}
+                  onClick={() => { onSelect(client.id); setOpen(false); }}
+                  className={`flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-[#F5F3EE] ${
+                    selectedClient === client.id ? "bg-[#0B1D3A]/5" : ""
+                  }`}
+                >
+                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#0B1D3A]/5 text-xs font-semibold text-[#0B1D3A]">
+                    {client.name.slice(0, 2).toUpperCase()}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-gray-800">
+                      {client.name}
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      {client.accounts.length} cartera{client.accounts.length !== 1 ? "s" : ""}
+                      {client.accounts[0]?.label ? ` · ${client.accounts[0].label}` : ""}
+                    </p>
+                  </div>
+                  {selectedClient === client.id && (
+                    <div className="h-2 w-2 flex-shrink-0 rounded-full bg-[#C9A84C]" />
+                  )}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ===========================================================================
 // Component
 // ===========================================================================
 
@@ -155,6 +312,26 @@ export default function AdminDashboard({
   );
   const [opsPage, setOpsPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedAccountId, setSelectedAccountId] = useState<string | "all">("all");
+
+  // Sync state when server props change (e.g. after navigation)
+  useEffect(() => {
+    setSelectedClient(selectedClientId);
+    setPositions(initialPositions);
+    setHistory(initialHistory);
+    setOperations(initialOperations);
+    setClientName(activeClientName);
+    setSelectedYear(initialYear);
+    setSelectedAccountId("all");
+    setLoading(false);
+  }, [selectedClientId, initialPositions, initialHistory, initialOperations, activeClientName, initialYear]);
+
+  // Current client's accounts for the sub-filter
+  const currentClientAccounts = useMemo(() => {
+    if (!selectedClient) return [];
+    const cl = clients.find((c) => c.id === selectedClient);
+    return cl?.accounts ?? [];
+  }, [selectedClient, clients]);
 
   // Filtered clients for search
   const filteredClients = useMemo(() => {
@@ -172,38 +349,45 @@ export default function AdminDashboard({
   const fetchData = async (
     clientId: string | null,
     year: number | null,
-    page: number = 1
+    page: number = 1,
+    accountFilter: string | "all" = "all"
   ) => {
+    // For "all clients", use server-side navigation to avoid URL overflow
+    if (!clientId) {
+      const params = new URLSearchParams();
+      if (year) params.set("year", String(year));
+      router.push(`${pathname}?${params.toString()}`, { scroll: false });
+      router.refresh();
+      return;
+    }
+
     setLoading(true);
     try {
-      // Determinar account IDs
-      let accountIds: string[] = [];
-      if (clientId) {
-        const cl = clients.find((c) => c.id === clientId);
-        if (cl) accountIds = cl.accounts.map((a) => a.id);
+      const cl = clients.find((c) => c.id === clientId);
+      let accountIds: string[];
+
+      if (accountFilter !== "all") {
+        accountIds = [accountFilter];
       } else {
-        // Todos los clientes
-        accountIds = clients.flatMap((c) => c.accounts.map((a) => a.id));
-        // Incluir no asignados
-        accountIds.push(...unassignedAccounts.map((a) => a.id));
+        accountIds = cl ? cl.accounts.map((a) => a.id) : [];
       }
 
       if (accountIds.length === 0) {
         setPositions([]);
         setHistory([]);
         setOperations({ operations: [], total: 0, page: 1, totalPages: 0 });
+        setLoading(false);
         return;
       }
 
       const params = new URLSearchParams();
-      params.set("accounts", JSON.stringify(accountIds));
       if (year) params.set("year", String(year));
       params.set("page", String(page));
 
-      // Si single account, usar account param en vez de accounts
       if (accountIds.length === 1) {
-        params.delete("accounts");
         params.set("account", accountIds[0]);
+      } else {
+        params.set("accounts", JSON.stringify(accountIds));
       }
 
       const res = await fetch(`/api/dashboard?${params.toString()}`);
@@ -224,24 +408,33 @@ export default function AdminDashboard({
   // Handlers
   const handleClientChange = (clientId: string | null) => {
     setSelectedClient(clientId);
+    setSelectedAccountId("all");
     const cl = clientId ? clients.find((c) => c.id === clientId) : null;
     setClientName(cl ? cl.name : "Todos los Clientes");
     setActiveTab("posiciones");
-    fetchData(clientId, selectedYear);
 
-    // Update URL
-    const params = new URLSearchParams(searchParams.toString());
-    if (clientId) {
-      params.set("client", clientId);
-    } else {
-      params.delete("client");
+    if (!clientId) {
+      const params = new URLSearchParams();
+      if (selectedYear) params.set("year", String(selectedYear));
+      router.push(`${pathname}?${params.toString()}`);
+      return;
     }
+
+    fetchData(clientId, selectedYear, 1, "all");
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("client", clientId);
     router.push(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
+  const handleAccountChange = (accountId: string | "all") => {
+    setSelectedAccountId(accountId);
+    fetchData(selectedClient, selectedYear, 1, accountId);
   };
 
   const handleYearChange = (year: number | null) => {
     setSelectedYear(year);
-    fetchData(selectedClient, year);
+    fetchData(selectedClient, year, 1, selectedAccountId);
 
     const params = new URLSearchParams(searchParams.toString());
     if (year) {
@@ -253,7 +446,7 @@ export default function AdminDashboard({
   };
 
   const handlePageChange = (page: number) => {
-    fetchData(selectedClient, selectedYear, page);
+    fetchData(selectedClient, selectedYear, page, selectedAccountId);
   };
 
   // KPIs
@@ -282,34 +475,61 @@ export default function AdminDashboard({
     });
   }, [positions]);
 
+  const isinCount = useMemo(
+    () => new Set(positions.map((p) => p.isin).filter(Boolean)).size,
+    [positions]
+  );
+
   const kpis = [
     {
-      title: "Patrimonio",
+      label: "Patrimonio total",
       value: formatEur(totalValue),
-      subtitle: selectedClient ? "Valor de mercado" : `AUM Total (${aumData.totalAccounts} cuentas)`,
-      icon: Wallet,
-      className: "text-rowell-navy",
+      sub: selectedClient ? `Coste: ${formatEur(totalCost)}` : `AUM Total (${aumData.totalAccounts} cuentas)`,
+      accent: false,
     },
     {
-      title: "Rendimiento",
+      label: "Patrimonio invertido",
+      value: formatEur(totalValue),
+      sub: `${positions.length} posiciones`,
+      accent: false,
+    },
+    {
+      label: "Plusvalia latente",
+      value: `${pnl >= 0 ? "+" : ""}${formatEur(totalValue - totalCost)}`,
+      sub: `${pnl >= 0 ? "+" : ""}${pnl.toFixed(2)}% sobre coste`,
+      accent: true,
+      positive: pnl >= 0,
+    },
+    {
+      label: "Plusvalia latente %",
       value: `${pnl >= 0 ? "+" : ""}${pnl.toFixed(2)}%`,
-      subtitle: `P&L: ${formatEur(totalValue - totalCost)}`,
-      icon: TrendingUp,
-      className: pnl >= 0 ? "text-green-600" : "text-red-600",
+      sub: `Coste: ${formatEur(totalCost)}`,
+      accent: true,
+      positive: pnl >= 0,
     },
     {
-      title: "Posiciones",
+      label: "N° fondos",
       value: String(positions.length),
-      subtitle: "Activos en cartera",
-      icon: BarChart3,
-      className: "text-rowell-navy",
+      sub: "Activos en cartera",
+      accent: false,
     },
     {
-      title: "Ultimo Corte",
+      label: "N° ISINs",
+      value: String(isinCount),
+      sub: `${isinCount} instrumentos unicos`,
+      accent: false,
+    },
+    {
+      label: "Clientes",
+      value: String(clients.length),
+      sub: `${totalAccounts} cuentas totales`,
+      accent: false,
+    },
+    {
+      label: "Ultimo corte",
       value: latestDate,
-      subtitle: selectedYear ? `Ano ${selectedYear}` : "Todos los periodos",
-      icon: Clock,
-      className: "text-rowell-navy text-lg",
+      sub: selectedYear ? `Ano ${selectedYear}` : "Todos los periodos",
+      accent: false,
     },
   ];
 
@@ -372,93 +592,76 @@ export default function AdminDashboard({
       </div>
 
       {/* ================================================================= */}
-      {/* Selector de cliente                                                */}
+      {/* Selector de cliente — Dropdown con búsqueda                        */}
       {/* ================================================================= */}
-      <Card className="border bg-white shadow-sm">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-sm font-medium text-rowell-navy">
-              <Users className="h-4 w-4" />
-              Clientes ({clients.length})
-            </CardTitle>
-            {/* Buscador */}
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Buscar cliente..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-48 rounded-lg border border-gray-200 bg-gray-50 py-1.5 pl-8 pr-3 text-xs text-gray-700 placeholder:text-gray-400 focus:border-rowell-navy focus:bg-white focus:outline-none focus:ring-1 focus:ring-rowell-navy"
-              />
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-2">
-            {/* Boton "Todos" */}
+      <ClientDropdown
+        clients={clients}
+        filteredClients={filteredClients}
+        selectedClient={selectedClient}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        totalAccounts={totalAccounts}
+        onSelect={handleClientChange}
+      />
+
+      {/* Sub-filtro de carteras dentro del cliente */}
+      {selectedClient && currentClientAccounts.length > 1 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium text-gray-400">Carteras:</span>
+          <button
+            onClick={() => handleAccountChange("all")}
+            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
+              selectedAccountId === "all"
+                ? "bg-[#0B1D3A] text-white shadow-sm"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            }`}
+          >
+            Todas ({currentClientAccounts.length})
+          </button>
+          {currentClientAccounts.map((acc) => (
             <button
-              onClick={() => handleClientChange(null)}
-              className={`rounded-lg px-3 py-2 text-xs font-medium transition-all ${
-                !selectedClient
-                  ? "bg-rowell-navy text-white shadow-md"
-                  : "bg-gray-50 text-gray-600 hover:bg-rowell-navy/5 hover:text-rowell-navy"
+              key={acc.id}
+              onClick={() => handleAccountChange(acc.id)}
+              className={`rounded-lg px-3 py-1.5 text-left text-xs font-medium transition-all ${
+                selectedAccountId === acc.id
+                  ? "bg-[#0B1D3A] text-white shadow-sm"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
             >
-              <div className="flex items-center gap-1.5">
-                <Users className="h-3.5 w-3.5" />
-                Todos
-              </div>
-              <p className="mt-0.5 text-[10px] opacity-70">
-                {totalAccounts} cuentas
-              </p>
+              <span>{acc.label || `...${acc.account_number.slice(-8)}`}</span>
             </button>
-
-            {filteredClients.map((client) => (
-              <button
-                key={client.id}
-                onClick={() => handleClientChange(client.id)}
-                className={`rounded-lg px-3 py-2 text-left text-xs font-medium transition-all ${
-                  selectedClient === client.id
-                    ? "bg-rowell-navy text-white shadow-md"
-                    : "bg-gray-50 text-gray-600 hover:bg-rowell-navy/5 hover:text-rowell-navy"
-                }`}
-              >
-                <div className="font-medium">{client.name}</div>
-                <p className="mt-0.5 text-[10px] opacity-70">
-                  {client.accounts.length} cartera{client.accounts.length !== 1 ? "s" : ""}
-                </p>
-              </button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+          ))}
+        </div>
+      )}
 
       {/* ================================================================= */}
       {/* KPIs                                                               */}
       {/* ================================================================= */}
       <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {kpis.map((kpi) => {
-          const Icon = kpi.icon;
-          return (
-            <Card key={kpi.title} className="border bg-white shadow-sm">
-              <CardHeader className="flex flex-row items-center justify-between pb-1">
-                <CardTitle className="text-xs font-medium text-gray-500">
-                  {kpi.title}
-                </CardTitle>
-                <Icon className="h-4 w-4 text-rowell-gold" />
-              </CardHeader>
-              <CardContent>
-                <p className={`text-xl font-bold ${kpi.className} sm:text-2xl`}>
-                  {kpi.value}
-                </p>
-                <p className="mt-0.5 text-[11px] text-gray-400">
-                  {kpi.subtitle}
-                </p>
-              </CardContent>
-            </Card>
-          );
-        })}
+        {kpis.map((kpi, i) => (
+          <div
+            key={kpi.label}
+            className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+            style={{ animationDelay: `${i * 80}ms` }}
+          >
+            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#C9A84C] to-[#E8C870] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+            <p className="mb-2 text-xs font-medium uppercase tracking-wider text-gray-400">
+              {kpi.label}
+            </p>
+            <p
+              className={`font-display text-2xl font-bold ${
+                kpi.accent
+                  ? kpi.positive
+                    ? "text-green-600"
+                    : "text-red-600"
+                  : "text-[#0B1D3A]"
+              }`}
+            >
+              {kpi.value}
+            </p>
+            <p className="mt-1 text-xs text-gray-400">{kpi.sub}</p>
+          </div>
+        ))}
       </section>
 
       {/* ================================================================= */}
@@ -617,6 +820,25 @@ export default function AdminDashboard({
           )}
         </CardContent>
       </Card>
+
+      {/* ================================================================= */}
+      {/* Espacio Personal — solo cuando hay un cliente seleccionado          */}
+      {/* ================================================================= */}
+      {selectedClient && (
+        <div className="space-y-4">
+          <div className="relative mb-2 mt-2">
+            <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-[#0B1D3A] to-[#1a3a5c] opacity-90" />
+            <h2 className="relative px-6 py-3 font-display text-lg font-bold text-white">
+              5. Espacio Personal
+            </h2>
+          </div>
+          <CommunicationPanel
+            clientId={selectedClient}
+            clientName={clientName}
+            isAdmin
+          />
+        </div>
+      )}
     </div>
   );
 }

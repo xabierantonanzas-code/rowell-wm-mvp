@@ -5,6 +5,8 @@ import {
   getAggregatedPositions,
   getAggregatedHistory,
   getAvailableYears,
+  getAllLatestPositions,
+  getAllPositionHistory,
 } from "@/lib/queries/positions";
 import { getOperations } from "@/lib/queries/operations";
 import AdminDashboard from "@/components/admin/AdminDashboard";
@@ -76,30 +78,30 @@ export default async function AdminPage({
   const year = yearParam && !isNaN(yearParam) ? yearParam : undefined;
 
   // Determinar cuentas segun filtro
-  let activeAccountIds: string[];
+  let activeAccountIds: string[] = [];
   let activeClientName: string;
+  const isAllClients = !selectedClientId || !clientsMap.has(selectedClientId);
 
-  if (selectedClientId && clientsMap.has(selectedClientId)) {
-    const cl = clientsMap.get(selectedClientId)!;
+  if (!isAllClients) {
+    const cl = clientsMap.get(selectedClientId!)!;
     activeAccountIds = cl.accounts.map((a) => a.id);
     activeClientName = cl.name;
   } else {
-    activeAccountIds = accounts.map((a) => a.id);
     activeClientName = "Todos los Clientes";
   }
 
   // Fetch datos del dashboard
-  const allAccountIds = accounts.map((a) => a.id);
+  // For "all clients" use unfiltered queries to avoid URL overflow with 200+ account IDs
   const [positions, history, availableYears] = await Promise.all([
-    activeAccountIds.length > 0
-      ? getAggregatedPositions(activeAccountIds, year)
-      : Promise.resolve([]),
-    activeAccountIds.length > 0
-      ? getAggregatedHistory(activeAccountIds, year)
-      : Promise.resolve([]),
-    allAccountIds.length > 0
-      ? getAvailableYears(allAccountIds)
-      : Promise.resolve([]),
+    isAllClients
+      ? getAllLatestPositions(year)
+      : getAggregatedPositions(activeAccountIds, year),
+    isAllClients
+      ? getAllPositionHistory(year)
+      : getAggregatedHistory(activeAccountIds, year),
+    isAllClients
+      ? getAvailableYears([])
+      : getAvailableYears(activeAccountIds),
   ]);
 
   // Operaciones: solo si es un solo cliente con una cuenta
