@@ -28,6 +28,19 @@ import PositionsTable from "@/components/dashboard/PositionsTable";
 import EvolutionChart from "@/components/dashboard/EvolutionChart";
 import DistributionChart from "@/components/dashboard/DistributionChart";
 import CommunicationPanel from "@/components/dashboard/CommunicationPanel";
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  ComposedChart,
+  Bar,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+} from "recharts";
 
 // ===========================================================================
 // Types
@@ -480,6 +493,96 @@ export default function AdminDashboard({
     [positions]
   );
 
+  // Aportaciones netas, comisiones (from operations)
+  const { netContributions, totalCommissions, totalRetentions } = useMemo(() => {
+    let contributions = 0, withdrawals = 0, commissions = 0, retentions = 0;
+    for (const op of operations.operations) {
+      const amount = Math.abs(op.eur_amount ?? 0);
+      const t = (op.operation_type ?? "").toLowerCase();
+      if (t.includes("compra") || t.includes("suscripci")) contributions += amount;
+      else if (t.includes("venta") || t.includes("reembolso")) withdrawals += amount;
+      commissions += op.commission ?? 0;
+      retentions += op.withholding ?? 0;
+    }
+    return { netContributions: contributions - withdrawals, totalCommissions: commissions, totalRetentions: retentions };
+  }, [operations.operations]);
+
+  const plusvaliaTotalEco = totalValue - netContributions;
+
+  const { concTop5, concTop10 } = useMemo(() => {
+    if (positions.length === 0 || totalValue === 0) return { concTop5: 0, concTop10: 0 };
+    const sorted = [...positions].sort((a, b) => (b.position_value ?? 0) - (a.position_value ?? 0));
+    const top5 = sorted.slice(0, 5).reduce((s, p) => s + (p.position_value ?? 0), 0);
+    const top10 = sorted.slice(0, 10).reduce((s, p) => s + (p.position_value ?? 0), 0);
+    return { concTop5: (top5 / totalValue) * 100, concTop10: (top10 / totalValue) * 100 };
+  }, [positions, totalValue]);
+
+  const rentabilidadPeriods = useMemo(() => {
+    if (history.length === 0 || totalValue === 0) return [];
+    const now = new Date();
+    const periods = [
+      { label: "1M", daysAgo: 30 },
+      { label: "3M", daysAgo: 90 },
+      { label: "YTD", yearStart: true as const },
+      { label: "1A", daysAgo: 365 },
+      { label: "ALL", daysAgo: undefined as number | undefined },
+    ];
+    return periods.map((p) => {
+      let targetDate: string;
+      if (p.label === "ALL") targetDate = history[0].date;
+      else if ("yearStart" in p && p.yearStart) targetDate = `${now.getFullYear()}-01-01`;
+      else { const d = new Date(now); d.setDate(d.getDate() - (p.daysAgo ?? 0)); targetDate = d.toISOString().split("T")[0]; }
+      const closest = history.find((h) => h.date >= targetDate) ?? history[0];
+      const startValue = closest.totalValue;
+      if (startValue > 0) {
+        const returnEur = totalValue - startValue;
+        return { period: p.label, returnPct: (returnEur / startValue) * 100, returnEur };
+      }
+      return { period: p.label, returnPct: 0, returnEur: 0 };
+    });
+  }, [history, totalValue]);
+
+  const flowsByMonth = useMemo(() => {
+    const map = new Map<string, { compras: number; ventas: number }>();
+    for (const op of operations.operations) {
+      if (!op.operation_date) continue;
+      const d = new Date(op.operation_date);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      if (!map.has(key)) map.set(key, { compras: 0, ventas: 0 });
+      const entry = map.get(key)!;
+      const t = (op.operation_type ?? "").toLowerCase();
+      const amount = Math.abs(op.eur_amount ?? 0);
+      if (t.includes("compra") || t.includes("suscripci")) entry.compras += amount;
+      else if (t.includes("venta") || t.includes("reembolso")) entry.ventas += amount;
+    }
+    let cumNet = 0;
+    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0])).map(([month, d]) => {
+      cumNet += d.compras - d.ventas;
+      return { month: new Date(month + "-01").toLocaleDateString("es-ES", { month: "short", year: "2-digit" }), Compras: d.compras, Ventas: d.ventas, "Neto acum.": cumNet };
+    });
+  }, [operations.operations]);
+
+  const patrimonioVsAportaciones = useMemo(() => {
+    if (history.length === 0) return [];
+    const opsByDate = new Map<string, number>();
+    let cumContrib = 0;
+    const ops = [...operations.operations].sort((a, b) => (a.operation_date ?? "").localeCompare(b.operation_date ?? ""));
+    for (const op of ops) {
+      if (!op.operation_date) continue;
+      const t = (op.operation_type ?? "").toLowerCase();
+      const amount = Math.abs(op.eur_amount ?? 0);
+      if (t.includes("compra") || t.includes("suscripci")) cumContrib += amount;
+      else if (t.includes("venta") || t.includes("reembolso")) cumContrib -= amount;
+      opsByDate.set(op.operation_date, cumContrib);
+    }
+    let lastContrib = 0;
+    const opEntries = Array.from(opsByDate.entries());
+    return history.map((h) => {
+      for (const [date, val] of opEntries) { if (date <= h.date) lastContrib = val; }
+      return { date: new Date(h.date).toLocaleDateString("es-ES", { month: "short", year: "2-digit" }), Patrimonio: h.totalValue, "Aportaciones netas": Math.max(0, lastContrib) };
+    });
+  }, [history, operations.operations]);
+
   const kpis = [
     {
       label: "Patrimonio total",
@@ -665,9 +768,124 @@ export default function AdminDashboard({
       </section>
 
       {/* ================================================================= */}
+      {/* Rentabilidad + Concentración + Costes (solo con cliente)           */}
+      {/* ================================================================= */}
+      {selectedClient && (rentabilidadPeriods.length > 0 || positions.length > 0) && (
+        <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {rentabilidadPeriods.map((r) => (
+            <div key={r.period} className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+              <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#C9A84C] to-[#E8C870] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+              <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400">Rent. {r.period}</p>
+              <p className={`mt-1 text-lg font-bold ${r.returnPct >= 0 ? "text-green-600" : "text-red-600"}`}>
+                {r.returnPct >= 0 ? "+" : ""}{r.returnPct.toFixed(2)}%
+              </p>
+              <p className="text-[10px] text-gray-400">{r.returnEur >= 0 ? "+" : ""}{formatEur(r.returnEur)}</p>
+            </div>
+          ))}
+          <div className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#C9A84C] to-[#E8C870] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+            <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400">Plusvalia total economica</p>
+            <p className={`mt-1 text-lg font-bold ${plusvaliaTotalEco >= 0 ? "text-green-600" : "text-red-600"}`}>
+              {plusvaliaTotalEco >= 0 ? "+" : ""}{formatEur(plusvaliaTotalEco)}
+            </p>
+            <p className="text-[10px] text-gray-400">Patrimonio - aportaciones netas</p>
+          </div>
+          <div className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#C9A84C] to-[#E8C870] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+            <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400">Concentracion</p>
+            <p className="mt-1 text-lg font-bold text-[#0B1D3A]">Top 5: {concTop5.toFixed(1)}%</p>
+            <p className="text-[10px] text-gray-400">Top 10: {concTop10.toFixed(1)}%</p>
+          </div>
+          <div className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#C9A84C] to-[#E8C870] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+            <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400">Costes acumulados</p>
+            <p className="mt-1 text-lg font-bold text-[#0B1D3A]">{formatEur(totalCommissions + totalRetentions)}</p>
+            <p className="text-[10px] text-gray-400">Com: {formatEur(totalCommissions)} · Ret: {formatEur(totalRetentions)}</p>
+          </div>
+        </section>
+      )}
+
+      {/* ================================================================= */}
       {/* Graficos                                                           */}
       {/* ================================================================= */}
       {history.length > 0 && (
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          {/* Patrimonio vs Aportaciones */}
+          {selectedClient && patrimonioVsAportaciones.length > 0 ? (
+            <Card className="border bg-white shadow-sm">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-rowell-navy">
+                  Patrimonio vs Aportaciones
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <AreaChart data={patrimonioVsAportaciones}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="date" tick={{ fontSize: 10, fill: "#9ca3af" }} />
+                    <YAxis tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)} tick={{ fontSize: 10, fill: "#9ca3af" }} width={55} />
+                    <Tooltip formatter={(value: number, name: string) => [formatEur(value), name]} contentStyle={{ borderRadius: "8px", border: "1px solid #e5e7eb", fontSize: "12px" }} />
+                    <Legend wrapperStyle={{ fontSize: "11px" }} />
+                    <Area type="monotone" dataKey="Aportaciones netas" fill="#059669" fillOpacity={0.15} stroke="#059669" strokeWidth={1.5} />
+                    <Area type="monotone" dataKey="Patrimonio" fill="#0B1D3A" fillOpacity={0.08} stroke="#0B1D3A" strokeWidth={2} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="border bg-white shadow-sm">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-rowell-navy">
+                  Evolucion Patrimonial
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <EvolutionChart data={history} />
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Flujos netos o Distribución */}
+          {selectedClient && flowsByMonth.length > 0 ? (
+            <Card className="border bg-white shadow-sm">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-rowell-navy">
+                  Flujos Netos por Mes
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <ComposedChart data={flowsByMonth}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="month" tick={{ fontSize: 10, fill: "#9ca3af" }} />
+                    <YAxis yAxisId="bars" tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)} tick={{ fontSize: 10, fill: "#9ca3af" }} width={55} />
+                    <YAxis yAxisId="line" orientation="right" tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)} tick={{ fontSize: 10, fill: "#C9A84C" }} width={55} />
+                    <Tooltip formatter={(value: number, name: string) => [formatEur(value), name]} contentStyle={{ borderRadius: "8px", border: "1px solid #e5e7eb", fontSize: "12px" }} />
+                    <Legend wrapperStyle={{ fontSize: "11px" }} />
+                    <Bar yAxisId="bars" dataKey="Compras" fill="#059669" radius={[2, 2, 0, 0]} />
+                    <Bar yAxisId="bars" dataKey="Ventas" fill="#dc2626" radius={[2, 2, 0, 0]} />
+                    <Line yAxisId="line" type="monotone" dataKey="Neto acum." stroke="#C9A84C" strokeWidth={2} dot={false} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="border bg-white shadow-sm">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-rowell-navy">
+                  Distribucion por Gestora
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <DistributionChart positions={positions} />
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {/* Distribución + Evolución (when client selected, show both below) */}
+      {selectedClient && history.length > 0 && (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <Card className="border bg-white shadow-sm">
             <CardHeader className="pb-2">
@@ -679,7 +897,6 @@ export default function AdminDashboard({
               <EvolutionChart data={history} />
             </CardContent>
           </Card>
-
           <Card className="border bg-white shadow-sm">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-rowell-navy">
