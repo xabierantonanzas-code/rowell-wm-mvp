@@ -190,6 +190,77 @@ export async function getTotalCosts(
   };
 }
 
+export interface RentabilidadPeriod {
+  period: string;
+  returnPct: number;
+  returnEur: number;
+}
+
+export async function getRentabilidad(
+  accountIds: string[],
+  currentValue: number
+): Promise<RentabilidadPeriod[]> {
+  const supabase = await createClient();
+
+  // Get all snapshots to calculate period returns
+  const { data: snapshots } = await supabase
+    .from("positions")
+    .select("snapshot_date, position_value")
+    .in("account_id", accountIds.length > 0 && accountIds.length <= 50 ? accountIds : [accountIds[0]])
+    .order("snapshot_date");
+
+  // Group by date
+  const byDate = new Map<string, number>();
+  for (const row of snapshots ?? []) {
+    byDate.set(
+      row.snapshot_date,
+      (byDate.get(row.snapshot_date) ?? 0) + (row.position_value ?? 0)
+    );
+  }
+
+  const dates = Array.from(byDate.keys()).sort();
+  if (dates.length === 0) return [];
+
+  const now = new Date();
+  const results: RentabilidadPeriod[] = [];
+
+  const periods: { label: string; daysAgo?: number; yearStart?: boolean }[] = [
+    { label: "1M", daysAgo: 30 },
+    { label: "3M", daysAgo: 90 },
+    { label: "YTD", yearStart: true },
+    { label: "1A", daysAgo: 365 },
+    { label: "ALL" },
+  ];
+
+  for (const p of periods) {
+    let targetDate: string;
+
+    if (p.label === "ALL") {
+      targetDate = dates[0];
+    } else if (p.yearStart) {
+      targetDate = `${now.getFullYear()}-01-01`;
+    } else {
+      const d = new Date(now);
+      d.setDate(d.getDate() - (p.daysAgo ?? 0));
+      targetDate = d.toISOString().split("T")[0];
+    }
+
+    // Find closest date >= targetDate
+    const closest = dates.find((d) => d >= targetDate) ?? dates[0];
+    const startValue = byDate.get(closest) ?? 0;
+
+    if (startValue > 0) {
+      const returnEur = currentValue - startValue;
+      const returnPct = (returnEur / startValue) * 100;
+      results.push({ period: p.label, returnPct, returnEur });
+    } else {
+      results.push({ period: p.label, returnPct: 0, returnEur: 0 });
+    }
+  }
+
+  return results;
+}
+
 /**
  * Estadisticas de operaciones por tipo.
  */

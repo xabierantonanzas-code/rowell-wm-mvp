@@ -36,6 +36,10 @@ import {
   YAxis,
   CartesianGrid,
   Legend,
+  AreaChart,
+  Area,
+  Line,
+  ComposedChart,
 } from "recharts";
 
 // ===========================================================================
@@ -675,8 +679,77 @@ export default function ClientDashboard({
     });
   }, [data.positions]);
 
-  // Chart data: operations by month for bar chart
-  const opsByMonth = useMemo(() => {
+  // Aportaciones netas y comisiones (computed from operations)
+  const { netContributions, totalContributions, totalWithdrawals, totalCommissions, totalRetentions } = useMemo(() => {
+    let contributions = 0, withdrawals = 0, commissions = 0, retentions = 0;
+    for (const op of data.operations.operations) {
+      const amount = Math.abs(op.eur_amount ?? 0);
+      const t = (op.operation_type ?? "").toLowerCase();
+      if (t.includes("compra") || t.includes("suscripci")) contributions += amount;
+      else if (t.includes("venta") || t.includes("reembolso")) withdrawals += amount;
+      commissions += op.commission ?? 0;
+      retentions += op.withholding ?? 0;
+    }
+    return {
+      netContributions: contributions - withdrawals,
+      totalContributions: contributions,
+      totalWithdrawals: withdrawals,
+      totalCommissions: commissions,
+      totalRetentions: retentions,
+    };
+  }, [data.operations.operations]);
+
+  // Plusvalía total económica = patrimonio actual - aportaciones netas
+  const plusvaliaTotalEco = totalValue - netContributions;
+
+  // Concentration top 5 / top 10
+  const { concTop5, concTop10 } = useMemo(() => {
+    if (data.positions.length === 0 || totalValue === 0) return { concTop5: 0, concTop10: 0 };
+    const sorted = [...data.positions].sort((a, b) => (b.position_value ?? 0) - (a.position_value ?? 0));
+    const top5 = sorted.slice(0, 5).reduce((s, p) => s + (p.position_value ?? 0), 0);
+    const top10 = sorted.slice(0, 10).reduce((s, p) => s + (p.position_value ?? 0), 0);
+    return {
+      concTop5: (top5 / totalValue) * 100,
+      concTop10: (top10 / totalValue) * 100,
+    };
+  }, [data.positions, totalValue]);
+
+  // Rentabilidad por periodos (from history snapshots)
+  const rentabilidadPeriods = useMemo(() => {
+    if (data.history.length === 0 || totalValue === 0) return [];
+    const now = new Date();
+    const periods = [
+      { label: "1M", daysAgo: 30 },
+      { label: "3M", daysAgo: 90 },
+      { label: "YTD", yearStart: true as const },
+      { label: "1A", daysAgo: 365 },
+      { label: "ALL", daysAgo: undefined as number | undefined },
+    ];
+
+    return periods.map((p) => {
+      let targetDate: string;
+      if (p.label === "ALL") {
+        targetDate = data.history[0].date;
+      } else if ("yearStart" in p && p.yearStart) {
+        targetDate = `${now.getFullYear()}-01-01`;
+      } else {
+        const d = new Date(now);
+        d.setDate(d.getDate() - (p.daysAgo ?? 0));
+        targetDate = d.toISOString().split("T")[0];
+      }
+      const closest = data.history.find((h) => h.date >= targetDate) ?? data.history[0];
+      const startValue = closest.totalValue;
+      if (startValue > 0) {
+        const returnEur = totalValue - startValue;
+        const returnPct = (returnEur / startValue) * 100;
+        return { period: p.label, returnPct, returnEur };
+      }
+      return { period: p.label, returnPct: 0, returnEur: 0 };
+    });
+  }, [data.history, totalValue]);
+
+  // Chart data: flujos por mes con neto acumulado
+  const flowsByMonth = useMemo(() => {
     const map = new Map<string, { compras: number; ventas: number }>();
     for (const op of data.operations.operations) {
       if (!op.operation_date) continue;
@@ -686,20 +759,56 @@ export default function ClientDashboard({
       const entry = map.get(key)!;
       const t = (op.operation_type ?? "").toLowerCase();
       const amount = Math.abs(op.eur_amount ?? 0);
-      if (t.includes("compra") || t.includes("suscripci")) {
-        entry.compras += amount;
-      } else if (t.includes("venta") || t.includes("reembolso")) {
-        entry.ventas += amount;
-      }
+      if (t.includes("compra") || t.includes("suscripci")) entry.compras += amount;
+      else if (t.includes("venta") || t.includes("reembolso")) entry.ventas += amount;
     }
+    let cumNet = 0;
     return Array.from(map.entries())
       .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([month, data]) => ({
-        month: new Date(month + "-01").toLocaleDateString("es-ES", { month: "short", year: "2-digit" }),
-        Compras: data.compras,
-        Ventas: data.ventas,
-      }));
+      .map(([month, d]) => {
+        cumNet += d.compras - d.ventas;
+        return {
+          month: new Date(month + "-01").toLocaleDateString("es-ES", { month: "short", year: "2-digit" }),
+          Compras: d.compras,
+          Ventas: d.ventas,
+          "Neto acum.": cumNet,
+        };
+      });
   }, [data.operations.operations]);
+
+  // Chart data: patrimonio vs aportaciones netas acumuladas
+  const patrimonioVsAportaciones = useMemo(() => {
+    if (data.history.length === 0) return [];
+
+    // Build cumulative contributions by date from operations
+    const opsByDate = new Map<string, number>();
+    let cumContrib = 0;
+    const ops = [...data.operations.operations].sort((a, b) =>
+      (a.operation_date ?? "").localeCompare(b.operation_date ?? "")
+    );
+    for (const op of ops) {
+      if (!op.operation_date) continue;
+      const t = (op.operation_type ?? "").toLowerCase();
+      const amount = Math.abs(op.eur_amount ?? 0);
+      if (t.includes("compra") || t.includes("suscripci")) cumContrib += amount;
+      else if (t.includes("venta") || t.includes("reembolso")) cumContrib -= amount;
+      opsByDate.set(op.operation_date, cumContrib);
+    }
+
+    let lastContrib = 0;
+    const opEntries = Array.from(opsByDate.entries());
+    return data.history.map((h) => {
+      // Find latest contribution <= this date
+      for (const [date, val] of opEntries) {
+        if (date <= h.date) lastContrib = val;
+      }
+      return {
+        date: new Date(h.date).toLocaleDateString("es-ES", { month: "short", year: "2-digit" }),
+        Patrimonio: h.totalValue,
+        "Aportaciones netas": Math.max(0, lastContrib),
+      };
+    });
+  }, [data.history, data.operations.operations]);
 
   return (
     <div className={`space-y-1 ${loading ? "opacity-50 pointer-events-none" : ""}`}>
@@ -799,6 +908,55 @@ export default function ClientDashboard({
         positions={data.positions}
       />
 
+      {/* Row 3: Rentabilidad + Costes + Concentración */}
+      {(rentabilidadPeriods.length > 0 || totalCommissions > 0 || data.positions.length > 0) && (
+        <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {/* Rentabilidad por periodos */}
+          {rentabilidadPeriods.map((r) => (
+            <div
+              key={r.period}
+              className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+            >
+              <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#C9A84C] to-[#E8C870] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+              <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400">
+                Rent. {r.period}
+              </p>
+              <p className={`mt-1 text-lg font-bold ${r.returnPct >= 0 ? "text-green-600" : "text-red-600"}`}>
+                {r.returnPct >= 0 ? "+" : ""}{r.returnPct.toFixed(2)}%
+              </p>
+              <p className="text-[10px] text-gray-400">
+                {r.returnEur >= 0 ? "+" : ""}{formatEur(r.returnEur)}
+              </p>
+            </div>
+          ))}
+          {/* Plusvalía total económica */}
+          <div className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#C9A84C] to-[#E8C870] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+            <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400">Plusvalia total economica</p>
+            <p className={`mt-1 text-lg font-bold ${plusvaliaTotalEco >= 0 ? "text-green-600" : "text-red-600"}`}>
+              {plusvaliaTotalEco >= 0 ? "+" : ""}{formatEur(plusvaliaTotalEco)}
+            </p>
+            <p className="text-[10px] text-gray-400">Patrimonio - aportaciones netas</p>
+          </div>
+          {/* Concentración */}
+          <div className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#C9A84C] to-[#E8C870] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+            <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400">Concentracion</p>
+            <p className="mt-1 text-lg font-bold text-[#0B1D3A]">Top 5: {concTop5.toFixed(1)}%</p>
+            <p className="text-[10px] text-gray-400">Top 10: {concTop10.toFixed(1)}%</p>
+          </div>
+          {/* Comisiones + Retenciones */}
+          <div className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#C9A84C] to-[#E8C870] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+            <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400">Costes acumulados</p>
+            <p className="mt-1 text-lg font-bold text-[#0B1D3A]">{formatEur(totalCommissions + totalRetentions)}</p>
+            <p className="text-[10px] text-gray-400">
+              Com: {formatEur(totalCommissions)} · Ret: {formatEur(totalRetentions)}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Top Holdings */}
       <div className="mt-4">
         <TopHoldings positions={data.positions} />
@@ -819,49 +977,110 @@ export default function ClientDashboard({
       {/* ================================================================= */}
       <SectionHeader number="3" title="Evolucion Patrimonial" />
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Evolucion */}
+        {/* Patrimonio vs Aportaciones netas */}
         <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
           <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-[#1e3a5f]">
             <TrendingUp className="h-4 w-4 text-[#c9a94e]" />
-            Patrimonio a lo largo del tiempo
+            Patrimonio vs Aportaciones
           </h3>
-          {data.history.length > 0 ? (
-            <EvolutionChart data={data.history} />
-          ) : (
-            <p className="py-12 text-center text-sm text-gray-400">Sin datos suficientes</p>
-          )}
-        </div>
-
-        {/* Flujo de operaciones (bar chart) */}
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-[#1e3a5f]">
-            <BarChart3 className="h-4 w-4 text-[#c9a94e]" />
-            Flujo de Operaciones
-          </h3>
-          {opsByMonth.length > 0 ? (
+          {patrimonioVsAportaciones.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={opsByMonth}>
+              <AreaChart data={patrimonioVsAportaciones}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#9ca3af" }} />
+                <XAxis dataKey="date" tick={{ fontSize: 10, fill: "#9ca3af" }} />
                 <YAxis
-                  tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)}
-                  tick={{ fontSize: 11, fill: "#9ca3af" }}
-                  width={60}
+                  tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)}
+                  tick={{ fontSize: 10, fill: "#9ca3af" }}
+                  width={55}
                 />
                 <Tooltip
                   formatter={(value: number, name: string) => [formatEur(value), name]}
                   contentStyle={{ borderRadius: "8px", border: "1px solid #e5e7eb", fontSize: "12px" }}
                 />
-                <Legend wrapperStyle={{ fontSize: "12px" }} />
-                <Bar dataKey="Compras" fill="#059669" radius={[2, 2, 0, 0]} />
-                <Bar dataKey="Ventas" fill="#dc2626" radius={[2, 2, 0, 0]} />
-              </BarChart>
+                <Legend wrapperStyle={{ fontSize: "11px" }} />
+                <Area
+                  type="monotone"
+                  dataKey="Aportaciones netas"
+                  fill="#059669"
+                  fillOpacity={0.15}
+                  stroke="#059669"
+                  strokeWidth={1.5}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="Patrimonio"
+                  fill="#0B1D3A"
+                  fillOpacity={0.08}
+                  stroke="#0B1D3A"
+                  strokeWidth={2}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <p className="py-12 text-center text-sm text-gray-400">Sin datos suficientes</p>
+          )}
+          <p className="mt-2 text-center text-[10px] text-gray-400">
+            La diferencia entre ambas lineas representa la rentabilidad generada por el mercado
+          </p>
+        </div>
+
+        {/* Flujos netos por periodo */}
+        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+          <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-[#1e3a5f]">
+            <BarChart3 className="h-4 w-4 text-[#c9a94e]" />
+            Flujos Netos por Mes
+          </h3>
+          {flowsByMonth.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <ComposedChart data={flowsByMonth}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis dataKey="month" tick={{ fontSize: 10, fill: "#9ca3af" }} />
+                <YAxis
+                  yAxisId="bars"
+                  tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)}
+                  tick={{ fontSize: 10, fill: "#9ca3af" }}
+                  width={55}
+                />
+                <YAxis
+                  yAxisId="line"
+                  orientation="right"
+                  tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)}
+                  tick={{ fontSize: 10, fill: "#C9A84C" }}
+                  width={55}
+                />
+                <Tooltip
+                  formatter={(value: number, name: string) => [formatEur(value), name]}
+                  contentStyle={{ borderRadius: "8px", border: "1px solid #e5e7eb", fontSize: "12px" }}
+                />
+                <Legend wrapperStyle={{ fontSize: "11px" }} />
+                <Bar yAxisId="bars" dataKey="Compras" fill="#059669" radius={[2, 2, 0, 0]} />
+                <Bar yAxisId="bars" dataKey="Ventas" fill="#dc2626" radius={[2, 2, 0, 0]} />
+                <Line
+                  yAxisId="line"
+                  type="monotone"
+                  dataKey="Neto acum."
+                  stroke="#C9A84C"
+                  strokeWidth={2}
+                  dot={false}
+                />
+              </ComposedChart>
             </ResponsiveContainer>
           ) : (
             <p className="py-12 text-center text-sm text-gray-400">Sin operaciones en el periodo</p>
           )}
         </div>
       </div>
+
+      {/* Evolución patrimonial original */}
+      {data.history.length > 0 && (
+        <div className="mt-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+          <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-[#1e3a5f]">
+            <TrendingUp className="h-4 w-4 text-[#c9a94e]" />
+            Evolucion Patrimonial Historica
+          </h3>
+          <EvolutionChart data={data.history} />
+        </div>
+      )}
 
       <SectionDivider />
 
