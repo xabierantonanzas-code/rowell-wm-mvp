@@ -119,7 +119,8 @@ export async function GET(req: NextRequest) {
       cashBalance,
     });
   } catch (error) {
-    console.error("Dashboard API error:", error);
+    const { captureError } = await import("@/lib/error");
+    captureError(error, "Dashboard API");
     return NextResponse.json(
       { error: "Error obteniendo datos" },
       { status: 500 }
