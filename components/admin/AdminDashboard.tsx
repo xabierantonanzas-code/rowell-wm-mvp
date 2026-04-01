@@ -460,22 +460,12 @@ export default function AdminDashboard({
   };
 
   const handleDateChange = (newDateFrom: string | undefined, newDateTo: string | undefined) => {
-    setDateFrom(newDateFrom);
-    setDateTo(newDateTo);
-    fetchData(selectedClient, newDateFrom, newDateTo, 1, selectedAccountId);
-
-    const params = new URLSearchParams(searchParams.toString());
-    if (newDateFrom) {
-      params.set("dateFrom", newDateFrom);
-    } else {
-      params.delete("dateFrom");
-    }
-    if (newDateTo) {
-      params.set("dateTo", newDateTo);
-    } else {
-      params.delete("dateTo");
-    }
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    const params = new URLSearchParams();
+    if (selectedClient) params.set("client", selectedClient);
+    if (newDateFrom) params.set("dateFrom", newDateFrom);
+    if (newDateTo) params.set("dateTo", newDateTo);
+    const qs = params.toString();
+    window.location.href = qs ? `${pathname}?${qs}` : pathname;
   };
 
   const handlePageChange = (page: number) => {
