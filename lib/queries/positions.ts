@@ -559,6 +559,7 @@ export async function getAllPositionHistory(dateRange?: DateRange) {
   const supabase = await createClient();
 
   const grouped = new Map<string, number>();
+  const PAGE_SIZE = 10000;
   let from = 0;
 
   while (true) {
@@ -566,7 +567,8 @@ export async function getAllPositionHistory(dateRange?: DateRange) {
       .from("positions")
       .select("snapshot_date, position_value")
       .order("snapshot_date")
-      .range(from, from + 4999);
+      .order("id")
+      .range(from, from + PAGE_SIZE - 1);
 
     query = applyDateFilter(query, "snapshot_date", dateRange);
 
@@ -581,8 +583,8 @@ export async function getAllPositionHistory(dateRange?: DateRange) {
       );
     }
 
-    if (data.length < 5000) break;
-    from += 5000;
+    if (data.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
   }
 
   return Array.from(grouped.entries()).map(([date, total]) => ({

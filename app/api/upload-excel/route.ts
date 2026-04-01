@@ -232,6 +232,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
         if (error) {
           console.error(`Error insertando posiciones batch ${i}:`, error);
+          // Retry once
+          const { error: retryError } = await adminDb
+            .from("positions")
+            .upsert(batch, { onConflict: "account_id,snapshot_date,isin" });
+          if (retryError) {
+            console.error(`Retry fallido posiciones batch ${i}:`, retryError);
+          } else {
+            posInserted += batch.length;
+          }
         } else {
           posInserted += batch.length;
         }
