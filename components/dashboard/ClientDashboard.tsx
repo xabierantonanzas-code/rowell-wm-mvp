@@ -150,9 +150,9 @@ function SectionHeader({
   title: string;
 }) {
   return (
-    <div className="relative mb-6 mt-2">
+    <div className="relative mb-4 mt-2 sm:mb-6">
       <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-[#1e3a5f] to-[#2a5080] opacity-90" />
-      <h2 className="relative px-6 py-3 font-display text-lg font-bold text-white">
+      <h2 className="relative px-4 py-2.5 font-display text-sm font-bold text-white sm:px-6 sm:py-3 sm:text-lg">
         {number}. {title}
       </h2>
     </div>
@@ -160,7 +160,7 @@ function SectionHeader({
 }
 
 function SectionDivider() {
-  return <div className="my-8 h-px bg-gradient-to-r from-transparent via-[#c9a94e]/40 to-transparent" />;
+  return <div className="my-5 h-px bg-gradient-to-r from-transparent via-[#c9a94e]/40 to-transparent sm:my-8" />;
 }
 
 // ===========================================================================
@@ -242,19 +242,19 @@ function InvestorProfileCard({
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-4">
       {kpis.map((kpi, i) => (
         <div
           key={kpi.label}
-          className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+          className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md sm:p-5"
           style={{ animationDelay: `${i * 80}ms` }}
         >
           <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#C9A84C] to-[#E8C870] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
-          <p className="mb-2 text-xs font-medium uppercase tracking-wider text-gray-400">
+          <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-gray-400 sm:mb-2 sm:text-xs">
             {kpi.label}
           </p>
           <p
-            className={`font-display text-2xl font-bold ${
+            className={`font-display text-lg font-bold sm:text-2xl ${
               kpi.accent
                 ? kpi.positive
                   ? "text-green-600"
@@ -264,7 +264,7 @@ function InvestorProfileCard({
           >
             {kpi.value}
           </p>
-          <p className="mt-1 text-xs text-gray-400">{kpi.sub}</p>
+          <p className="mt-0.5 text-[10px] text-gray-400 sm:mt-1 sm:text-xs">{kpi.sub}</p>
         </div>
       ))}
     </div>
@@ -390,23 +390,23 @@ function AssetDistribution({ positions }: { positions: Position[] }) {
   const totalValue = positions.reduce((s, p) => s + (p.position_value ?? 0), 0);
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
       {/* Por Gestora - estilo informe con tabla + donut */}
-      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-[#1e3a5f]">
+      <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+        <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#1e3a5f] sm:mb-4 sm:text-sm">
           <PieChartIcon className="h-4 w-4 text-[#c9a94e]" />
           Distribucion por Gestora
         </h3>
         <div className="flex items-center gap-4">
           <div className="w-1/2">
-            <ResponsiveContainer width="100%" height={200}>
+            <ResponsiveContainer width="100%" height={160}>
               <PieChart>
                 <Pie
                   data={managerData.slice(0, 8)}
                   cx="50%"
                   cy="50%"
-                  innerRadius={45}
-                  outerRadius={80}
+                  innerRadius={35}
+                  outerRadius={65}
                   paddingAngle={2}
                   dataKey="value"
                 >
@@ -439,14 +439,14 @@ function AssetDistribution({ positions }: { positions: Position[] }) {
       </div>
 
       {/* Por Moneda */}
-      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-[#1e3a5f]">
+      <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+        <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#1e3a5f] sm:mb-4 sm:text-sm">
           <Target className="h-4 w-4 text-[#c9a94e]" />
           Distribucion por Moneda
         </h3>
         <div className="flex items-center gap-4">
           <div className="w-1/2">
-            <ResponsiveContainer width="100%" height={200}>
+            <ResponsiveContainer width="100%" height={160}>
               <PieChart>
                 <Pie
                   data={currencyData}
@@ -935,12 +935,13 @@ export default function ClientDashboard({
       {/* ================================================================= */}
       {/* PORTADA / HEADER - estilo informe Rowell                          */}
       {/* ================================================================= */}
-      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[#1e3a5f] to-[#0f1f33] px-8 py-8 text-white shadow-lg">
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[#1e3a5f] to-[#0f1f33] px-4 py-5 text-white shadow-lg sm:px-8 sm:py-8">
         {/* Decorative elements */}
         <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-[#c9a94e]/10" />
         <div className="absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-[#c9a94e]/5" />
 
-        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="relative">
+          {/* Title row */}
           <div>
             {showBackLink && backHref && (
               <a href={backHref} className="mb-3 flex items-center gap-1 text-sm text-white/50 hover:text-white/80">
@@ -948,32 +949,32 @@ export default function ClientDashboard({
               </a>
             )}
             <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#c9a94e]/20">
-                <User className="h-6 w-6 text-[#c9a94e]" />
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#c9a94e]/20 sm:h-12 sm:w-12">
+                <User className="h-5 w-5 text-[#c9a94e] sm:h-6 sm:w-6" />
               </div>
-              <div>
-                <p className="text-xs font-medium uppercase tracking-widest text-[#c9a94e]">
+              <div className="min-w-0">
+                <p className="text-[10px] font-medium uppercase tracking-widest text-[#c9a94e] sm:text-xs">
                   Informe de Cartera
                 </p>
-                <h1 className="font-display text-2xl font-bold sm:text-3xl">{clientName}</h1>
+                <h1 className="truncate font-display text-xl font-bold sm:text-3xl">{clientName}</h1>
               </div>
             </div>
             {selectedAccountId !== "all" && (
-              <p className="mt-2 font-mono text-xs text-white/40">
+              <p className="mt-1 font-mono text-[10px] text-white/40 sm:mt-2 sm:text-xs">
                 {accounts.find((a) => a.id === selectedAccountId)?.account_number ?? ""}
               </p>
             )}
           </div>
 
-          {/* Filtros */}
-          <div className="flex flex-wrap items-center gap-3">
+          {/* Filtros — stack vertically on mobile */}
+          <div className="mt-4 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
             {accounts.length > 1 && (
               <div className="flex items-center gap-1.5">
-                <Briefcase className="h-4 w-4 text-white/40" />
+                <Briefcase className="h-4 w-4 flex-shrink-0 text-white/40" />
                 <select
                   value={selectedAccountId}
                   onChange={(e) => handleAccountChange(e.target.value)}
-                  className="rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-medium text-white backdrop-blur-sm focus:border-[#c9a94e] focus:outline-none"
+                  className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-xs font-medium text-white backdrop-blur-sm focus:border-[#c9a94e] focus:outline-none sm:w-auto sm:py-1.5"
                 >
                   <option value="all" className="text-gray-800">Todas las carteras</option>
                   {accounts.map((acc) => (
@@ -984,15 +985,16 @@ export default function ClientDashboard({
                 </select>
               </div>
             )}
-            <div className="flex items-center gap-1.5">
-              <Calendar className="h-4 w-4 text-white/40" />
+            {/* Date range — wrap on very small screens */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Calendar className="h-4 w-4 flex-shrink-0 text-white/40" />
               <input
                 type="date"
                 value={dateFrom ?? ""}
                 min={availableDateRange?.minDate}
                 max={dateTo || availableDateRange?.maxDate}
                 onChange={(e) => handleDateChange(e.target.value || undefined, dateTo)}
-                className="rounded-lg border border-white/20 bg-white/10 px-2 py-1.5 text-xs font-medium text-white backdrop-blur-sm focus:border-[#c9a94e] focus:outline-none [color-scheme:dark]"
+                className="min-w-0 flex-1 rounded-lg border border-white/20 bg-white/10 px-2 py-2 text-xs font-medium text-white backdrop-blur-sm focus:border-[#c9a94e] focus:outline-none [color-scheme:dark] sm:flex-none sm:py-1.5"
               />
               <span className="text-xs text-white/40">—</span>
               <input
@@ -1001,12 +1003,12 @@ export default function ClientDashboard({
                 min={dateFrom || availableDateRange?.minDate}
                 max={availableDateRange?.maxDate}
                 onChange={(e) => handleDateChange(dateFrom, e.target.value || undefined)}
-                className="rounded-lg border border-white/20 bg-white/10 px-2 py-1.5 text-xs font-medium text-white backdrop-blur-sm focus:border-[#c9a94e] focus:outline-none [color-scheme:dark]"
+                className="min-w-0 flex-1 rounded-lg border border-white/20 bg-white/10 px-2 py-2 text-xs font-medium text-white backdrop-blur-sm focus:border-[#c9a94e] focus:outline-none [color-scheme:dark] sm:flex-none sm:py-1.5"
               />
               {(dateFrom || dateTo) && (
                 <button
                   onClick={() => handleDateChange(undefined, undefined)}
-                  className="rounded-lg bg-white/10 px-2 py-1.5 text-xs font-medium text-white/70 hover:bg-white/20 transition-colors"
+                  className="rounded-lg bg-white/10 px-2 py-2 text-xs font-medium text-white/70 hover:bg-white/20 transition-colors sm:py-1.5"
                 >
                   Todo
                 </button>
@@ -1014,27 +1016,27 @@ export default function ClientDashboard({
             </div>
             {/* Toggle TWR / MWR */}
             <div className="flex items-center gap-1.5">
-              <TrendingUp className="h-4 w-4 text-white/40" />
-              <div className="flex gap-0">
+              <TrendingUp className="h-4 w-4 flex-shrink-0 text-white/40" />
+              <div className="flex">
                 <button
                   onClick={() => setReturnMethod("twr")}
-                  className={`rounded-l-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                  className={`rounded-l-lg px-4 py-2 text-xs font-medium transition-colors sm:px-3 sm:py-1.5 ${
                     returnMethod === "twr"
                       ? "bg-[#c9a94e] text-[#1e3a5f] shadow"
                       : "bg-white/10 text-white/70 hover:bg-white/20"
                   }`}
-                  title="Time Weighted Return — rentabilidad independiente de aportaciones"
+                  title="Time Weighted Return"
                 >
                   TWR
                 </button>
                 <button
                   onClick={() => setReturnMethod("mwr")}
-                  className={`rounded-r-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                  className={`rounded-r-lg px-4 py-2 text-xs font-medium transition-colors sm:px-3 sm:py-1.5 ${
                     returnMethod === "mwr"
                       ? "bg-[#c9a94e] text-[#1e3a5f] shadow"
                       : "bg-white/10 text-white/70 hover:bg-white/20"
                   }`}
-                  title="Money Weighted Return — rentabilidad ponderada por capital invertido"
+                  title="Money Weighted Return"
                 >
                   MWR
                 </button>
@@ -1060,47 +1062,47 @@ export default function ClientDashboard({
 
       {/* Row 3: Rentabilidad + Costes + Concentración */}
       {(rentabilidadPeriods.length > 0 || totalCommissions > 0 || data.positions.length > 0) && (
-        <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:mt-4 sm:gap-4 lg:grid-cols-4">
           {/* Rentabilidad por periodos */}
           {rentabilidadPeriods.map((r) => (
             <div
               key={r.period}
-              className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+              className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md sm:p-4"
             >
               <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#C9A84C] to-[#E8C870] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
-              <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400">
+              <p className="text-[9px] font-medium uppercase tracking-wider text-gray-400 sm:text-[10px]">
                 {returnMethod === "twr" ? "TWR" : "MWR"} {r.period}
               </p>
-              <p className={`mt-1 text-lg font-bold ${r.returnPct >= 0 ? "text-green-600" : "text-red-600"}`}>
+              <p className={`mt-0.5 text-base font-bold sm:mt-1 sm:text-lg ${r.returnPct >= 0 ? "text-green-600" : "text-red-600"}`}>
                 {r.returnPct >= 0 ? "+" : ""}{r.returnPct.toFixed(2)}%
               </p>
-              <p className="text-[10px] text-gray-400">
+              <p className="text-[9px] text-gray-400 sm:text-[10px]">
                 {r.returnEur >= 0 ? "+" : ""}{formatEur(r.returnEur)}
               </p>
             </div>
           ))}
           {/* Plusvalía total económica */}
-          <div className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+          <div className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md sm:p-4">
             <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#C9A84C] to-[#E8C870] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
-            <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400">Plusvalia total economica</p>
-            <p className={`mt-1 text-lg font-bold ${plusvaliaTotalEco >= 0 ? "text-green-600" : "text-red-600"}`}>
+            <p className="text-[9px] font-medium uppercase tracking-wider text-gray-400 sm:text-[10px]">Plusvalia total economica</p>
+            <p className={`mt-0.5 text-base font-bold sm:mt-1 sm:text-lg ${plusvaliaTotalEco >= 0 ? "text-green-600" : "text-red-600"}`}>
               {plusvaliaTotalEco >= 0 ? "+" : ""}{formatEur(plusvaliaTotalEco)}
             </p>
-            <p className="text-[10px] text-gray-400">Patrimonio - aportaciones netas</p>
+            <p className="text-[9px] text-gray-400 sm:text-[10px]">Patrimonio - aportaciones netas</p>
           </div>
           {/* Concentración */}
-          <div className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+          <div className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md sm:p-4">
             <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#C9A84C] to-[#E8C870] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
-            <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400">Concentracion</p>
-            <p className="mt-1 text-lg font-bold text-[#0B1D3A]">Top 5: {concTop5.toFixed(1)}%</p>
-            <p className="text-[10px] text-gray-400">Top 10: {concTop10.toFixed(1)}%</p>
+            <p className="text-[9px] font-medium uppercase tracking-wider text-gray-400 sm:text-[10px]">Concentracion</p>
+            <p className="mt-0.5 text-base font-bold text-[#0B1D3A] sm:mt-1 sm:text-lg">Top 5: {concTop5.toFixed(1)}%</p>
+            <p className="text-[9px] text-gray-400 sm:text-[10px]">Top 10: {concTop10.toFixed(1)}%</p>
           </div>
           {/* Comisiones + Retenciones */}
-          <div className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+          <div className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md sm:p-4">
             <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#C9A84C] to-[#E8C870] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
-            <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400">Costes acumulados</p>
-            <p className="mt-1 text-lg font-bold text-[#0B1D3A]">{formatEur(totalCommissions + totalRetentions)}</p>
-            <p className="text-[10px] text-gray-400">
+            <p className="text-[9px] font-medium uppercase tracking-wider text-gray-400 sm:text-[10px]">Costes acumulados</p>
+            <p className="mt-0.5 text-base font-bold text-[#0B1D3A] sm:mt-1 sm:text-lg">{formatEur(totalCommissions + totalRetentions)}</p>
+            <p className="text-[9px] text-gray-400 sm:text-[10px]">
               Com: {formatEur(totalCommissions)} · Ret: {formatEur(totalRetentions)}
             </p>
           </div>

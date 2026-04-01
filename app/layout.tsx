@@ -17,6 +17,7 @@ const playfair = Playfair_Display({
 export const metadata: Metadata = {
   title: "Rowell Patrimonios",
   description: "Dashboard patrimonial para gestion de carteras de inversion",
+  viewport: "width=device-width, initial-scale=1, maximum-scale=1",
 };
 
 export default function RootLayout({

@@ -17,7 +17,7 @@ export default async function AuthenticatedLayout({
   return (
     <div className="flex min-h-screen">
       <Sidebar />
-      <main className="flex-1 overflow-auto bg-rowell-light p-6 md:p-8">
+      <main className="flex-1 overflow-auto bg-rowell-light px-4 py-16 md:px-8 md:py-8">
         {children}
       </main>
     </div>

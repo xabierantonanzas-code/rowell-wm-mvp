@@ -143,29 +143,29 @@ export default function CombinedChart({ data, kpis }: CombinedChartProps) {
   return (
     <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
       {/* KPIs row */}
-      <div className="grid grid-cols-2 gap-3 border-b border-gray-100 p-5 sm:grid-cols-4 lg:grid-cols-7">
+      <div className="grid grid-cols-2 gap-2 border-b border-gray-100 p-3 sm:grid-cols-4 sm:gap-3 sm:p-5 lg:grid-cols-7">
         {kpiCards.map((kpi) => (
           <div key={kpi.label}>
-            <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400">
+            <p className="text-[9px] font-medium uppercase tracking-wider text-gray-400 sm:text-[10px]">
               {kpi.label}
             </p>
-            <p className={`mt-0.5 text-sm font-bold ${"color" in kpi && kpi.color ? kpi.color : "text-[#0B1D3A]"}`}>
+            <p className={`mt-0.5 text-xs font-bold sm:text-sm ${"color" in kpi && kpi.color ? kpi.color : "text-[#0B1D3A]"}`}>
               {kpi.value}
             </p>
             {"sub" in kpi && kpi.sub && (
-              <p className="text-[10px] text-gray-400">{kpi.sub}</p>
+              <p className="text-[9px] text-gray-400 sm:text-[10px]">{kpi.sub}</p>
             )}
           </div>
         ))}
       </div>
 
       {/* View selector */}
-      <div className="flex items-center gap-1 border-b border-gray-100 px-5 py-3">
+      <div className="flex items-center gap-1 overflow-x-auto border-b border-gray-100 px-3 py-2 sm:px-5 sm:py-3">
         {views.map((v) => (
           <button
             key={v.key}
             onClick={() => setView(v.key)}
-            className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+            className={`flex-shrink-0 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
               view === v.key
                 ? "bg-[#0B1D3A] text-white shadow-sm"
                 : "bg-gray-100 text-gray-600 hover:bg-gray-200"
@@ -176,10 +176,11 @@ export default function CombinedChart({ data, kpis }: CombinedChartProps) {
         ))}
       </div>
 
-      {/* Chart */}
-      <div className="p-5">
+      {/* Chart — horizontal scroll on mobile if content wider than viewport */}
+      <div className="overflow-x-auto p-3 sm:p-5">
+        <div className="min-w-[480px]">
         {data.length > 0 ? (
-          <ResponsiveContainer width="100%" height={350}>
+          <ResponsiveContainer width="100%" height={280}>
             <ComposedChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis
@@ -257,6 +258,7 @@ export default function CombinedChart({ data, kpis }: CombinedChartProps) {
             Sin datos suficientes para generar el grafico
           </p>
         )}
+        </div>
       </div>
     </div>
   );

@@ -173,11 +173,13 @@ export default function StrategyChart({ series }: StrategyChartProps) {
   }
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-      <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-[#0B1D3A]">
+    <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm sm:p-6">
+      <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#0B1D3A] sm:mb-4 sm:text-sm">
         Evolucion por Estrategia
       </h3>
-      <ResponsiveContainer width="100%" height={350}>
+      <div className="overflow-x-auto">
+      <div className="min-w-[480px]">
+      <ResponsiveContainer width="100%" height={280}>
         <AreaChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
           <XAxis
@@ -206,6 +208,8 @@ export default function StrategyChart({ series }: StrategyChartProps) {
           ))}
         </AreaChart>
       </ResponsiveContainer>
+      </div>
+      </div>
     </div>
   );
 }

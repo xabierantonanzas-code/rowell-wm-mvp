@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useUser } from "@/lib/hooks/useUser";
@@ -10,6 +11,8 @@ import {
   LogOut,
   Loader2,
   TrendingUp,
+  Menu,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -26,7 +29,13 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Upload", href: "/upload", icon: Upload, adminOnly: true },
 ];
 
-export default function Sidebar() {
+function SidebarContent({
+  onClose,
+  isMobile,
+}: {
+  onClose?: () => void;
+  isMobile?: boolean;
+}) {
   const pathname = usePathname();
   const { user, isAdmin, loading, signOut } = useUser();
 
@@ -37,11 +46,12 @@ export default function Sidebar() {
     : "RW";
 
   return (
-    <aside className="flex h-screen w-64 flex-col bg-[#0B1D3A]">
-      <div className="flex h-16 items-center gap-3 border-b border-white/10 px-6">
+    <>
+      <div className="flex h-16 items-center justify-between border-b border-white/10 px-6">
         <Link
           href={isAdmin ? "/admin" : "/dashboard"}
           className="flex items-center gap-2.5"
+          onClick={onClose}
         >
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#C9A84C]/20">
             <TrendingUp className="h-4 w-4 text-[#C9A84C]" />
@@ -55,6 +65,14 @@ export default function Sidebar() {
             </p>
           </div>
         </Link>
+        {isMobile && (
+          <button
+            onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-white/50 hover:bg-white/10 hover:text-white"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        )}
       </div>
 
       <nav className="flex-1 space-y-0.5 px-3 py-4">
@@ -71,6 +89,7 @@ export default function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={onClose}
               className={cn(
                 "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150",
                 isActive
@@ -119,11 +138,69 @@ export default function Sidebar() {
               className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs text-white/35 transition-colors hover:bg-red-500/10 hover:text-red-400"
             >
               <LogOut className="h-3.5 w-3.5" />
-              Cerrar sesión
+              Cerrar sesion
             </button>
           </div>
         )}
       </div>
-    </aside>
+    </>
+  );
+}
+
+export default function Sidebar() {
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const pathname = usePathname();
+
+  // Close on route change
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
+
+  // Prevent body scroll when drawer open
+  useEffect(() => {
+    if (mobileOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [mobileOpen]);
+
+  return (
+    <>
+      {/* Mobile hamburger button — fixed top-left */}
+      <button
+        onClick={() => setMobileOpen(true)}
+        className="fixed left-3 top-3 z-40 flex h-10 w-10 items-center justify-center rounded-lg bg-[#0B1D3A] text-white shadow-lg md:hidden"
+        aria-label="Abrir menu"
+      >
+        <Menu className="h-5 w-5" />
+      </button>
+
+      {/* Mobile drawer + overlay */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          {/* Overlay */}
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setMobileOpen(false)}
+          />
+          {/* Drawer */}
+          <aside className="relative flex h-full w-72 max-w-[85vw] flex-col bg-[#0B1D3A] shadow-2xl animate-in slide-in-from-left duration-200">
+            <SidebarContent
+              onClose={() => setMobileOpen(false)}
+              isMobile
+            />
+          </aside>
+        </div>
+      )}
+
+      {/* Desktop sidebar — always visible ≥ md */}
+      <aside className="hidden h-screen w-64 flex-shrink-0 flex-col bg-[#0B1D3A] md:flex">
+        <SidebarContent />
+      </aside>
+    </>
   );
 }
