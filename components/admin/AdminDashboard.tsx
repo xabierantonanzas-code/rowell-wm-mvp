@@ -445,21 +445,21 @@ export default function AdminDashboard({
   const handleClientChange = (clientId: string | null) => {
     setSelectedClient(clientId);
     setSelectedAccountId("all");
+    // Clear date filter when switching clients
+    setDateFrom(undefined);
+    setDateTo(undefined);
     const cl = clientId ? clients.find((c) => c.id === clientId) : null;
     setClientName(cl ? cl.name : "Todos los Clientes");
     setActiveTab("posiciones");
 
     if (!clientId) {
-      const params = new URLSearchParams();
-      if (dateFrom) params.set("dateFrom", dateFrom);
-      if (dateTo) params.set("dateTo", dateTo);
-      router.push(`${pathname}?${params.toString()}`);
+      router.push(pathname);
       return;
     }
 
-    fetchData(clientId, dateFrom, dateTo, 1, "all");
+    fetchData(clientId, undefined, undefined, 1, "all");
 
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams();
     params.set("client", clientId);
     router.push(`${pathname}?${params.toString()}`, { scroll: false });
   };
