@@ -621,6 +621,7 @@ export default function ClientDashboard({
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"cartera" | "operaciones">("cartera");
   const [opsPage, setOpsPage] = useState(1);
+  const [returnMethod, setReturnMethod] = useState<"twr" | "mwr">("twr");
 
   // Fetch data
   const fetchData = async (
@@ -723,8 +724,8 @@ export default function ClientDashboard({
     };
   }, [data.positions, totalValue]);
 
-  // Rentabilidad por periodos (from history snapshots)
-  const rentabilidadPeriods = useMemo(() => {
+  // Rentabilidad por periodos — TWR (Time Weighted Return)
+  const twrPeriods = useMemo(() => {
     if (data.history.length === 0 || totalValue === 0) return [];
     const now = new Date();
     const periods = [
@@ -756,6 +757,86 @@ export default function ClientDashboard({
       return { period: p.label, returnPct: 0, returnEur: 0 };
     });
   }, [data.history, totalValue]);
+
+  // Rentabilidad por periodos — MWR (Money Weighted Return / Modified Dietz)
+  // Traspasos internos (TRASPASO INT.) no cuentan como flujo de capital nuevo
+  const mwrPeriods = useMemo(() => {
+    if (data.history.length === 0 || totalValue === 0) return [];
+
+    const TRASPASO_INT_KEYWORDS = ["traspaso int", "traspaso. int"];
+    const isTraspInterno = (t: string) =>
+      TRASPASO_INT_KEYWORDS.some((kw) => t.toLowerCase().includes(kw));
+
+    // Build sorted cashflows from operations (only real external flows)
+    const cashflows: { date: string; amount: number }[] = [];
+    for (const op of data.operations.operations) {
+      if (!op.operation_date || !op.operation_type) continue;
+      if (isTraspInterno(op.operation_type)) continue;
+      const t = op.operation_type.toLowerCase();
+      const amount = Math.abs(op.eur_amount ?? 0);
+      if (t.includes("compra") || t.includes("suscripci")) {
+        cashflows.push({ date: op.operation_date, amount }); // inflow = positive
+      } else if (t.includes("venta") || t.includes("reembolso")) {
+        cashflows.push({ date: op.operation_date, amount: -amount }); // outflow = negative
+      }
+    }
+    cashflows.sort((a, b) => a.date.localeCompare(b.date));
+
+    const now = new Date();
+    const periods = [
+      { label: "1M", daysAgo: 30 },
+      { label: "3M", daysAgo: 90 },
+      { label: "YTD", yearStart: true as const },
+      { label: "1A", daysAgo: 365 },
+      { label: "ALL", daysAgo: undefined as number | undefined },
+    ];
+
+    return periods.map((p) => {
+      let targetDate: string;
+      if (p.label === "ALL") {
+        targetDate = data.history[0].date;
+      } else if ("yearStart" in p && p.yearStart) {
+        targetDate = `${now.getFullYear()}-01-01`;
+      } else {
+        const d = new Date(now);
+        d.setDate(d.getDate() - (p.daysAgo ?? 0));
+        targetDate = d.toISOString().split("T")[0];
+      }
+
+      // Find starting portfolio value
+      const closest = data.history.find((h) => h.date >= targetDate) ?? data.history[0];
+      const startValue = closest.totalValue;
+      const startDate = closest.date;
+
+      if (startValue <= 0) return { period: p.label, returnPct: 0, returnEur: 0 };
+
+      // Filter cashflows within period
+      const endDate = data.history[data.history.length - 1].date;
+      const periodFlows = cashflows.filter((cf) => cf.date > startDate && cf.date <= endDate);
+
+      // Modified Dietz: R = (V_end - V_start - sum(CF)) / (V_start + sum(CF_i * W_i))
+      // W_i = (T - t_i) / T  where T = total days, t_i = days since start
+      const totalDays = Math.max(1, (new Date(endDate).getTime() - new Date(startDate).getTime()) / 86400000);
+      let sumCF = 0;
+      let weightedCF = 0;
+      for (const cf of periodFlows) {
+        const daysSinceStart = (new Date(cf.date).getTime() - new Date(startDate).getTime()) / 86400000;
+        const weight = (totalDays - daysSinceStart) / totalDays;
+        sumCF += cf.amount;
+        weightedCF += cf.amount * weight;
+      }
+
+      const gain = totalValue - startValue - sumCF;
+      const avgCapital = startValue + weightedCF;
+      const returnPct = avgCapital > 0 ? (gain / avgCapital) * 100 : 0;
+      const returnEur = gain;
+
+      return { period: p.label, returnPct, returnEur };
+    });
+  }, [data.history, data.operations.operations, totalValue]);
+
+  // Active rentabilidad periods based on selected method
+  const rentabilidadPeriods = returnMethod === "twr" ? twrPeriods : mwrPeriods;
 
   // Chart data: flujos por mes con neto acumulado
   const flowsByMonth = useMemo(() => {
@@ -901,6 +982,34 @@ export default function ClientDashboard({
                 </button>
               )}
             </div>
+            {/* Toggle TWR / MWR */}
+            <div className="flex items-center gap-1.5">
+              <TrendingUp className="h-4 w-4 text-white/40" />
+              <div className="flex gap-0">
+                <button
+                  onClick={() => setReturnMethod("twr")}
+                  className={`rounded-l-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                    returnMethod === "twr"
+                      ? "bg-[#c9a94e] text-[#1e3a5f] shadow"
+                      : "bg-white/10 text-white/70 hover:bg-white/20"
+                  }`}
+                  title="Time Weighted Return — rentabilidad independiente de aportaciones"
+                >
+                  TWR
+                </button>
+                <button
+                  onClick={() => setReturnMethod("mwr")}
+                  className={`rounded-r-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                    returnMethod === "mwr"
+                      ? "bg-[#c9a94e] text-[#1e3a5f] shadow"
+                      : "bg-white/10 text-white/70 hover:bg-white/20"
+                  }`}
+                  title="Money Weighted Return — rentabilidad ponderada por capital invertido"
+                >
+                  MWR
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -930,7 +1039,7 @@ export default function ClientDashboard({
             >
               <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#C9A84C] to-[#E8C870] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
               <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400">
-                Rent. {r.period}
+                {returnMethod === "twr" ? "TWR" : "MWR"} {r.period}
               </p>
               <p className={`mt-1 text-lg font-bold ${r.returnPct >= 0 ? "text-green-600" : "text-red-600"}`}>
                 {r.returnPct >= 0 ? "+" : ""}{r.returnPct.toFixed(2)}%
