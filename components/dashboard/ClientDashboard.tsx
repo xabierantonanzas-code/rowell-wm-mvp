@@ -1024,41 +1024,25 @@ export default function ClientDashboard({
             {/* Date range */}
             <div className="flex flex-wrap items-center gap-1.5">
               <Calendar className="h-4 w-4 flex-shrink-0 text-white/40" />
-              <div className="relative min-w-0 flex-1 sm:flex-none">
-                <input
-                  type="date"
-                  value={dateFrom ?? ""}
-                  min={availableDateRange?.minDate}
-                  max={dateTo || availableDateRange?.maxDate}
-                  onChange={(e) => handleDateChange(e.target.value || undefined, dateTo)}
-                  className={`w-full rounded-lg border border-white/20 bg-white/10 px-2 py-2 text-xs font-medium backdrop-blur-sm focus:border-[#c9a94e] focus:outline-none [color-scheme:dark] sm:py-1.5 ${
-                    dateFrom ? "text-white" : "text-white/30"
-                  }`}
-                />
-                {!dateFrom && (
-                  <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-xs text-white/30">
-                    Desde
-                  </span>
-                )}
-              </div>
+              <input
+                type="date"
+                value={dateFrom ?? ""}
+                min={availableDateRange?.minDate}
+                max={dateTo || availableDateRange?.maxDate}
+                placeholder="Desde"
+                onChange={(e) => handleDateChange(e.target.value || undefined, dateTo)}
+                className="min-w-0 flex-1 rounded-lg border border-white/20 bg-white/10 px-2 py-2 text-xs font-medium text-white backdrop-blur-sm focus:border-[#c9a94e] focus:outline-none [color-scheme:dark] sm:flex-none sm:py-1.5"
+              />
               <span className="text-xs text-white/40">—</span>
-              <div className="relative min-w-0 flex-1 sm:flex-none">
-                <input
-                  type="date"
-                  value={dateTo ?? ""}
-                  min={dateFrom || availableDateRange?.minDate}
-                  max={availableDateRange?.maxDate}
-                  onChange={(e) => handleDateChange(dateFrom, e.target.value || undefined)}
-                  className={`w-full rounded-lg border border-white/20 bg-white/10 px-2 py-2 text-xs font-medium backdrop-blur-sm focus:border-[#c9a94e] focus:outline-none [color-scheme:dark] sm:py-1.5 ${
-                    dateTo ? "text-white" : "text-white/30"
-                  }`}
-                />
-                {!dateTo && (
-                  <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-xs text-white/30">
-                    Hasta
-                  </span>
-                )}
-              </div>
+              <input
+                type="date"
+                value={dateTo ?? ""}
+                min={dateFrom || availableDateRange?.minDate}
+                max={availableDateRange?.maxDate}
+                placeholder="Hasta"
+                onChange={(e) => handleDateChange(dateFrom, e.target.value || undefined)}
+                className="min-w-0 flex-1 rounded-lg border border-white/20 bg-white/10 px-2 py-2 text-xs font-medium text-white backdrop-blur-sm focus:border-[#c9a94e] focus:outline-none [color-scheme:dark] sm:flex-none sm:py-1.5"
+              />
               {(dateFrom || dateTo) && (
                 <button
                   onClick={() => handleDateChange(undefined, undefined)}
