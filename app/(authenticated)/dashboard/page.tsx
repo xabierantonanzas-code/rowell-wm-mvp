@@ -48,7 +48,7 @@ export default async function DashboardPage({
             Actividad, usuarios, seguridad y sistema
           </p>
         </div>
-        <OperationalDashboard />
+        <OperationalDashboard isOwner={user.app_metadata?.role === "owner"} />
       </div>
     );
   }

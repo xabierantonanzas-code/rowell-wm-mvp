@@ -70,7 +70,7 @@ function formatDate(dateStr: string): string {
 // Component
 // ===========================================================================
 
-export default function OperationalDashboard() {
+export default function OperationalDashboard({ isOwner = false }: { isOwner?: boolean }) {
   const [stats, setStats] = useState<StatsData | null>(null);
   const [health, setHealth] = useState<HealthData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -78,7 +78,7 @@ export default function OperationalDashboard() {
   useEffect(() => {
     Promise.all([
       fetch("/api/admin/stats").then((r) => (r.ok ? r.json() : null)),
-      fetch("/api/health").then((r) => (r.ok ? r.json() : null)),
+      isOwner ? fetch("/api/health").then((r) => (r.ok ? r.json() : null)) : Promise.resolve(null),
     ])
       .then(([s, h]) => {
         setStats(s);
@@ -106,8 +106,8 @@ export default function OperationalDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Health Status */}
-      {health && (
+      {/* Health Status — solo owner */}
+      {isOwner && health && (
         <div
           className={`flex items-center gap-3 rounded-xl border px-4 py-3 ${
             health.status === "healthy"
@@ -135,18 +135,12 @@ export default function OperationalDashboard() {
 
       {/* KPI Grid */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        {/* Visible para admin + owner */}
         <KpiCard
           icon={Users}
           label="Usuarios activos (7d)"
           value={String(stats.activeUsersWeek)}
           sub={`${stats.loginSuccesses7d} logins exitosos`}
-        />
-        <KpiCard
-          icon={Shield}
-          label="Logins fallidos (7d)"
-          value={String(stats.loginFailures7d)}
-          sub={`${stats.blockedIPs7d} IPs bloqueadas`}
-          alert={stats.loginFailures7d > 10}
         />
         <KpiCard
           icon={Users}
@@ -155,35 +149,48 @@ export default function OperationalDashboard() {
           sub={`${stats.clientsWithAccess} con acceso · ${stats.clientsWithoutAccess} sin acceso`}
         />
         <KpiCard
-          icon={Mail}
-          label="Invitaciones"
-          value={String(stats.pendingInvites + stats.confirmedInvites)}
-          sub={`${stats.pendingInvites} pendientes · ${stats.confirmedInvites} confirmadas`}
-        />
-        <KpiCard
-          icon={Database}
-          label="Posiciones en DB"
-          value={stats.totalPositions.toLocaleString("es-ES")}
-          sub="Datos financieros cargados"
-        />
-        <KpiCard
           icon={FileText}
           label="Documentos"
           value={String(stats.totalDocuments)}
           sub={`${stats.storageUsedMB} MB usado`}
         />
         <KpiCard
-          icon={Upload}
-          label="Uploads recientes"
-          value={String(stats.recentUploads)}
-          sub="Cargas de Excel"
+          icon={Mail}
+          label="Invitaciones"
+          value={String(stats.pendingInvites + stats.confirmedInvites)}
+          sub={`${stats.pendingInvites} pendientes · ${stats.confirmedInvites} confirmadas`}
         />
-        <KpiCard
-          icon={HardDrive}
-          label="Storage"
-          value={`${stats.storageUsedMB} MB`}
-          sub={`de 1.000 MB (${((stats.storageUsedMB / 1000) * 100).toFixed(1)}%)`}
-        />
+
+        {/* Solo owner */}
+        {isOwner && (
+          <>
+            <KpiCard
+              icon={Shield}
+              label="Logins fallidos (7d)"
+              value={String(stats.loginFailures7d)}
+              sub={`${stats.blockedIPs7d} IPs bloqueadas`}
+              alert={stats.loginFailures7d > 10}
+            />
+            <KpiCard
+              icon={Database}
+              label="Posiciones en DB"
+              value={stats.totalPositions.toLocaleString("es-ES")}
+              sub="Datos financieros cargados"
+            />
+            <KpiCard
+              icon={Upload}
+              label="Uploads recientes"
+              value={String(stats.recentUploads)}
+              sub="Cargas de Excel"
+            />
+            <KpiCard
+              icon={HardDrive}
+              label="Storage"
+              value={`${stats.storageUsedMB} MB`}
+              sub={`de 1.000 MB (${((stats.storageUsedMB / 1000) * 100).toFixed(1)}%)`}
+            />
+          </>
+        )}
       </div>
 
       {/* Tables */}
