@@ -51,7 +51,7 @@ function SidebarContent({
     <>
       <div className="flex h-16 items-center justify-between border-b border-white/10 px-6">
         <Link
-          href={isAdmin ? "/admin" : "/dashboard"}
+          href="/dashboard"
           className="flex items-center gap-2.5"
           onClick={onClose}
         >

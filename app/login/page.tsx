@@ -78,11 +78,8 @@ export default function LoginPage() {
 
     const role = user?.app_metadata?.role;
 
-    if (role === "admin" || role === "owner") {
-      router.push("/admin");
-    } else {
-      router.push("/dashboard");
-    }
+    // Admin/owner → operational dashboard, client → portfolio
+    router.push("/dashboard");
 
     router.refresh();
   };

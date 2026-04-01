@@ -17,9 +17,10 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import ClientDashboard from "@/components/dashboard/ClientDashboard";
+import OperationalDashboard from "@/components/admin/OperationalDashboard";
 
 // ===========================================================================
-// Dashboard del Cliente
+// Dashboard
 // ===========================================================================
 
 export default async function DashboardPage({
@@ -35,9 +36,21 @@ export default async function DashboardPage({
 
   if (!user) redirect("/login");
 
-  // Si es admin/owner, redirigir al panel admin
+  // Admin/Owner: panel operativo
   if (user.app_metadata?.role === "admin" || user.app_metadata?.role === "owner") {
-    redirect("/admin");
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="font-display text-2xl font-bold text-rowell-navy sm:text-3xl">
+            Dashboard Operativo
+          </h1>
+          <p className="mt-1 text-sm text-gray-500">
+            Actividad, usuarios, seguridad y sistema
+          </p>
+        </div>
+        <OperationalDashboard />
+      </div>
+    );
   }
 
   // Obtener cuentas del cliente
