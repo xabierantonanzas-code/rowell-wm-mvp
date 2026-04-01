@@ -5,6 +5,10 @@ import {
   createMessage,
   markMessagesRead,
 } from "@/lib/queries/meetings";
+import { sanitizeInput } from "@/lib/security";
+import { captureError } from "@/lib/error";
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function GET(req: NextRequest) {
   const supabase = await createClient();
@@ -16,9 +20,9 @@ export async function GET(req: NextRequest) {
   }
 
   const clientId = req.nextUrl.searchParams.get("clientId");
-  if (!clientId) {
+  if (!clientId || !UUID_REGEX.test(clientId)) {
     return NextResponse.json(
-      { error: "clientId requerido" },
+      { error: "clientId invalido" },
       { status: 400 }
     );
   }
@@ -27,7 +31,7 @@ export async function GET(req: NextRequest) {
     const messages = await getMessages(clientId);
     return NextResponse.json(messages);
   } catch (err) {
-    console.error("Error fetching messages:", err);
+    captureError(err, "Messages GET");
     return NextResponse.json(
       { error: "Error obteniendo mensajes" },
       { status: 500 }
@@ -46,15 +50,26 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
+
+    const clientId = body.client_id;
+    const content = sanitizeInput(body.content ?? "", 5000);
+
+    if (!clientId || !UUID_REGEX.test(clientId)) {
+      return NextResponse.json({ error: "client_id invalido" }, { status: 400 });
+    }
+    if (!content) {
+      return NextResponse.json({ error: "Contenido requerido" }, { status: 400 });
+    }
+
     const message = await createMessage({
-      client_id: body.client_id,
+      client_id: clientId,
       sender_id: user.id,
-      content: body.content,
+      content,
       is_from_advisor: body.is_from_advisor ?? false,
     });
     return NextResponse.json(message);
   } catch (err) {
-    console.error("Error creating message:", err);
+    captureError(err, "Messages POST");
     return NextResponse.json(
       { error: "Error creando mensaje" },
       { status: 500 }
@@ -73,10 +88,16 @@ export async function PATCH(req: NextRequest) {
 
   try {
     const body = await req.json();
-    await markMessagesRead(body.client_id);
+    const clientId = body.client_id;
+
+    if (!clientId || !UUID_REGEX.test(clientId)) {
+      return NextResponse.json({ error: "client_id invalido" }, { status: 400 });
+    }
+
+    await markMessagesRead(clientId);
     return NextResponse.json({ success: true });
   } catch (err) {
-    console.error("Error marking messages read:", err);
+    captureError(err, "Messages PATCH");
     return NextResponse.json(
       { error: "Error actualizando mensajes" },
       { status: 500 }

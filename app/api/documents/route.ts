@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getDocuments, getSignedUrl } from "@/lib/queries/documents";
+import { sanitizeInput } from "@/lib/security";
+import { captureError } from "@/lib/error";
 import type { Document } from "@/lib/types/database";
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const ALLOWED_EXTENSIONS = new Set(["pdf", "xlsx", "xls", "doc", "docx", "jpg", "jpeg", "png"]);
 
 export async function GET(req: NextRequest) {
   const supabase = await createClient();
@@ -15,13 +20,16 @@ export async function GET(req: NextRequest) {
   const params = req.nextUrl.searchParams;
   const download = params.get("download");
 
-  // Signed URL download
+  // Signed URL download — validate path doesn't traverse directories
   if (download) {
+    if (download.includes("..") || download.startsWith("/")) {
+      return NextResponse.json({ error: "Ruta invalida" }, { status: 400 });
+    }
     try {
       const signedUrl = await getSignedUrl(download);
       return NextResponse.json({ url: signedUrl });
     } catch (err) {
-      console.error("Error generating signed URL:", err);
+      captureError(err, "Documents signed URL");
       return NextResponse.json(
         { error: "Error generando URL de descarga" },
         { status: 500 }
@@ -31,9 +39,9 @@ export async function GET(req: NextRequest) {
 
   // List documents
   const clientId = params.get("clientId");
-  if (!clientId) {
+  if (!clientId || !UUID_REGEX.test(clientId)) {
     return NextResponse.json(
-      { error: "clientId requerido" },
+      { error: "clientId invalido" },
       { status: 400 }
     );
   }
@@ -41,7 +49,6 @@ export async function GET(req: NextRequest) {
   try {
     const docs = await getDocuments(clientId);
 
-    // Generate signed URLs for each document
     const docsWithUrls: (Document & { signed_url: string | null })[] =
       await Promise.all(
         docs.map(async (doc) => {
@@ -56,7 +63,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(docsWithUrls);
   } catch (err) {
-    console.error("Error fetching documents:", err);
+    captureError(err, "Documents GET");
     return NextResponse.json(
       { error: "Error obteniendo documentos" },
       { status: 500 }
@@ -88,8 +95,27 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (!UUID_REGEX.test(clientId)) {
+      return NextResponse.json({ error: "client_id invalido" }, { status: 400 });
+    }
+
+    // Validate file extension
+    const ext = (file.name.split(".").pop() ?? "").toLowerCase();
+    if (!ALLOWED_EXTENSIONS.has(ext)) {
+      return NextResponse.json(
+        { error: `Extension no permitida: .${ext}. Permitidas: ${Array.from(ALLOWED_EXTENSIONS).join(", ")}` },
+        { status: 400 }
+      );
+    }
+
+    // Validate file size (max 20MB)
     const fileBuffer = Buffer.from(await file.arrayBuffer());
-    const ext = file.name.split(".").pop() ?? "pdf";
+    if (fileBuffer.length > 20 * 1024 * 1024) {
+      return NextResponse.json({ error: "Archivo demasiado grande (max 20MB)" }, { status: 400 });
+    }
+
+    const sanitizedName = sanitizeInput(name, 200);
+    const sanitizedDesc = description ? sanitizeInput(description, 1000) : null;
     const filePath = `${clientId}/${docType}/${Date.now()}.${ext}`;
 
     // Upload to storage
@@ -101,7 +127,7 @@ export async function POST(req: NextRequest) {
       });
 
     if (uploadErr) {
-      console.error("Upload error:", uploadErr);
+      captureError(uploadErr, "Documents upload");
       return NextResponse.json(
         { error: "Error subiendo archivo" },
         { status: 500 }
@@ -114,8 +140,8 @@ export async function POST(req: NextRequest) {
       .insert({
         client_id: clientId,
         uploaded_by: user.id,
-        name,
-        description,
+        name: sanitizedName,
+        description: sanitizedDesc,
         file_path: filePath,
         file_size: fileBuffer.length,
         doc_type: docType,
@@ -127,7 +153,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(doc);
   } catch (err) {
-    console.error("Error uploading document:", err);
+    captureError(err, "Documents POST");
     return NextResponse.json(
       { error: "Error subiendo documento" },
       { status: 500 }

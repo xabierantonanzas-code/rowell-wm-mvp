@@ -36,9 +36,14 @@ export async function GET(req: NextRequest) {
   const params = req.nextUrl.searchParams;
   const accountId = params.get("account") ?? undefined;
   const accountsParam = params.get("accounts");
-  const dateFrom = params.get("dateFrom") ?? undefined;
-  const dateTo = params.get("dateTo") ?? undefined;
+  const rawDateFrom = params.get("dateFrom") ?? undefined;
+  const rawDateTo = params.get("dateTo") ?? undefined;
   const pageStr = params.get("page");
+
+  // Validate date format (YYYY-MM-DD)
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+  const dateFrom = rawDateFrom && dateRegex.test(rawDateFrom) ? rawDateFrom : undefined;
+  const dateTo = rawDateTo && dateRegex.test(rawDateTo) ? rawDateTo : undefined;
 
   const dateRange: DateRange | undefined =
     dateFrom || dateTo ? { dateFrom, dateTo } : undefined;
