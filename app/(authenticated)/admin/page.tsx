@@ -76,21 +76,27 @@ export default async function AdminPage({
 
   const clients = Array.from(clientsMap.values());
 
-  // Fetch invitation status for all clients
-  const { data: invitationRows } = await supabase
-    .from("invitations")
-    .select("client_id, status")
-    .order("invited_at", { ascending: false });
+  // Fetch invitation status for all clients (graceful if tables don't exist yet)
+  let invitationRows: { client_id: string; status: string }[] = [];
+  try {
+    const { data } = await supabase
+      .from("invitations")
+      .select("client_id, status")
+      .order("invited_at", { ascending: false });
+    invitationRows = data ?? [];
+  } catch { /* table may not exist yet */ }
 
   // Also check which clients have auth_user_id set
-  const { data: clientsWithAuth } = await supabase
-    .from("clients")
-    .select("id, auth_user_id")
-    .not("auth_user_id", "is", null);
-
-  const confirmedClientIds = new Set(
-    (clientsWithAuth ?? []).map((c) => c.id)
-  );
+  let confirmedClientIds = new Set<string>();
+  try {
+    const { data: clientsWithAuth } = await supabase
+      .from("clients")
+      .select("id, auth_user_id")
+      .not("auth_user_id", "is", null);
+    confirmedClientIds = new Set(
+      (clientsWithAuth ?? []).map((c) => c.id)
+    );
+  } catch { /* column may not exist yet */ }
 
   const invitations = clients.map((c) => {
     if (confirmedClientIds.has(c.id)) {
