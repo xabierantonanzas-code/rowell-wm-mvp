@@ -5,12 +5,15 @@ import {
   getAggregatedPositions,
   getAggregatedHistory,
   getAvailableDateRange,
+  getHistoryByAccount,
   getAllLatestPositions,
   getAllPositionHistory,
 } from "@/lib/queries/positions";
 import type { DateRange } from "@/lib/queries/positions";
 import { getOperations } from "@/lib/queries/operations";
+import { getCashBalances } from "@/lib/queries/balances";
 import AdminDashboard from "@/components/admin/AdminDashboard";
+import ClientDashboard from "@/components/dashboard/ClientDashboard";
 
 // ===========================================================================
 // Pagina Admin
@@ -81,56 +84,122 @@ export default async function AdminPage({
   const dateRange: DateRange | undefined =
     dateFromParam || dateToParam ? { dateFrom: dateFromParam, dateTo: dateToParam } : undefined;
 
-  // Determinar cuentas segun filtro
-  let activeAccountIds: string[] = [];
-  let activeClientName: string;
   const isAllClients = !selectedClientId || !clientsMap.has(selectedClientId);
 
+  // =========================================================================
+  // CLIENT SELECTED → render ClientDashboard (same view as client)
+  // =========================================================================
   if (!isAllClients) {
     const cl = clientsMap.get(selectedClientId!)!;
-    activeAccountIds = cl.accounts.map((a) => a.id);
-    activeClientName = cl.name;
-  } else {
-    activeClientName = "Todos los Clientes";
+    const clientAccountIds = cl.accounts.map((a) => a.id);
+    const isSingle = clientAccountIds.length === 1;
+    const primaryAccountId = clientAccountIds[0];
+
+    const [positions, history, opsResult, availDateRange] = await Promise.all([
+      isSingle
+        ? (await import("@/lib/queries/positions")).getLatestPositions(primaryAccountId, dateRange)
+        : getAggregatedPositions(clientAccountIds, dateRange),
+      isSingle
+        ? (await import("@/lib/queries/positions")).getPositionHistory(primaryAccountId, dateRange)
+        : getAggregatedHistory(clientAccountIds, dateRange),
+      isSingle
+        ? getOperations(primaryAccountId, { dateRange, page: 1, pageSize: 25 })
+        : Promise.resolve({ operations: [] as any[], total: 0, page: 1, totalPages: 0, pageSize: 25 }),
+      getAvailableDateRange(clientAccountIds),
+    ]);
+
+    // Cash balance
+    let cashBalance = 0;
+    if (isSingle) {
+      const balances = await getCashBalances(primaryAccountId);
+      cashBalance = balances.reduce((sum, b) => sum + (b.balance ?? 0), 0);
+    }
+
+    // Per-account history for strategy chart
+    let historyByAccount: Record<string, { date: string; totalValue: number }[]> | undefined;
+    if (!isSingle) {
+      const histMap = await getHistoryByAccount(clientAccountIds, dateRange);
+      historyByAccount = Object.fromEntries(histMap);
+    }
+
+    const initialData = {
+      accountId: isSingle ? primaryAccountId : "all",
+      dateFrom: dateFromParam ?? null,
+      dateTo: dateToParam ?? null,
+      positions,
+      history,
+      historyByAccount,
+      operations: {
+        operations: opsResult.operations,
+        total: opsResult.total,
+        page: opsResult.page,
+        totalPages: opsResult.totalPages,
+      },
+      cashBalance,
+    };
+
+    const accountOptions = cl.accounts.map((a) => ({
+      id: a.id,
+      account_number: a.account_number,
+      label: a.label,
+    }));
+
+    return (
+      <div className="space-y-4">
+        {/* Admin client selector bar */}
+        <AdminDashboard
+          clients={clients}
+          unassignedAccounts={unassigned}
+          selectedClientId={selectedClientId!}
+          aumData={aumData}
+          availableDateRange={availDateRange}
+          initialDateFrom={dateFromParam ?? null}
+          initialDateTo={dateToParam ?? null}
+          initialPositions={[]}
+          initialHistory={[]}
+          initialOperations={{ operations: [], total: 0, page: 1, totalPages: 0 }}
+          activeClientName={cl.name}
+          totalAccounts={accounts.length}
+          selectorOnly
+        />
+
+        {/* Full client dashboard — same view as client sees */}
+        <ClientDashboard
+          clientName={cl.name}
+          clientId={cl.id}
+          accounts={accountOptions}
+          availableDateRange={availDateRange}
+          initialData={initialData}
+          fetchUrl="/api/dashboard"
+          showBackLink={false}
+          isAdmin
+        />
+      </div>
+    );
   }
 
-  // Fetch datos del dashboard
+  // =========================================================================
+  // ALL CLIENTS → aggregated admin view
+  // =========================================================================
   const [positions, history, availDateRange] = await Promise.all([
-    isAllClients
-      ? getAllLatestPositions(dateRange)
-      : getAggregatedPositions(activeAccountIds, dateRange),
-    isAllClients
-      ? getAllPositionHistory(dateRange)
-      : getAggregatedHistory(activeAccountIds, dateRange),
-    isAllClients
-      ? getAvailableDateRange([])
-      : getAvailableDateRange(activeAccountIds),
+    getAllLatestPositions(dateRange),
+    getAllPositionHistory(dateRange),
+    getAvailableDateRange([]),
   ]);
-
-  // Operaciones: solo si es un solo cliente con una cuenta
-  let opsResult = { operations: [] as any[], total: 0, page: 1, totalPages: 0, pageSize: 25 };
-  if (selectedClientId && activeAccountIds.length === 1) {
-    opsResult = await getOperations(activeAccountIds[0], { dateRange, page: 1, pageSize: 25 });
-  }
 
   return (
     <AdminDashboard
       clients={clients}
       unassignedAccounts={unassigned}
-      selectedClientId={selectedClientId ?? null}
+      selectedClientId={null}
       aumData={aumData}
       availableDateRange={availDateRange}
       initialDateFrom={dateFromParam ?? null}
       initialDateTo={dateToParam ?? null}
       initialPositions={positions}
       initialHistory={history}
-      initialOperations={{
-        operations: opsResult.operations,
-        total: opsResult.total,
-        page: opsResult.page,
-        totalPages: opsResult.totalPages,
-      }}
-      activeClientName={activeClientName}
+      initialOperations={{ operations: [], total: 0, page: 1, totalPages: 0 }}
+      activeClientName="Todos los Clientes"
       totalAccounts={accounts.length}
     />
   );

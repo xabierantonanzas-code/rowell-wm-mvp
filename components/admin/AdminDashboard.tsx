@@ -85,6 +85,7 @@ interface AdminDashboardProps {
   initialOperations: OperationsData;
   activeClientName: string;
   totalAccounts: number;
+  selectorOnly?: boolean;
 }
 
 // ===========================================================================
@@ -307,6 +308,7 @@ export default function AdminDashboard({
   initialOperations,
   activeClientName,
   totalAccounts,
+  selectorOnly = false,
 }: AdminDashboardProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -749,6 +751,10 @@ export default function AdminDashboard({
         </div>
       )}
 
+      {/* If selectorOnly, stop here — ClientDashboard renders below */}
+      {selectorOnly ? null : (
+      <>
+
       {/* ================================================================= */}
       {/* KPIs                                                               */}
       {/* ================================================================= */}
@@ -1067,6 +1073,9 @@ export default function AdminDashboard({
             isAdmin
           />
         </div>
+      )}
+
+      </>
       )}
     </div>
   );
