@@ -3,6 +3,8 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import type { Position, Operation } from "@/lib/types/database";
+import { useUser } from "@/lib/hooks/useUser";
+import SystemPanel from "@/components/admin/SystemPanel";
 import {
   Card,
   CardContent,
@@ -313,6 +315,7 @@ export default function AdminDashboard({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { isOwner: currentUserIsOwner } = useUser();
 
   // State
   const [selectedClient, setSelectedClient] = useState<string | null>(
@@ -1077,6 +1080,9 @@ export default function AdminDashboard({
 
       </>
       )}
+
+      {/* Sistema — solo visible para owner */}
+      {currentUserIsOwner && !selectorOnly && <SystemPanel />}
     </div>
   );
 }
