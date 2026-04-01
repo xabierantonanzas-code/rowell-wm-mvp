@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
@@ -18,27 +19,72 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
 
+    const trimmedEmail = email.trim();
+
+    // Step 1: Check rate limit
     try {
-      const res = await fetch("/api/auth/login", {
+      const checkRes = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), password }),
+        body: JSON.stringify({ email: trimmedEmail, action: "check" }),
       });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error ?? "Error al iniciar sesion");
+      if (checkRes.status === 429) {
+        const data = await checkRes.json();
+        setError(data.error ?? "Demasiados intentos. Espera 15 minutos.");
         setLoading(false);
         return;
       }
-
-      router.push(data.redirect);
-      router.refresh();
     } catch {
-      setError("Error de conexion. Intenta de nuevo.");
-      setLoading(false);
+      // If rate limit check fails, proceed anyway (don't block login)
     }
+
+    // Step 2: Client-side login (sets cookies correctly)
+    const supabase = createClient();
+
+    const { error: authError } = await supabase.auth.signInWithPassword({
+      email: trimmedEmail,
+      password,
+    });
+
+    if (authError) {
+      // Log failure
+      fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: trimmedEmail, action: "failure" }),
+      }).catch(() => {});
+
+      setError(
+        authError.message === "Invalid login credentials"
+          ? "Email o contraseña incorrectos"
+          : authError.message
+      );
+      setLoading(false);
+      return;
+    }
+
+    // Log success
+    fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: trimmedEmail, action: "success" }),
+    }).catch(() => {});
+
+    // Redirect based on role
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    const role = user?.app_metadata?.role;
+
+    if (role === "admin" || role === "owner") {
+      router.push("/admin");
+    } else {
+      router.push("/dashboard");
+    }
+
+    router.refresh();
   };
 
   return (
