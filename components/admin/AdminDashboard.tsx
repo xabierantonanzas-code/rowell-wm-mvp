@@ -6,6 +6,7 @@ import type { Position, Operation } from "@/lib/types/database";
 import { useUser } from "@/lib/hooks/useUser";
 import SystemPanel from "@/components/admin/SystemPanel";
 import InviteClientModal from "@/components/admin/InviteClientModal";
+import DataIntegrityAlert from "@/components/ui/DataIntegrityAlert";
 import { Mail } from "lucide-react";
 import {
   Card,
@@ -795,6 +796,14 @@ export default function AdminDashboard({
       {/* If selectorOnly, stop here — ClientDashboard renders below */}
       {selectorOnly ? null : (
       <>
+
+      {/* Data integrity check */}
+      <DataIntegrityAlert
+        kpiTotal={totalValue}
+        chartTotal={history.length > 0 ? history[history.length - 1].totalValue : 0}
+        positionsCount={positions.length}
+        historyPoints={history.length}
+      />
 
       {/* ================================================================= */}
       {/* KPIs                                                               */}

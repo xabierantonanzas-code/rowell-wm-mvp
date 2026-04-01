@@ -21,6 +21,7 @@ import PositionsTable from "@/components/dashboard/PositionsTable";
 import CommunicationPanel from "@/components/dashboard/CommunicationPanel";
 import CombinedChart from "@/components/dashboard/CombinedChart";
 import StrategyChart from "@/components/dashboard/StrategyChart";
+import DataIntegrityAlert from "@/components/ui/DataIntegrityAlert";
 import {
   PieChart,
   Pie,
@@ -1045,6 +1046,14 @@ export default function ClientDashboard({
           </div>
         </div>
       </div>
+
+      {/* Data integrity check */}
+      <DataIntegrityAlert
+        kpiTotal={totalValue}
+        chartTotal={data.history.length > 0 ? data.history[data.history.length - 1].totalValue : 0}
+        positionsCount={data.positions.length}
+        historyPoints={data.history.length}
+      />
 
       {/* ================================================================= */}
       {/* 1. RESUMEN DE CARTERA - Datos del inversor                        */}
