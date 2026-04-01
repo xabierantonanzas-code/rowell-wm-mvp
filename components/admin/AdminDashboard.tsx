@@ -77,8 +77,9 @@ interface AdminDashboardProps {
   unassignedAccounts: { id: string; account_number: string; label: string | null }[];
   selectedClientId: string | null;
   aumData: AumData;
-  availableYears: number[];
-  initialYear: number | null;
+  availableDateRange: { minDate: string; maxDate: string } | null;
+  initialDateFrom: string | null;
+  initialDateTo: string | null;
   initialPositions: Position[];
   initialHistory: HistoryPoint[];
   initialOperations: OperationsData;
@@ -298,8 +299,9 @@ export default function AdminDashboard({
   unassignedAccounts,
   selectedClientId,
   aumData,
-  availableYears,
-  initialYear,
+  availableDateRange,
+  initialDateFrom,
+  initialDateTo,
   initialPositions,
   initialHistory,
   initialOperations,
@@ -314,7 +316,8 @@ export default function AdminDashboard({
   const [selectedClient, setSelectedClient] = useState<string | null>(
     selectedClientId
   );
-  const [selectedYear, setSelectedYear] = useState<number | null>(initialYear);
+  const [dateFrom, setDateFrom] = useState<string | undefined>(initialDateFrom ?? undefined);
+  const [dateTo, setDateTo] = useState<string | undefined>(initialDateTo ?? undefined);
   const [positions, setPositions] = useState<Position[]>(initialPositions);
   const [history, setHistory] = useState<HistoryPoint[]>(initialHistory);
   const [operations, setOperations] = useState<OperationsData>(initialOperations);
@@ -334,10 +337,11 @@ export default function AdminDashboard({
     setHistory(initialHistory);
     setOperations(initialOperations);
     setClientName(activeClientName);
-    setSelectedYear(initialYear);
+    setDateFrom(initialDateFrom ?? undefined);
+    setDateTo(initialDateTo ?? undefined);
     setSelectedAccountId("all");
     setLoading(false);
-  }, [selectedClientId, initialPositions, initialHistory, initialOperations, activeClientName, initialYear]);
+  }, [selectedClientId, initialPositions, initialHistory, initialOperations, activeClientName, initialDateFrom, initialDateTo]);
 
   // Current client's accounts for the sub-filter
   const currentClientAccounts = useMemo(() => {
@@ -361,14 +365,16 @@ export default function AdminDashboard({
   // Fetch data
   const fetchData = async (
     clientId: string | null,
-    year: number | null,
+    df: string | undefined,
+    dt: string | undefined,
     page: number = 1,
     accountFilter: string | "all" = "all"
   ) => {
     // For "all clients", use server-side navigation to avoid URL overflow
     if (!clientId) {
       const params = new URLSearchParams();
-      if (year) params.set("year", String(year));
+      if (df) params.set("dateFrom", df);
+      if (dt) params.set("dateTo", dt);
       router.push(`${pathname}?${params.toString()}`, { scroll: false });
       router.refresh();
       return;
@@ -394,7 +400,8 @@ export default function AdminDashboard({
       }
 
       const params = new URLSearchParams();
-      if (year) params.set("year", String(year));
+      if (df) params.set("dateFrom", df);
+      if (dt) params.set("dateTo", dt);
       params.set("page", String(page));
 
       if (accountIds.length === 1) {
@@ -428,12 +435,13 @@ export default function AdminDashboard({
 
     if (!clientId) {
       const params = new URLSearchParams();
-      if (selectedYear) params.set("year", String(selectedYear));
+      if (dateFrom) params.set("dateFrom", dateFrom);
+      if (dateTo) params.set("dateTo", dateTo);
       router.push(`${pathname}?${params.toString()}`);
       return;
     }
 
-    fetchData(clientId, selectedYear, 1, "all");
+    fetchData(clientId, dateFrom, dateTo, 1, "all");
 
     const params = new URLSearchParams(searchParams.toString());
     params.set("client", clientId);
@@ -442,24 +450,30 @@ export default function AdminDashboard({
 
   const handleAccountChange = (accountId: string | "all") => {
     setSelectedAccountId(accountId);
-    fetchData(selectedClient, selectedYear, 1, accountId);
+    fetchData(selectedClient, dateFrom, dateTo, 1, accountId);
   };
 
-  const handleYearChange = (year: number | null) => {
-    setSelectedYear(year);
-    fetchData(selectedClient, year, 1, selectedAccountId);
+  const handleDateChange = (newDateFrom: string | undefined, newDateTo: string | undefined) => {
+    setDateFrom(newDateFrom);
+    setDateTo(newDateTo);
+    fetchData(selectedClient, newDateFrom, newDateTo, 1, selectedAccountId);
 
     const params = new URLSearchParams(searchParams.toString());
-    if (year) {
-      params.set("year", String(year));
+    if (newDateFrom) {
+      params.set("dateFrom", newDateFrom);
     } else {
-      params.delete("year");
+      params.delete("dateFrom");
+    }
+    if (newDateTo) {
+      params.set("dateTo", newDateTo);
+    } else {
+      params.delete("dateTo");
     }
     router.push(`${pathname}?${params.toString()}`, { scroll: false });
   };
 
   const handlePageChange = (page: number) => {
-    fetchData(selectedClient, selectedYear, page, selectedAccountId);
+    fetchData(selectedClient, dateFrom, dateTo, page, selectedAccountId);
   };
 
   // KPIs
@@ -631,7 +645,7 @@ export default function AdminDashboard({
     {
       label: "Ultimo corte",
       value: latestDate,
-      sub: selectedYear ? `Ano ${selectedYear}` : "Todos los periodos",
+      sub: dateFrom || dateTo ? `${dateFrom ?? "..."} — ${dateTo ?? "..."}` : "Todos los periodos",
       accent: false,
     },
   ];
@@ -661,36 +675,34 @@ export default function AdminDashboard({
           </p>
         </div>
 
-        {/* Filtros de ano */}
+        {/* Filtro de fechas */}
         <div className="flex items-center gap-1.5">
           <Calendar className="h-4 w-4 text-gray-400" />
-          <div className="flex gap-0.5">
+          <input
+            type="date"
+            value={dateFrom ?? ""}
+            min={availableDateRange?.minDate}
+            max={dateTo || availableDateRange?.maxDate}
+            onChange={(e) => handleDateChange(e.target.value || undefined, dateTo)}
+            className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs font-medium text-gray-700 shadow-sm focus:border-rowell-navy focus:outline-none focus:ring-1 focus:ring-rowell-navy"
+          />
+          <span className="text-xs text-gray-400">—</span>
+          <input
+            type="date"
+            value={dateTo ?? ""}
+            min={dateFrom || availableDateRange?.minDate}
+            max={availableDateRange?.maxDate}
+            onChange={(e) => handleDateChange(dateFrom, e.target.value || undefined)}
+            className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs font-medium text-gray-700 shadow-sm focus:border-rowell-navy focus:outline-none focus:ring-1 focus:ring-rowell-navy"
+          />
+          {(dateFrom || dateTo) && (
             <button
-              onClick={() => handleYearChange(null)}
-              className={`rounded-l-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-                selectedYear === null
-                  ? "bg-rowell-navy text-white shadow-sm"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              }`}
+              onClick={() => handleDateChange(undefined, undefined)}
+              className="rounded-lg bg-gray-100 px-2 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-200 transition-colors"
             >
-              Todo
+              Limpiar
             </button>
-            {availableYears.map((year, i) => (
-              <button
-                key={year}
-                onClick={() => handleYearChange(year)}
-                className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-                  i === availableYears.length - 1 ? "rounded-r-lg" : ""
-                } ${
-                  selectedYear === year
-                    ? "bg-rowell-navy text-white shadow-sm"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                }`}
-              >
-                {year}
-              </button>
-            ))}
-          </div>
+          )}
         </div>
       </div>
 

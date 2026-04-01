@@ -1,14 +1,15 @@
 import { createClient } from "@/lib/supabase/server";
+import type { DateRange } from "@/lib/queries/positions";
 
 /**
- * Obtiene operaciones de una cuenta, con paginacion y filtro por año.
+ * Obtiene operaciones de una cuenta, con paginacion y filtro por rango de fechas.
  */
 export async function getOperations(
   accountId: string,
-  options?: { year?: number; page?: number; pageSize?: number }
+  options?: { dateRange?: DateRange; page?: number; pageSize?: number }
 ) {
   const supabase = await createClient();
-  const { year, page = 1, pageSize = 50 } = options ?? {};
+  const { dateRange, page = 1, pageSize = 50 } = options ?? {};
 
   let query = supabase
     .from("operations")
@@ -16,10 +17,11 @@ export async function getOperations(
     .eq("account_id", accountId)
     .order("operation_date", { ascending: false });
 
-  if (year) {
-    query = query
-      .gte("operation_date", `${year}-01-01`)
-      .lte("operation_date", `${year}-12-31`);
+  if (dateRange?.dateFrom) {
+    query = query.gte("operation_date", dateRange.dateFrom);
+  }
+  if (dateRange?.dateTo) {
+    query = query.lte("operation_date", dateRange.dateTo);
   }
 
   const from = (page - 1) * pageSize;

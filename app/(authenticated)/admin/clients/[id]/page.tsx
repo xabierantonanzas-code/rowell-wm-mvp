@@ -3,8 +3,9 @@ import { createClient } from "@/lib/supabase/server";
 import {
   getLatestPositions,
   getPositionHistory,
-  getAvailableYears,
+  getAvailableDateRange,
 } from "@/lib/queries/positions";
+import type { DateRange } from "@/lib/queries/positions";
 import { getOperations } from "@/lib/queries/operations";
 import { getCashBalances } from "@/lib/queries/balances";
 import ClientDashboard from "@/components/dashboard/ClientDashboard";
@@ -77,17 +78,20 @@ export default async function AccountDetailPage({
   }
 
   // Parsear filtros
-  const yearParam = typeof sp.year === "string" ? parseInt(sp.year, 10) : undefined;
-  const year = yearParam && !isNaN(yearParam) ? yearParam : undefined;
+  const dateFromParam = typeof sp.dateFrom === "string" ? sp.dateFrom : undefined;
+  const dateToParam = typeof sp.dateTo === "string" ? sp.dateTo : undefined;
+
+  const dateRange: DateRange | undefined =
+    dateFromParam || dateToParam ? { dateFrom: dateFromParam, dateTo: dateToParam } : undefined;
 
   // Fetch datos
   const accountIds = allAccounts.map((a) => a.id);
 
-  const [positions, history, opsResult, availableYears] = await Promise.all([
-    getLatestPositions(id, year),
-    getPositionHistory(id, year),
-    getOperations(id, { year, page: 1, pageSize: 25 }),
-    getAvailableYears(accountIds),
+  const [positions, history, opsResult, availableDateRange] = await Promise.all([
+    getLatestPositions(id, dateRange),
+    getPositionHistory(id, dateRange),
+    getOperations(id, { dateRange, page: 1, pageSize: 25 }),
+    getAvailableDateRange(accountIds),
   ]);
 
   // Cash balance
@@ -100,7 +104,8 @@ export default async function AccountDetailPage({
 
   const initialData = {
     accountId: id,
-    year: year ?? null,
+    dateFrom: dateFromParam ?? null,
+    dateTo: dateToParam ?? null,
     positions,
     history,
     operations: {
@@ -123,7 +128,7 @@ export default async function AccountDetailPage({
       clientName={clientName}
       clientId={account.clients?.id ?? undefined}
       accounts={accountOptions}
-      availableYears={availableYears}
+      availableDateRange={availableDateRange}
       initialData={initialData}
       fetchUrl="/api/dashboard"
       showBackLink

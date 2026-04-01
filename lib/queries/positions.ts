@@ -1,17 +1,40 @@
 import { createClient } from "@/lib/supabase/server";
 import type { Position } from "@/lib/types/database";
 
+// ===========================================================================
+// Date filter helper
+// ===========================================================================
+
+export interface DateRange {
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+function applyDateFilter<T extends { gte: (col: string, val: string) => T; lte: (col: string, val: string) => T }>(
+  query: T,
+  column: string,
+  range?: DateRange
+): T {
+  if (!range) return query;
+  if (range.dateFrom) {
+    query = query.gte(column, range.dateFrom);
+  }
+  if (range.dateTo) {
+    query = query.lte(column, range.dateTo);
+  }
+  return query;
+}
+
 /**
  * Obtiene las posiciones mas recientes para una cuenta,
- * opcionalmente filtradas por ano.
+ * opcionalmente filtradas por rango de fechas.
  */
 export async function getLatestPositions(
   accountId: string,
-  year?: number
+  dateRange?: DateRange
 ): Promise<Position[]> {
   const supabase = await createClient();
 
-  // Construir query para obtener la fecha mas reciente
   let dateQuery = supabase
     .from("positions")
     .select("snapshot_date")
@@ -19,12 +42,7 @@ export async function getLatestPositions(
     .order("snapshot_date", { ascending: false })
     .limit(1);
 
-  // Si hay filtro de ano, buscar la ultima fecha dentro de ese ano
-  if (year) {
-    dateQuery = dateQuery
-      .gte("snapshot_date", `${year}-01-01`)
-      .lte("snapshot_date", `${year}-12-31`);
-  }
+  dateQuery = applyDateFilter(dateQuery, "snapshot_date", dateRange);
 
   const { data: latestRow } = await dateQuery;
 
@@ -32,7 +50,6 @@ export async function getLatestPositions(
 
   const latestDate = latestRow[0].snapshot_date;
 
-  // Obtener todas las posiciones de esa fecha
   const { data, error } = await supabase
     .from("positions")
     .select("*")
@@ -47,9 +64,8 @@ export async function getLatestPositions(
 /**
  * Obtiene el historial de snapshots para un grafico de evolucion.
  * Devuelve el valor total por fecha de snapshot.
- * Opcionalmente filtrado por ano.
  */
-export async function getPositionHistory(accountId: string, year?: number) {
+export async function getPositionHistory(accountId: string, dateRange?: DateRange) {
   const supabase = await createClient();
 
   let query = supabase
@@ -58,17 +74,12 @@ export async function getPositionHistory(accountId: string, year?: number) {
     .eq("account_id", accountId)
     .order("snapshot_date");
 
-  if (year) {
-    query = query
-      .gte("snapshot_date", `${year}-01-01`)
-      .lte("snapshot_date", `${year}-12-31`);
-  }
+  query = applyDateFilter(query, "snapshot_date", dateRange);
 
   const { data, error } = await query;
 
   if (error) throw error;
 
-  // Agrupar por snapshot_date y sumar position_value
   const grouped = new Map<string, number>();
   for (const row of data ?? []) {
     const current = grouped.get(row.snapshot_date) ?? 0;
@@ -86,11 +97,10 @@ export async function getPositionHistory(accountId: string, year?: number) {
  */
 export async function getAggregatedPositions(
   accountIds: string[],
-  year?: number
+  dateRange?: DateRange
 ): Promise<Position[]> {
   const supabase = await createClient();
 
-  // Obtener la fecha mas reciente
   let dateQuery = supabase
     .from("positions")
     .select("snapshot_date")
@@ -98,11 +108,7 @@ export async function getAggregatedPositions(
     .order("snapshot_date", { ascending: false })
     .limit(1);
 
-  if (year) {
-    dateQuery = dateQuery
-      .gte("snapshot_date", `${year}-01-01`)
-      .lte("snapshot_date", `${year}-12-31`);
-  }
+  dateQuery = applyDateFilter(dateQuery, "snapshot_date", dateRange);
 
   const { data: latestRow } = await dateQuery;
 
@@ -124,7 +130,7 @@ export async function getAggregatedPositions(
 /**
  * Historial de posiciones para multiples cuentas (grafico consolidado).
  */
-export async function getAggregatedHistory(accountIds: string[], year?: number) {
+export async function getAggregatedHistory(accountIds: string[], dateRange?: DateRange) {
   const supabase = await createClient();
 
   let query = supabase
@@ -133,11 +139,7 @@ export async function getAggregatedHistory(accountIds: string[], year?: number) 
     .in("account_id", accountIds)
     .order("snapshot_date");
 
-  if (year) {
-    query = query
-      .gte("snapshot_date", `${year}-01-01`)
-      .lte("snapshot_date", `${year}-12-31`);
-  }
+  query = applyDateFilter(query, "snapshot_date", dateRange);
 
   const { data, error } = await query;
 
@@ -433,11 +435,44 @@ export async function getAvailableYears(accountIds: string[]): Promise<number[]>
   return Array.from(years).sort((a, b) => b - a);
 }
 
+/**
+ * Obtiene el rango de fechas con datos disponibles.
+ */
+export async function getAvailableDateRange(accountIds: string[]): Promise<{ minDate: string; maxDate: string } | null> {
+  const supabase = await createClient();
+
+  let minQuery = supabase
+    .from("positions")
+    .select("snapshot_date")
+    .order("snapshot_date", { ascending: true })
+    .limit(1);
+
+  let maxQuery = supabase
+    .from("positions")
+    .select("snapshot_date")
+    .order("snapshot_date", { ascending: false })
+    .limit(1);
+
+  if (accountIds.length > 0 && accountIds.length <= 50) {
+    minQuery = minQuery.in("account_id", accountIds);
+    maxQuery = maxQuery.in("account_id", accountIds);
+  }
+
+  const [{ data: minRow }, { data: maxRow }] = await Promise.all([minQuery, maxQuery]);
+
+  if (!minRow?.length || !maxRow?.length) return null;
+
+  return {
+    minDate: minRow[0].snapshot_date,
+    maxDate: maxRow[0].snapshot_date,
+  };
+}
+
 // ===========================================================================
 // All-accounts queries (admin view, no account filter)
 // ===========================================================================
 
-export async function getAllLatestPositions(year?: number): Promise<Position[]> {
+export async function getAllLatestPositions(dateRange?: DateRange): Promise<Position[]> {
   const supabase = await createClient();
 
   let dateQuery = supabase
@@ -446,11 +481,7 @@ export async function getAllLatestPositions(year?: number): Promise<Position[]> 
     .order("snapshot_date", { ascending: false })
     .limit(1);
 
-  if (year) {
-    dateQuery = dateQuery
-      .gte("snapshot_date", `${year}-01-01`)
-      .lte("snapshot_date", `${year}-12-31`);
-  }
+  dateQuery = applyDateFilter(dateQuery, "snapshot_date", dateRange);
 
   const { data: latestRow } = await dateQuery;
   if (!latestRow || latestRow.length === 0) return [];
@@ -478,7 +509,7 @@ export async function getAllLatestPositions(year?: number): Promise<Position[]> 
   return allPositions;
 }
 
-export async function getAllPositionHistory(year?: number) {
+export async function getAllPositionHistory(dateRange?: DateRange) {
   const supabase = await createClient();
 
   const grouped = new Map<string, number>();
@@ -491,11 +522,7 @@ export async function getAllPositionHistory(year?: number) {
       .order("snapshot_date")
       .range(from, from + 4999);
 
-    if (year) {
-      query = query
-        .gte("snapshot_date", `${year}-01-01`)
-        .lte("snapshot_date", `${year}-12-31`);
-    }
+    query = applyDateFilter(query, "snapshot_date", dateRange);
 
     const { data, error } = await query;
     if (error) throw error;

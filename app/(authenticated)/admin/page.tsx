@@ -4,10 +4,11 @@ import { getTotalAUM, getAllAccounts } from "@/lib/queries/clients";
 import {
   getAggregatedPositions,
   getAggregatedHistory,
-  getAvailableYears,
+  getAvailableDateRange,
   getAllLatestPositions,
   getAllPositionHistory,
 } from "@/lib/queries/positions";
+import type { DateRange } from "@/lib/queries/positions";
 import { getOperations } from "@/lib/queries/operations";
 import AdminDashboard from "@/components/admin/AdminDashboard";
 
@@ -72,10 +73,13 @@ export default async function AdminPage({
 
   const clients = Array.from(clientsMap.values());
 
-  // Parsear filtro de cliente de URL
+  // Parsear filtros de URL
   const selectedClientId = typeof sp.client === "string" ? sp.client : undefined;
-  const yearParam = typeof sp.year === "string" ? parseInt(sp.year, 10) : undefined;
-  const year = yearParam && !isNaN(yearParam) ? yearParam : undefined;
+  const dateFromParam = typeof sp.dateFrom === "string" ? sp.dateFrom : undefined;
+  const dateToParam = typeof sp.dateTo === "string" ? sp.dateTo : undefined;
+
+  const dateRange: DateRange | undefined =
+    dateFromParam || dateToParam ? { dateFrom: dateFromParam, dateTo: dateToParam } : undefined;
 
   // Determinar cuentas segun filtro
   let activeAccountIds: string[] = [];
@@ -91,23 +95,22 @@ export default async function AdminPage({
   }
 
   // Fetch datos del dashboard
-  // For "all clients" use unfiltered queries to avoid URL overflow with 200+ account IDs
-  const [positions, history, availableYears] = await Promise.all([
+  const [positions, history, availDateRange] = await Promise.all([
     isAllClients
-      ? getAllLatestPositions(year)
-      : getAggregatedPositions(activeAccountIds, year),
+      ? getAllLatestPositions(dateRange)
+      : getAggregatedPositions(activeAccountIds, dateRange),
     isAllClients
-      ? getAllPositionHistory(year)
-      : getAggregatedHistory(activeAccountIds, year),
+      ? getAllPositionHistory(dateRange)
+      : getAggregatedHistory(activeAccountIds, dateRange),
     isAllClients
-      ? getAvailableYears([])
-      : getAvailableYears(activeAccountIds),
+      ? getAvailableDateRange([])
+      : getAvailableDateRange(activeAccountIds),
   ]);
 
   // Operaciones: solo si es un solo cliente con una cuenta
   let opsResult = { operations: [] as any[], total: 0, page: 1, totalPages: 0, pageSize: 25 };
   if (selectedClientId && activeAccountIds.length === 1) {
-    opsResult = await getOperations(activeAccountIds[0], { year, page: 1, pageSize: 25 });
+    opsResult = await getOperations(activeAccountIds[0], { dateRange, page: 1, pageSize: 25 });
   }
 
   return (
@@ -116,8 +119,9 @@ export default async function AdminPage({
       unassignedAccounts={unassigned}
       selectedClientId={selectedClientId ?? null}
       aumData={aumData}
-      availableYears={availableYears}
-      initialYear={year ?? null}
+      availableDateRange={availDateRange}
+      initialDateFrom={dateFromParam ?? null}
+      initialDateTo={dateToParam ?? null}
       initialPositions={positions}
       initialHistory={history}
       initialOperations={{

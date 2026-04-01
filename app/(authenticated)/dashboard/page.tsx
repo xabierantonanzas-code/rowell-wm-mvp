@@ -5,8 +5,9 @@ import {
   getPositionHistory,
   getAggregatedPositions,
   getAggregatedHistory,
-  getAvailableYears,
+  getAvailableDateRange,
 } from "@/lib/queries/positions";
+import type { DateRange } from "@/lib/queries/positions";
 import { getOperations } from "@/lib/queries/operations";
 import { getCashBalances } from "@/lib/queries/balances";
 import { getClientAccounts } from "@/lib/queries/clients";
@@ -68,10 +69,12 @@ export default async function DashboardPage({
   }
 
   // Parsear filtros de URL
-  const yearParam = typeof params.year === "string" ? parseInt(params.year, 10) : undefined;
+  const dateFromParam = typeof params.dateFrom === "string" ? params.dateFrom : undefined;
+  const dateToParam = typeof params.dateTo === "string" ? params.dateTo : undefined;
   const accountParam = typeof params.account === "string" ? params.account : undefined;
 
-  const year = yearParam && !isNaN(yearParam) ? yearParam : undefined;
+  const dateRange: DateRange | undefined =
+    dateFromParam || dateToParam ? { dateFrom: dateFromParam, dateTo: dateToParam } : undefined;
 
   // Determinar cuentas activas
   const accountIds = accounts.map((a) => a.id);
@@ -87,17 +90,17 @@ export default async function DashboardPage({
   const primaryAccountId = activeAccountIds[0];
 
   // Fetch datos en paralelo
-  const [positions, history, opsResult, availableYears] = await Promise.all([
+  const [positions, history, opsResult, availableDateRange] = await Promise.all([
     isSingle
-      ? getLatestPositions(primaryAccountId, year)
-      : getAggregatedPositions(activeAccountIds, year),
+      ? getLatestPositions(primaryAccountId, dateRange)
+      : getAggregatedPositions(activeAccountIds, dateRange),
     isSingle
-      ? getPositionHistory(primaryAccountId, year)
-      : getAggregatedHistory(activeAccountIds, year),
+      ? getPositionHistory(primaryAccountId, dateRange)
+      : getAggregatedHistory(activeAccountIds, dateRange),
     isSingle
-      ? getOperations(primaryAccountId, { year, page: 1, pageSize: 25 })
+      ? getOperations(primaryAccountId, { dateRange, page: 1, pageSize: 25 })
       : Promise.resolve({ operations: [] as any[], total: 0, page: 1, totalPages: 0, pageSize: 25 }),
-    getAvailableYears(accountIds),
+    getAvailableDateRange(accountIds),
   ]);
 
   // Cash balance
@@ -112,7 +115,8 @@ export default async function DashboardPage({
 
   const initialData = {
     accountId: isSingle ? primaryAccountId : "all",
-    year: year ?? null,
+    dateFrom: dateFromParam ?? null,
+    dateTo: dateToParam ?? null,
     positions,
     history,
     operations: {
@@ -137,7 +141,7 @@ export default async function DashboardPage({
       clientName={clientName}
       clientId={clientId}
       accounts={accountOptions}
-      availableYears={availableYears}
+      availableDateRange={availableDateRange}
       initialData={initialData}
       fetchUrl="/api/dashboard"
     />

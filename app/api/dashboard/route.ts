@@ -6,6 +6,7 @@ import {
   getAggregatedPositions,
   getAggregatedHistory,
 } from "@/lib/queries/positions";
+import type { DateRange } from "@/lib/queries/positions";
 import { getOperations } from "@/lib/queries/operations";
 import { getCashBalances } from "@/lib/queries/balances";
 
@@ -15,7 +16,8 @@ import { getCashBalances } from "@/lib/queries/balances";
  * Params:
  *   account  - UUID de la cuenta (o vacio para todas)
  *   accounts - JSON array de UUIDs (para multi-cuenta)
- *   year     - Ano numerico (2024, 2025...)
+ *   dateFrom - Fecha inicio (YYYY-MM-DD)
+ *   dateTo   - Fecha fin (YYYY-MM-DD)
  *   page     - Pagina de operaciones (default 1)
  */
 export async function GET(req: NextRequest) {
@@ -33,10 +35,12 @@ export async function GET(req: NextRequest) {
   const params = req.nextUrl.searchParams;
   const accountId = params.get("account") ?? undefined;
   const accountsParam = params.get("accounts");
-  const yearStr = params.get("year");
+  const dateFrom = params.get("dateFrom") ?? undefined;
+  const dateTo = params.get("dateTo") ?? undefined;
   const pageStr = params.get("page");
 
-  const year = yearStr ? parseInt(yearStr, 10) : undefined;
+  const dateRange: DateRange | undefined =
+    dateFrom || dateTo ? { dateFrom, dateTo } : undefined;
   const page = pageStr ? parseInt(pageStr, 10) : 1;
 
   // Determinar que cuentas usar
@@ -70,14 +74,14 @@ export async function GET(req: NextRequest) {
     // Fetch en paralelo
     const [positions, history, opsResult] = await Promise.all([
       isSingle
-        ? getLatestPositions(primaryAccountId, year)
-        : getAggregatedPositions(accountIds, year),
+        ? getLatestPositions(primaryAccountId, dateRange)
+        : getAggregatedPositions(accountIds, dateRange),
       isSingle
-        ? getPositionHistory(primaryAccountId, year)
-        : getAggregatedHistory(accountIds, year),
+        ? getPositionHistory(primaryAccountId, dateRange)
+        : getAggregatedHistory(accountIds, dateRange),
       // Operaciones solo para single-account
       isSingle
-        ? getOperations(primaryAccountId, { year, page, pageSize: 25 })
+        ? getOperations(primaryAccountId, { dateRange, page, pageSize: 25 })
         : Promise.resolve({ operations: [], total: 0, page: 1, totalPages: 0, pageSize: 25 }),
     ]);
 
@@ -93,7 +97,8 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       accountId: isSingle ? primaryAccountId : "all",
-      year: year ?? null,
+      dateFrom: dateFrom ?? null,
+      dateTo: dateTo ?? null,
       positions,
       history,
       operations: {

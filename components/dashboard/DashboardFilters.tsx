@@ -5,59 +5,74 @@ import { useCallback } from "react";
 import { Calendar, Briefcase } from "lucide-react";
 
 // ===========================================================================
-// Selector de Ano
+// Selector de Rango de Fechas
 // ===========================================================================
 
-interface YearSelectorProps {
-  years: number[];
-  currentYear?: number;
+interface DateRangeSelectorProps {
+  dateFrom?: string;
+  dateTo?: string;
+  onDateChange?: (dateFrom: string | undefined, dateTo: string | undefined) => void;
 }
 
-export function YearSelector({ years, currentYear }: YearSelectorProps) {
+export function DateRangeSelector({
+  dateFrom,
+  dateTo,
+  onDateChange,
+}: DateRangeSelectorProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const setYear = useCallback(
-    (year: number | undefined) => {
-      const params = new URLSearchParams(searchParams.toString());
-      if (year) {
-        params.set("year", String(year));
-      } else {
-        params.delete("year");
+  const setDateRange = useCallback(
+    (from: string | undefined, to: string | undefined) => {
+      if (onDateChange) {
+        onDateChange(from, to);
+        return;
       }
+      const params = new URLSearchParams(searchParams.toString());
+      if (from) {
+        params.set("dateFrom", from);
+      } else {
+        params.delete("dateFrom");
+      }
+      if (to) {
+        params.set("dateTo", to);
+      } else {
+        params.delete("dateTo");
+      }
+      params.delete("year");
       router.push(`${pathname}?${params.toString()}`);
     },
-    [router, pathname, searchParams]
+    [router, pathname, searchParams, onDateChange]
   );
+
+  const clearRange = () => setDateRange(undefined, undefined);
 
   return (
     <div className="flex items-center gap-2">
       <Calendar className="h-4 w-4 text-gray-400" />
-      <div className="flex gap-1">
-        <button
-          onClick={() => setYear(undefined)}
-          className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-            !currentYear
-              ? "bg-rowell-navy text-white"
-              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-          }`}
-        >
-          Todo
-        </button>
-        {years.map((year) => (
+      <div className="flex items-center gap-1.5">
+        <input
+          type="date"
+          value={dateFrom ?? ""}
+          onChange={(e) => setDateRange(e.target.value || undefined, dateTo)}
+          className="rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs font-medium text-gray-700 shadow-sm focus:border-rowell-navy focus:outline-none focus:ring-1 focus:ring-rowell-navy"
+        />
+        <span className="text-xs text-gray-400">—</span>
+        <input
+          type="date"
+          value={dateTo ?? ""}
+          onChange={(e) => setDateRange(dateFrom, e.target.value || undefined)}
+          className="rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs font-medium text-gray-700 shadow-sm focus:border-rowell-navy focus:outline-none focus:ring-1 focus:ring-rowell-navy"
+        />
+        {(dateFrom || dateTo) && (
           <button
-            key={year}
-            onClick={() => setYear(year)}
-            className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-              currentYear === year
-                ? "bg-rowell-navy text-white"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-            }`}
+            onClick={clearRange}
+            className="rounded-md bg-gray-100 px-2 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-200 transition-colors"
           >
-            {year}
+            Limpiar
           </button>
-        ))}
+        )}
       </div>
     </div>
   );

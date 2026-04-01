@@ -66,7 +66,8 @@ interface OperationsData {
 
 interface DashboardData {
   accountId: string;
-  year: number | null;
+  dateFrom: string | null;
+  dateTo: string | null;
   positions: Position[];
   history: HistoryPoint[];
   operations: OperationsData;
@@ -77,7 +78,7 @@ interface ClientDashboardProps {
   clientName: string;
   clientId?: string;
   accounts: AccountOption[];
-  availableYears: number[];
+  availableDateRange: { minDate: string; maxDate: string } | null;
   initialData: DashboardData;
   fetchUrl: string;
   showBackLink?: boolean;
@@ -604,7 +605,7 @@ export default function ClientDashboard({
   clientName,
   clientId,
   accounts,
-  availableYears,
+  availableDateRange,
   initialData,
   fetchUrl,
   showBackLink,
@@ -614,19 +615,26 @@ export default function ClientDashboard({
   const [selectedAccountId, setSelectedAccountId] = useState<string | "all">(
     accounts.length === 1 ? accounts[0].id : "all"
   );
-  const [selectedYear, setSelectedYear] = useState<number | null>(initialData.year);
+  const [dateFrom, setDateFrom] = useState<string | undefined>(initialData.dateFrom ?? undefined);
+  const [dateTo, setDateTo] = useState<string | undefined>(initialData.dateTo ?? undefined);
   const [data, setData] = useState<DashboardData>(initialData);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"cartera" | "operaciones">("cartera");
   const [opsPage, setOpsPage] = useState(1);
 
   // Fetch data
-  const fetchData = async (accountId: string | "all", year: number | null, page: number = 1) => {
+  const fetchData = async (
+    accountId: string | "all",
+    df: string | undefined,
+    dt: string | undefined,
+    page: number = 1
+  ) => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
       if (accountId !== "all") params.set("account", accountId);
-      if (year) params.set("year", String(year));
+      if (df) params.set("dateFrom", df);
+      if (dt) params.set("dateTo", dt);
       params.set("page", String(page));
 
       // Multi-account
@@ -648,18 +656,19 @@ export default function ClientDashboard({
     }
   };
 
-  const handleYearChange = (year: number | null) => {
-    setSelectedYear(year);
-    fetchData(selectedAccountId, year);
+  const handleDateChange = (newDateFrom: string | undefined, newDateTo: string | undefined) => {
+    setDateFrom(newDateFrom);
+    setDateTo(newDateTo);
+    fetchData(selectedAccountId, newDateFrom, newDateTo);
   };
 
   const handleAccountChange = (accountId: string | "all") => {
     setSelectedAccountId(accountId);
-    fetchData(accountId, selectedYear);
+    fetchData(accountId, dateFrom, dateTo);
   };
 
   const handlePageChange = (page: number) => {
-    fetchData(selectedAccountId, selectedYear, page);
+    fetchData(selectedAccountId, dateFrom, dateTo, page);
   };
 
   // Computed values
@@ -866,29 +875,31 @@ export default function ClientDashboard({
             )}
             <div className="flex items-center gap-1.5">
               <Calendar className="h-4 w-4 text-white/40" />
-              <div className="flex gap-0.5">
+              <input
+                type="date"
+                value={dateFrom ?? ""}
+                min={availableDateRange?.minDate}
+                max={dateTo || availableDateRange?.maxDate}
+                onChange={(e) => handleDateChange(e.target.value || undefined, dateTo)}
+                className="rounded-lg border border-white/20 bg-white/10 px-2 py-1.5 text-xs font-medium text-white backdrop-blur-sm focus:border-[#c9a94e] focus:outline-none [color-scheme:dark]"
+              />
+              <span className="text-xs text-white/40">—</span>
+              <input
+                type="date"
+                value={dateTo ?? ""}
+                min={dateFrom || availableDateRange?.minDate}
+                max={availableDateRange?.maxDate}
+                onChange={(e) => handleDateChange(dateFrom, e.target.value || undefined)}
+                className="rounded-lg border border-white/20 bg-white/10 px-2 py-1.5 text-xs font-medium text-white backdrop-blur-sm focus:border-[#c9a94e] focus:outline-none [color-scheme:dark]"
+              />
+              {(dateFrom || dateTo) && (
                 <button
-                  onClick={() => handleYearChange(null)}
-                  className={`rounded-l-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-                    selectedYear === null
-                      ? "bg-[#c9a94e] text-[#1e3a5f] shadow"
-                      : "bg-white/10 text-white/70 hover:bg-white/20"
-                  }`}
-                >Todo</button>
-                {availableYears.map((year, i) => (
-                  <button
-                    key={year}
-                    onClick={() => handleYearChange(year)}
-                    className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-                      i === availableYears.length - 1 ? "rounded-r-lg" : ""
-                    } ${
-                      selectedYear === year
-                        ? "bg-[#c9a94e] text-[#1e3a5f] shadow"
-                        : "bg-white/10 text-white/70 hover:bg-white/20"
-                    }`}
-                  >{year}</button>
-                ))}
-              </div>
+                  onClick={() => handleDateChange(undefined, undefined)}
+                  className="rounded-lg bg-white/10 px-2 py-1.5 text-xs font-medium text-white/70 hover:bg-white/20 transition-colors"
+                >
+                  Todo
+                </button>
+              )}
             </div>
           </div>
         </div>
