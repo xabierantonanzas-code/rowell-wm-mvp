@@ -15,6 +15,6 @@ export const config = {
      * - /login (pagina publica)
      * - /auth (callbacks de auth)
      */
-    "/((?!_next/static|_next/image|favicon.ico|login|auth|invite).*)",
+    "/((?!_next/static|_next/image|favicon.ico|login|auth|invite|api/health).*)",
   ],
 };

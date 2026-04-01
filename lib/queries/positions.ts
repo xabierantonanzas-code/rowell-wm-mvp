@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { cached } from "@/lib/cache";
 import type { Position } from "@/lib/types/database";
 
 // ===========================================================================
@@ -519,6 +520,11 @@ export async function getAvailableDateRange(accountIds: string[]): Promise<{ min
 // ===========================================================================
 
 export async function getAllLatestPositions(dateRange?: DateRange): Promise<Position[]> {
+  const cacheKey = `all_latest_${dateRange?.dateFrom ?? "x"}_${dateRange?.dateTo ?? "x"}`;
+  return cached(cacheKey, 300, () => _getAllLatestPositions(dateRange));
+}
+
+async function _getAllLatestPositions(dateRange?: DateRange): Promise<Position[]> {
   const supabase = await createClient();
 
   let dateQuery = supabase
@@ -556,6 +562,11 @@ export async function getAllLatestPositions(dateRange?: DateRange): Promise<Posi
 }
 
 export async function getAllPositionHistory(dateRange?: DateRange) {
+  const cacheKey = `all_history_${dateRange?.dateFrom ?? "x"}_${dateRange?.dateTo ?? "x"}`;
+  return cached(cacheKey, 300, () => _getAllPositionHistory(dateRange));
+}
+
+async function _getAllPositionHistory(dateRange?: DateRange) {
   const supabase = await createClient();
 
   // Step 1: Get all unique snapshot dates

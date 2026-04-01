@@ -337,6 +337,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }
     }
 
+    // Invalidate cache after data upload
+    const { invalidateCache } = await import("@/lib/cache");
+    invalidateCache("all_");
+
     // --- Registrar upload ---
     await adminDb.from("uploads").insert({
       uploaded_by: user.id,
