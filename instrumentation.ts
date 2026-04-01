@@ -4,11 +4,15 @@ export async function register() {
     const { validateEnvVars } = await import("@/lib/security");
     validateEnvVars();
 
-    // Initialize Sentry server-side
-    await import("./sentry.server.config");
+    // Initialize Sentry server-side (only if DSN is set)
+    if (process.env.SENTRY_DSN) {
+      await import("./sentry.server.config");
+    }
   }
 
   if (process.env.NEXT_RUNTIME === "edge") {
-    await import("./sentry.edge.config");
+    if (process.env.SENTRY_DSN) {
+      await import("./sentry.edge.config");
+    }
   }
 }

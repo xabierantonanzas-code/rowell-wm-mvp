@@ -41,11 +41,16 @@ const nextConfig = {
   },
 };
 
-export default withSentryConfig(nextConfig, {
-  org: process.env.SENTRY_ORG,
-  project: process.env.SENTRY_PROJECT,
-  silent: true,
-  widenClientFileUpload: true,
-  disableLogger: true,
-  automaticVercelMonitors: true,
-});
+// Only wrap with Sentry if DSN is configured
+const finalConfig = process.env.SENTRY_DSN
+  ? withSentryConfig(nextConfig, {
+      org: process.env.SENTRY_ORG,
+      project: process.env.SENTRY_PROJECT,
+      silent: true,
+      widenClientFileUpload: true,
+      disableLogger: true,
+      automaticVercelMonitors: true,
+    })
+  : nextConfig;
+
+export default finalConfig;
