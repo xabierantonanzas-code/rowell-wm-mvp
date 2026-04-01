@@ -684,23 +684,41 @@ export default function AdminDashboard({
         {/* Filtro de fechas */}
         <div className="flex flex-wrap items-center gap-1.5">
           <Calendar className="h-4 w-4 flex-shrink-0 text-gray-400" />
-          <input
-            type="date"
-            value={dateFrom ?? ""}
-            min={availableDateRange?.minDate}
-            max={dateTo || availableDateRange?.maxDate}
-            onChange={(e) => handleDateChange(e.target.value || undefined, dateTo)}
-            className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs font-medium text-gray-700 shadow-sm focus:border-rowell-navy focus:outline-none focus:ring-1 focus:ring-rowell-navy sm:flex-none sm:py-1.5"
-          />
+          <div className="relative min-w-0 flex-1 sm:flex-none">
+            <input
+              type="date"
+              value={dateFrom ?? ""}
+              min={availableDateRange?.minDate}
+              max={dateTo || availableDateRange?.maxDate}
+              onChange={(e) => handleDateChange(e.target.value || undefined, dateTo)}
+              className={`w-full rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs font-medium shadow-sm focus:border-rowell-navy focus:outline-none focus:ring-1 focus:ring-rowell-navy sm:py-1.5 ${
+                dateFrom ? "text-gray-700" : "text-gray-300"
+              }`}
+            />
+            {!dateFrom && (
+              <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-xs text-gray-400">
+                Desde
+              </span>
+            )}
+          </div>
           <span className="text-xs text-gray-400">—</span>
-          <input
-            type="date"
-            value={dateTo ?? ""}
-            min={dateFrom || availableDateRange?.minDate}
-            max={availableDateRange?.maxDate}
-            onChange={(e) => handleDateChange(dateFrom, e.target.value || undefined)}
-            className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs font-medium text-gray-700 shadow-sm focus:border-rowell-navy focus:outline-none focus:ring-1 focus:ring-rowell-navy sm:flex-none sm:py-1.5"
-          />
+          <div className="relative min-w-0 flex-1 sm:flex-none">
+            <input
+              type="date"
+              value={dateTo ?? ""}
+              min={dateFrom || availableDateRange?.minDate}
+              max={availableDateRange?.maxDate}
+              onChange={(e) => handleDateChange(dateFrom, e.target.value || undefined)}
+              className={`w-full rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs font-medium shadow-sm focus:border-rowell-navy focus:outline-none focus:ring-1 focus:ring-rowell-navy sm:py-1.5 ${
+                dateTo ? "text-gray-700" : "text-gray-300"
+              }`}
+            />
+            {!dateTo && (
+              <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-xs text-gray-400">
+                Hasta
+              </span>
+            )}
+          </div>
           {(dateFrom || dateTo) && (
             <button
               onClick={() => handleDateChange(undefined, undefined)}
