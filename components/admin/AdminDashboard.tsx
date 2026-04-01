@@ -443,25 +443,19 @@ export default function AdminDashboard({
 
   // Handlers
   const handleClientChange = (clientId: string | null) => {
-    setSelectedClient(clientId);
-    setSelectedAccountId("all");
-    // Clear date filter when switching clients
-    setDateFrom(undefined);
-    setDateTo(undefined);
-    const cl = clientId ? clients.find((c) => c.id === clientId) : null;
-    setClientName(cl ? cl.name : "Todos los Clientes");
-    setActiveTab("posiciones");
+    setLoading(true);
 
     if (!clientId) {
       router.push(pathname);
+      router.refresh();
       return;
     }
 
-    fetchData(clientId, undefined, undefined, 1, "all");
-
+    // Navigate with full server reload so ClientDashboard re-renders with new data
     const params = new URLSearchParams();
     params.set("client", clientId);
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    router.push(`${pathname}?${params.toString()}`);
+    router.refresh();
   };
 
   const handleAccountChange = (accountId: string | "all") => {
