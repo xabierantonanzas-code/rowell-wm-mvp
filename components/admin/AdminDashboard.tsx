@@ -445,17 +445,13 @@ export default function AdminDashboard({
   const handleClientChange = (clientId: string | null) => {
     setLoading(true);
 
+    // Hard navigation to force full server-side re-render
     if (!clientId) {
-      router.push(pathname);
-      router.refresh();
+      window.location.href = pathname;
       return;
     }
 
-    // Navigate with full server reload so ClientDashboard re-renders with new data
-    const params = new URLSearchParams();
-    params.set("client", clientId);
-    router.push(`${pathname}?${params.toString()}`);
-    router.refresh();
+    window.location.href = `${pathname}?client=${clientId}`;
   };
 
   const handleAccountChange = (accountId: string | "all") => {
