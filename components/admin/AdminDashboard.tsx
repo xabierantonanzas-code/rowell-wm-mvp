@@ -5,6 +5,8 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import type { Position, Operation } from "@/lib/types/database";
 import { useUser } from "@/lib/hooks/useUser";
 import SystemPanel from "@/components/admin/SystemPanel";
+import InviteClientModal from "@/components/admin/InviteClientModal";
+import { Mail } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -74,6 +76,11 @@ interface AumData {
   totalPositions: number;
 }
 
+interface InvitationInfo {
+  clientId: string;
+  status: "none" | "pending" | "confirmed";
+}
+
 interface AdminDashboardProps {
   clients: ClientInfo[];
   unassignedAccounts: { id: string; account_number: string; label: string | null }[];
@@ -87,6 +94,7 @@ interface AdminDashboardProps {
   initialOperations: OperationsData;
   activeClientName: string;
   totalAccounts: number;
+  invitations?: InvitationInfo[];
   selectorOnly?: boolean;
 }
 
@@ -310,12 +318,14 @@ export default function AdminDashboard({
   initialOperations,
   activeClientName,
   totalAccounts,
+  invitations = [],
   selectorOnly = false,
 }: AdminDashboardProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { isOwner: currentUserIsOwner } = useUser();
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
 
   // State
   const [selectedClient, setSelectedClient] = useState<string | null>(
@@ -711,6 +721,9 @@ export default function AdminDashboard({
         </div>
       </div>
 
+      {/* Invite button */}
+      <div className="flex items-center gap-3">
+        <div className="flex-1">
       {/* ================================================================= */}
       {/* Selector de cliente — Dropdown con búsqueda                        */}
       {/* ================================================================= */}
@@ -722,6 +735,31 @@ export default function AdminDashboard({
         setSearchQuery={setSearchQuery}
         totalAccounts={totalAccounts}
         onSelect={handleClientChange}
+      />
+        </div>
+        <button
+          onClick={() => setInviteModalOpen(true)}
+          className="flex flex-shrink-0 items-center gap-2 rounded-xl border border-[#C9A84C]/30 bg-[#C9A84C]/10 px-4 py-3 text-sm font-medium text-[#0B1D3A] transition-colors hover:bg-[#C9A84C]/20"
+        >
+          <Mail className="h-4 w-4 text-[#C9A84C]" />
+          <span className="hidden sm:inline">Invitar cliente</span>
+        </button>
+      </div>
+
+      {/* Invite modal */}
+      <InviteClientModal
+        open={inviteModalOpen}
+        onClose={() => setInviteModalOpen(false)}
+        clients={clients.map((c) => {
+          const inv = invitations.find((i) => i.clientId === c.id);
+          return {
+            id: c.id,
+            name: c.name,
+            email: c.email,
+            hasAccess: inv?.status === "confirmed",
+            inviteStatus: inv?.status ?? "none",
+          };
+        })}
       />
 
       {/* Sub-filtro de carteras dentro del cliente */}

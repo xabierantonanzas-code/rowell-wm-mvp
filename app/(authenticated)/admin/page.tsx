@@ -29,7 +29,7 @@ export default async function AdminPage({
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  if (!user || user.app_metadata?.role !== "admin") {
+  if (!user || (user.app_metadata?.role !== "admin" && user.app_metadata?.role !== "owner")) {
     redirect("/dashboard");
   }
 
@@ -75,6 +75,33 @@ export default async function AdminPage({
   }
 
   const clients = Array.from(clientsMap.values());
+
+  // Fetch invitation status for all clients
+  const { data: invitationRows } = await supabase
+    .from("invitations")
+    .select("client_id, status")
+    .order("invited_at", { ascending: false });
+
+  // Also check which clients have auth_user_id set
+  const { data: clientsWithAuth } = await supabase
+    .from("clients")
+    .select("id, auth_user_id")
+    .not("auth_user_id", "is", null);
+
+  const confirmedClientIds = new Set(
+    (clientsWithAuth ?? []).map((c) => c.id)
+  );
+
+  const invitations = clients.map((c) => {
+    if (confirmedClientIds.has(c.id)) {
+      return { clientId: c.id, status: "confirmed" as const };
+    }
+    const inv = (invitationRows ?? []).find((i) => i.client_id === c.id && i.status === "pending");
+    if (inv) {
+      return { clientId: c.id, status: "pending" as const };
+    }
+    return { clientId: c.id, status: "none" as const };
+  });
 
   // Parsear filtros de URL
   const selectedClientId = typeof sp.client === "string" ? sp.client : undefined;
@@ -160,6 +187,7 @@ export default async function AdminPage({
           initialOperations={{ operations: [], total: 0, page: 1, totalPages: 0 }}
           activeClientName={cl.name}
           totalAccounts={accounts.length}
+          invitations={invitations}
           selectorOnly
         />
 
@@ -201,6 +229,7 @@ export default async function AdminPage({
       initialOperations={{ operations: [], total: 0, page: 1, totalPages: 0 }}
       activeClientName="Todos los Clientes"
       totalAccounts={accounts.length}
+      invitations={invitations}
     />
   );
 }
