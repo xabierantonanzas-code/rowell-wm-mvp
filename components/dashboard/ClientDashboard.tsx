@@ -842,30 +842,44 @@ export default function ClientDashboard({
   }, [data.historyByAccount, accounts]);
 
   // Combined chart data: NAV + Rentabilidad % + Flujos por mes
+  // Depends on returnMethod so the chart line reflects TWR or MWR
   const combinedChartData = useMemo(() => {
     if (data.history.length === 0) return { chartData: [], kpis: null };
+
+    const TRASPASO_INT_KEYWORDS = ["traspaso int", "traspaso. int"];
+    const isTraspInterno = (t: string) =>
+      TRASPASO_INT_KEYWORDS.some((kw) => t.toLowerCase().includes(kw));
 
     // Group history by month (use last snapshot of each month as NAV)
     const navByMonth = new Map<string, { nav: number; date: string }>();
     for (const h of data.history) {
       const d = new Date(h.date);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      // Keep the last snapshot of the month
       navByMonth.set(key, { nav: h.totalValue, date: h.date });
     }
 
     // Group flows by month from operations
     const flowsByMonthMap = new Map<string, number>();
+    // For MWR: daily flows within each month for weighting
+    const dailyFlowsByMonth = new Map<string, { date: string; amount: number }[]>();
+
     for (const op of data.operations.operations) {
-      if (!op.operation_date) continue;
+      if (!op.operation_date || !op.operation_type) continue;
+      if (returnMethod === "mwr" && isTraspInterno(op.operation_type)) continue;
+
       const d = new Date(op.operation_date);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
       const t = (op.operation_type ?? "").toLowerCase();
       const amount = Math.abs(op.eur_amount ?? 0);
+
       if (t.includes("compra") || t.includes("suscripci")) {
         flowsByMonthMap.set(key, (flowsByMonthMap.get(key) ?? 0) + amount);
+        if (!dailyFlowsByMonth.has(key)) dailyFlowsByMonth.set(key, []);
+        dailyFlowsByMonth.get(key)!.push({ date: op.operation_date, amount });
       } else if (t.includes("venta") || t.includes("reembolso")) {
         flowsByMonthMap.set(key, (flowsByMonthMap.get(key) ?? 0) - amount);
+        if (!dailyFlowsByMonth.has(key)) dailyFlowsByMonth.set(key, []);
+        dailyFlowsByMonth.get(key)!.push({ date: op.operation_date, amount: -amount });
       }
     }
 
@@ -876,8 +890,29 @@ export default function ClientDashboard({
       const nav = navByMonth.get(m)!.nav;
       const prevNav = i > 0 ? (navByMonth.get(months[i - 1])?.nav ?? nav) : nav;
       const flows = flowsByMonthMap.get(m) ?? 0;
-      // Monthly return: (NAV_end - NAV_start - flows) / NAV_start
-      const returnPct = prevNav > 0 ? ((nav - prevNav - flows) / prevNav) * 100 : 0;
+
+      let returnPct: number;
+
+      if (returnMethod === "mwr" && prevNav > 0) {
+        // Modified Dietz: R = (V_end - V_start - CF) / (V_start + sum(CF_i * W_i))
+        const startDate = navByMonth.get(months[i > 0 ? i - 1 : 0])?.date ?? m + "-01";
+        const endDate = navByMonth.get(m)?.date ?? m + "-28";
+        const totalDays = Math.max(1, (new Date(endDate).getTime() - new Date(startDate).getTime()) / 86400000);
+
+        const monthFlows = dailyFlowsByMonth.get(m) ?? [];
+        let weightedCF = 0;
+        for (const cf of monthFlows) {
+          const daysSinceStart = Math.max(0, (new Date(cf.date).getTime() - new Date(startDate).getTime()) / 86400000);
+          const weight = (totalDays - daysSinceStart) / totalDays;
+          weightedCF += cf.amount * weight;
+        }
+
+        const avgCapital = prevNav + weightedCF;
+        returnPct = avgCapital > 0 ? ((nav - prevNav - flows) / avgCapital) * 100 : 0;
+      } else {
+        // TWR: simple return
+        returnPct = prevNav > 0 ? ((nav - prevNav - flows) / prevNav) * 100 : 0;
+      }
 
       const label = new Date(m + "-15").toLocaleDateString("es-ES", {
         month: "short",
@@ -929,7 +964,7 @@ export default function ClientDashboard({
         aportacionesNetas,
       },
     };
-  }, [data.history, data.operations.operations]);
+  }, [data.history, data.operations.operations, returnMethod]);
 
   return (
     <div className={`space-y-1 ${loading ? "opacity-50 pointer-events-none" : ""}`}>
@@ -1033,34 +1068,7 @@ export default function ClientDashboard({
                 </button>
               )}
             </div>
-            {/* Toggle TWR / MWR */}
-            <div className="flex items-center gap-1.5">
-              <TrendingUp className="h-4 w-4 flex-shrink-0 text-white/40" />
-              <div className="flex">
-                <button
-                  onClick={() => setReturnMethod("twr")}
-                  className={`rounded-l-lg px-4 py-2 text-xs font-medium transition-colors sm:px-3 sm:py-1.5 ${
-                    returnMethod === "twr"
-                      ? "bg-[#c9a94e] text-[#1e3a5f] shadow"
-                      : "bg-white/10 text-white/70 hover:bg-white/20"
-                  }`}
-                  title="Time Weighted Return"
-                >
-                  TWR
-                </button>
-                <button
-                  onClick={() => setReturnMethod("mwr")}
-                  className={`rounded-r-lg px-4 py-2 text-xs font-medium transition-colors sm:px-3 sm:py-1.5 ${
-                    returnMethod === "mwr"
-                      ? "bg-[#c9a94e] text-[#1e3a5f] shadow"
-                      : "bg-white/10 text-white/70 hover:bg-white/20"
-                  }`}
-                  title="Money Weighted Return"
-                >
-                  MWR
-                </button>
-              </div>
-            </div>
+            {/* TWR/MWR toggle removed from header — now inline in rentabilidad section */}
           </div>
         </div>
       </div>
@@ -1087,9 +1095,44 @@ export default function ClientDashboard({
         positions={data.positions}
       />
 
+      {/* TWR / MWR toggle — inline in the section it affects */}
+      {(rentabilidadPeriods.length > 0 || data.history.length > 0) && (
+        <div className="mt-3 flex items-center gap-2 sm:mt-4">
+          <TrendingUp className="h-4 w-4 text-gray-400" />
+          <span className="text-xs font-medium text-gray-500">Metodo de rentabilidad:</span>
+          <div className="flex">
+            <button
+              onClick={() => setReturnMethod("twr")}
+              className={`rounded-l-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                returnMethod === "twr"
+                  ? "bg-[#0B1D3A] text-white shadow-sm"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+              title="Time Weighted Return — rentabilidad independiente de aportaciones"
+            >
+              TWR
+            </button>
+            <button
+              onClick={() => setReturnMethod("mwr")}
+              className={`rounded-r-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                returnMethod === "mwr"
+                  ? "bg-[#0B1D3A] text-white shadow-sm"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+              title="Money Weighted Return — rentabilidad ponderada por capital invertido"
+            >
+              MWR
+            </button>
+          </div>
+          <span className="text-[10px] text-gray-400">
+            {returnMethod === "twr" ? "Independiente de aportaciones" : "Ponderada por capital"}
+          </span>
+        </div>
+      )}
+
       {/* Row 3: Rentabilidad + Costes + Concentración */}
       {(rentabilidadPeriods.length > 0 || totalCommissions > 0 || data.positions.length > 0) && (
-        <div className="mt-3 grid grid-cols-2 gap-2 sm:mt-4 sm:gap-4 lg:grid-cols-4">
+        <div className="mt-2 grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-4">
           {/* Rentabilidad por periodos */}
           {rentabilidadPeriods.map((r) => (
             <div
