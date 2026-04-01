@@ -675,23 +675,27 @@ export default function AdminDashboard({
         <div className="flex flex-wrap items-center gap-1.5">
           <Calendar className="h-4 w-4 flex-shrink-0 text-gray-400" />
           <input
-            type="date"
+            type={dateFrom ? "date" : "text"}
             value={dateFrom ?? ""}
+            placeholder="Desde"
+            readOnly={!dateFrom}
+            onFocus={(e) => { (e.target as HTMLInputElement).type = "date"; }}
             min={availableDateRange?.minDate}
             max={dateTo || availableDateRange?.maxDate}
-            placeholder="Desde"
             onChange={(e) => handleDateChange(e.target.value || undefined, dateTo)}
-            className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs font-medium text-gray-700 shadow-sm focus:border-rowell-navy focus:outline-none focus:ring-1 focus:ring-rowell-navy sm:flex-none sm:py-1.5"
+            className="min-w-[100px] flex-1 rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs font-medium text-gray-700 placeholder:text-gray-400 shadow-sm focus:border-rowell-navy focus:outline-none focus:ring-1 focus:ring-rowell-navy sm:flex-none sm:py-1.5"
           />
           <span className="text-xs text-gray-400">—</span>
           <input
-            type="date"
+            type={dateTo ? "date" : "text"}
             value={dateTo ?? ""}
+            placeholder="Hasta"
+            readOnly={!dateTo}
+            onFocus={(e) => { (e.target as HTMLInputElement).type = "date"; }}
             min={dateFrom || availableDateRange?.minDate}
             max={availableDateRange?.maxDate}
-            placeholder="Hasta"
             onChange={(e) => handleDateChange(dateFrom, e.target.value || undefined)}
-            className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs font-medium text-gray-700 shadow-sm focus:border-rowell-navy focus:outline-none focus:ring-1 focus:ring-rowell-navy sm:flex-none sm:py-1.5"
+            className="min-w-[100px] flex-1 rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs font-medium text-gray-700 placeholder:text-gray-400 shadow-sm focus:border-rowell-navy focus:outline-none focus:ring-1 focus:ring-rowell-navy sm:flex-none sm:py-1.5"
           />
           {(dateFrom || dateTo) && (
             <button

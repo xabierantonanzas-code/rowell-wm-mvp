@@ -1025,23 +1025,27 @@ export default function ClientDashboard({
             <div className="flex flex-wrap items-center gap-1.5">
               <Calendar className="h-4 w-4 flex-shrink-0 text-white/40" />
               <input
-                type="date"
+                type={dateFrom ? "date" : "text"}
                 value={dateFrom ?? ""}
+                placeholder="Desde"
+                readOnly={!dateFrom}
+                onFocus={(e) => { (e.target as HTMLInputElement).type = "date"; }}
                 min={availableDateRange?.minDate}
                 max={dateTo || availableDateRange?.maxDate}
-                placeholder="Desde"
                 onChange={(e) => handleDateChange(e.target.value || undefined, dateTo)}
-                className="min-w-0 flex-1 rounded-lg border border-white/20 bg-white/10 px-2 py-2 text-xs font-medium text-white backdrop-blur-sm focus:border-[#c9a94e] focus:outline-none [color-scheme:dark] sm:flex-none sm:py-1.5"
+                className="min-w-[100px] flex-1 rounded-lg border border-white/20 bg-white/10 px-2 py-2 text-xs font-medium text-white placeholder:text-white/30 backdrop-blur-sm focus:border-[#c9a94e] focus:outline-none [color-scheme:dark] sm:flex-none sm:py-1.5"
               />
               <span className="text-xs text-white/40">—</span>
               <input
-                type="date"
+                type={dateTo ? "date" : "text"}
                 value={dateTo ?? ""}
+                placeholder="Hasta"
+                readOnly={!dateTo}
+                onFocus={(e) => { (e.target as HTMLInputElement).type = "date"; }}
                 min={dateFrom || availableDateRange?.minDate}
                 max={availableDateRange?.maxDate}
-                placeholder="Hasta"
                 onChange={(e) => handleDateChange(dateFrom, e.target.value || undefined)}
-                className="min-w-0 flex-1 rounded-lg border border-white/20 bg-white/10 px-2 py-2 text-xs font-medium text-white backdrop-blur-sm focus:border-[#c9a94e] focus:outline-none [color-scheme:dark] sm:flex-none sm:py-1.5"
+                className="min-w-[100px] flex-1 rounded-lg border border-white/20 bg-white/10 px-2 py-2 text-xs font-medium text-white placeholder:text-white/30 backdrop-blur-sm focus:border-[#c9a94e] focus:outline-none [color-scheme:dark] sm:flex-none sm:py-1.5"
               />
               {(dateFrom || dateTo) && (
                 <button
