@@ -3,10 +3,8 @@
 import { useState, useMemo } from "react";
 import type { Position, Operation } from "@/lib/types/database";
 import {
-  Wallet,
   TrendingUp,
   BarChart3,
-  Clock,
   Calendar,
   Briefcase,
   ChevronLeft,
@@ -15,31 +13,19 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   RefreshCw,
-  Shield,
   PieChart as PieChartIcon,
   Target,
   User,
 } from "lucide-react";
 import PositionsTable from "@/components/dashboard/PositionsTable";
-import EvolutionChart from "@/components/dashboard/EvolutionChart";
-import DistributionChart from "@/components/dashboard/DistributionChart";
 import CommunicationPanel from "@/components/dashboard/CommunicationPanel";
+import CombinedChart from "@/components/dashboard/CombinedChart";
 import {
   PieChart,
   Pie,
   Cell,
   Tooltip,
   ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Legend,
-  AreaChart,
-  Area,
-  Line,
-  ComposedChart,
 } from "recharts";
 
 // ===========================================================================
@@ -838,66 +824,94 @@ export default function ClientDashboard({
   // Active rentabilidad periods based on selected method
   const rentabilidadPeriods = returnMethod === "twr" ? twrPeriods : mwrPeriods;
 
-  // Chart data: flujos por mes con neto acumulado
-  const flowsByMonth = useMemo(() => {
-    const map = new Map<string, { compras: number; ventas: number }>();
+  // Combined chart data: NAV + Rentabilidad % + Flujos por mes
+  const combinedChartData = useMemo(() => {
+    if (data.history.length === 0) return { chartData: [], kpis: null };
+
+    // Group history by month (use last snapshot of each month as NAV)
+    const navByMonth = new Map<string, { nav: number; date: string }>();
+    for (const h of data.history) {
+      const d = new Date(h.date);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      // Keep the last snapshot of the month
+      navByMonth.set(key, { nav: h.totalValue, date: h.date });
+    }
+
+    // Group flows by month from operations
+    const flowsByMonthMap = new Map<string, number>();
     for (const op of data.operations.operations) {
       if (!op.operation_date) continue;
       const d = new Date(op.operation_date);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      if (!map.has(key)) map.set(key, { compras: 0, ventas: 0 });
-      const entry = map.get(key)!;
       const t = (op.operation_type ?? "").toLowerCase();
       const amount = Math.abs(op.eur_amount ?? 0);
-      if (t.includes("compra") || t.includes("suscripci")) entry.compras += amount;
-      else if (t.includes("venta") || t.includes("reembolso")) entry.ventas += amount;
-    }
-    let cumNet = 0;
-    return Array.from(map.entries())
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([month, d]) => {
-        cumNet += d.compras - d.ventas;
-        return {
-          month: new Date(month + "-01").toLocaleDateString("es-ES", { month: "short", year: "2-digit" }),
-          Compras: d.compras,
-          Ventas: d.ventas,
-          "Neto acum.": cumNet,
-        };
-      });
-  }, [data.operations.operations]);
-
-  // Chart data: patrimonio vs aportaciones netas acumuladas
-  const patrimonioVsAportaciones = useMemo(() => {
-    if (data.history.length === 0) return [];
-
-    // Build cumulative contributions by date from operations
-    const opsByDate = new Map<string, number>();
-    let cumContrib = 0;
-    const ops = [...data.operations.operations].sort((a, b) =>
-      (a.operation_date ?? "").localeCompare(b.operation_date ?? "")
-    );
-    for (const op of ops) {
-      if (!op.operation_date) continue;
-      const t = (op.operation_type ?? "").toLowerCase();
-      const amount = Math.abs(op.eur_amount ?? 0);
-      if (t.includes("compra") || t.includes("suscripci")) cumContrib += amount;
-      else if (t.includes("venta") || t.includes("reembolso")) cumContrib -= amount;
-      opsByDate.set(op.operation_date, cumContrib);
-    }
-
-    let lastContrib = 0;
-    const opEntries = Array.from(opsByDate.entries());
-    return data.history.map((h) => {
-      // Find latest contribution <= this date
-      for (const [date, val] of opEntries) {
-        if (date <= h.date) lastContrib = val;
+      if (t.includes("compra") || t.includes("suscripci")) {
+        flowsByMonthMap.set(key, (flowsByMonthMap.get(key) ?? 0) + amount);
+      } else if (t.includes("venta") || t.includes("reembolso")) {
+        flowsByMonthMap.set(key, (flowsByMonthMap.get(key) ?? 0) - amount);
       }
-      return {
-        date: new Date(h.date).toLocaleDateString("es-ES", { month: "short", year: "2-digit" }),
-        Patrimonio: h.totalValue,
-        "Aportaciones netas": Math.max(0, lastContrib),
-      };
+    }
+
+    // Build chart data sorted by month
+    const months = Array.from(navByMonth.keys()).sort();
+
+    const chartData = months.map((m, i) => {
+      const nav = navByMonth.get(m)!.nav;
+      const prevNav = i > 0 ? (navByMonth.get(months[i - 1])?.nav ?? nav) : nav;
+      const flows = flowsByMonthMap.get(m) ?? 0;
+      // Monthly return: (NAV_end - NAV_start - flows) / NAV_start
+      const returnPct = prevNav > 0 ? ((nav - prevNav - flows) / prevNav) * 100 : 0;
+
+      const label = new Date(m + "-15").toLocaleDateString("es-ES", {
+        month: "short",
+        year: "2-digit",
+      });
+
+      return { month: label, rawMonth: m, nav, returnPct, flows };
     });
+
+    if (chartData.length === 0) return { chartData: [], kpis: null };
+
+    // KPIs
+    const firstNav = chartData[0].nav;
+    const lastNav = chartData[chartData.length - 1].nav;
+    const variacion = lastNav - firstNav;
+    const variacionPct = firstNav > 0 ? (variacion / firstNav) * 100 : 0;
+
+    // Best/worst month
+    let mejorMes: { month: string; pct: number } | null = null;
+    let peorMes: { month: string; pct: number } | null = null;
+    for (const pt of chartData) {
+      if (!mejorMes || pt.returnPct > mejorMes.pct) {
+        mejorMes = { month: pt.month, pct: pt.returnPct };
+      }
+      if (!peorMes || pt.returnPct < peorMes.pct) {
+        peorMes = { month: pt.month, pct: pt.returnPct };
+      }
+    }
+
+    // Period return (chained)
+    let cumReturn = 1;
+    for (const pt of chartData) {
+      cumReturn *= 1 + pt.returnPct / 100;
+    }
+    const rentabilidadPeriodo = (cumReturn - 1) * 100;
+
+    const aportacionesNetas = chartData.reduce((s, pt) => s + pt.flows, 0);
+
+    return {
+      chartData,
+      kpis: {
+        valorInicio: firstNav,
+        valorFin: lastNav,
+        variacion,
+        variacionPct,
+        mejorMes,
+        peorMes,
+        rentabilidadPeriodo,
+        aportacionesNetas,
+      },
+    };
   }, [data.history, data.operations.operations]);
 
   return (
@@ -1093,112 +1107,17 @@ export default function ClientDashboard({
       <SectionDivider />
 
       {/* ================================================================= */}
-      {/* 3. EVOLUCION PATRIMONIAL + OPERACIONES                            */}
+      {/* 3. EVOLUCION PATRIMONIAL — Gráfico combinado                      */}
       {/* ================================================================= */}
       <SectionHeader number="3" title="Evolucion Patrimonial" />
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Patrimonio vs Aportaciones netas */}
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-[#1e3a5f]">
-            <TrendingUp className="h-4 w-4 text-[#c9a94e]" />
-            Patrimonio vs Aportaciones
-          </h3>
-          {patrimonioVsAportaciones.length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={patrimonioVsAportaciones}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="date" tick={{ fontSize: 10, fill: "#9ca3af" }} />
-                <YAxis
-                  tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)}
-                  tick={{ fontSize: 10, fill: "#9ca3af" }}
-                  width={55}
-                />
-                <Tooltip
-                  formatter={(value: number, name: string) => [formatEur(value), name]}
-                  contentStyle={{ borderRadius: "8px", border: "1px solid #e5e7eb", fontSize: "12px" }}
-                />
-                <Legend wrapperStyle={{ fontSize: "11px" }} />
-                <Area
-                  type="monotone"
-                  dataKey="Aportaciones netas"
-                  fill="#059669"
-                  fillOpacity={0.15}
-                  stroke="#059669"
-                  strokeWidth={1.5}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="Patrimonio"
-                  fill="#0B1D3A"
-                  fillOpacity={0.08}
-                  stroke="#0B1D3A"
-                  strokeWidth={2}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          ) : (
-            <p className="py-12 text-center text-sm text-gray-400">Sin datos suficientes</p>
-          )}
-          <p className="mt-2 text-center text-[10px] text-gray-400">
-            La diferencia entre ambas lineas representa la rentabilidad generada por el mercado
-          </p>
-        </div>
-
-        {/* Flujos netos por periodo */}
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-[#1e3a5f]">
-            <BarChart3 className="h-4 w-4 text-[#c9a94e]" />
-            Flujos Netos por Mes
-          </h3>
-          {flowsByMonth.length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <ComposedChart data={flowsByMonth}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="month" tick={{ fontSize: 10, fill: "#9ca3af" }} />
-                <YAxis
-                  yAxisId="bars"
-                  tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)}
-                  tick={{ fontSize: 10, fill: "#9ca3af" }}
-                  width={55}
-                />
-                <YAxis
-                  yAxisId="line"
-                  orientation="right"
-                  tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)}
-                  tick={{ fontSize: 10, fill: "#C9A84C" }}
-                  width={55}
-                />
-                <Tooltip
-                  formatter={(value: number, name: string) => [formatEur(value), name]}
-                  contentStyle={{ borderRadius: "8px", border: "1px solid #e5e7eb", fontSize: "12px" }}
-                />
-                <Legend wrapperStyle={{ fontSize: "11px" }} />
-                <Bar yAxisId="bars" dataKey="Compras" fill="#059669" radius={[2, 2, 0, 0]} />
-                <Bar yAxisId="bars" dataKey="Ventas" fill="#dc2626" radius={[2, 2, 0, 0]} />
-                <Line
-                  yAxisId="line"
-                  type="monotone"
-                  dataKey="Neto acum."
-                  stroke="#C9A84C"
-                  strokeWidth={2}
-                  dot={false}
-                />
-              </ComposedChart>
-            </ResponsiveContainer>
-          ) : (
-            <p className="py-12 text-center text-sm text-gray-400">Sin operaciones en el periodo</p>
-          )}
-        </div>
-      </div>
-
-      {/* Evolución patrimonial original */}
-      {data.history.length > 0 && (
-        <div className="mt-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-[#1e3a5f]">
-            <TrendingUp className="h-4 w-4 text-[#c9a94e]" />
-            Evolucion Patrimonial Historica
-          </h3>
-          <EvolutionChart data={data.history} />
+      {combinedChartData.kpis ? (
+        <CombinedChart
+          data={combinedChartData.chartData}
+          kpis={combinedChartData.kpis}
+        />
+      ) : (
+        <div className="rounded-xl border border-gray-200 bg-white p-12 text-center shadow-sm">
+          <p className="text-sm text-gray-400">Sin datos suficientes para generar el grafico</p>
         </div>
       )}
 
