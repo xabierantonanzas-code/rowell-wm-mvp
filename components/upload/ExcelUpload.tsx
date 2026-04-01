@@ -10,10 +10,20 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Loader2, X } from "lucide-react";
+import {
+  Upload,
+  FileSpreadsheet,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+  X,
+  Search,
+  Bot,
+  ArrowRight,
+} from "lucide-react";
 
 // ===========================================================================
-// Tipos
+// Types
 // ===========================================================================
 
 interface FileSlot {
@@ -34,12 +44,27 @@ export interface UploadResult {
   error?: string;
 }
 
+interface FileAnalysis {
+  fileName: string;
+  fileType: string;
+  sheetNames: string[];
+  totalRows: number;
+  columns: string[];
+  issues: string[];
+  detectedType: string | null;
+}
+
+interface AnalysisResult {
+  analyses: Record<string, FileAnalysis>;
+  aiAnalysis: string;
+}
+
 interface ExcelUploadProps {
   onUploadComplete?: (result: UploadResult) => void;
 }
 
 // ===========================================================================
-// Constantes
+// Constants
 // ===========================================================================
 
 const ACCEPTED_EXTENSIONS = ".xlsx,.xls";
@@ -47,7 +72,7 @@ const MAX_FILE_SIZE_MB = 10;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 // ===========================================================================
-// Componente
+// Component
 // ===========================================================================
 
 export default function ExcelUpload({ onUploadComplete }: ExcelUploadProps) {
@@ -57,14 +82,16 @@ export default function ExcelUpload({ onUploadComplete }: ExcelUploadProps) {
     { label: "Saldos", key: "saldos", file: null },
   ]);
 
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
-  const [message, setMessage] = useState<string>("");
+  const [status, setStatus] = useState<
+    "idle" | "analyzing" | "reviewed" | "loading" | "success" | "error"
+  >("idle");
+  const [message, setMessage] = useState("");
+  const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const fileInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const handleFileChange = useCallback(
     (index: number, fileList: FileList | null) => {
       if (!fileList || fileList.length === 0) return;
-
       const file = fileList[0];
 
       const ext = file.name.toLowerCase().split(".").pop();
@@ -76,9 +103,7 @@ export default function ExcelUpload({ onUploadComplete }: ExcelUploadProps) {
 
       if (file.size > MAX_FILE_SIZE_BYTES) {
         setStatus("error");
-        setMessage(
-          `"${file.name}" excede el limite de ${MAX_FILE_SIZE_MB}MB (${(file.size / 1024 / 1024).toFixed(1)}MB).`
-        );
+        setMessage(`"${file.name}" excede el limite de ${MAX_FILE_SIZE_MB}MB.`);
         return;
       }
 
@@ -88,7 +113,9 @@ export default function ExcelUpload({ onUploadComplete }: ExcelUploadProps) {
         return updated;
       });
 
-      if (status === "error") {
+      // Reset analysis when files change
+      setAnalysis(null);
+      if (status !== "idle") {
         setStatus("idle");
         setMessage("");
       }
@@ -104,27 +131,59 @@ export default function ExcelUpload({ onUploadComplete }: ExcelUploadProps) {
     });
     const input = fileInputRefs.current[index];
     if (input) input.value = "";
+    setAnalysis(null);
+    setStatus("idle");
+    setMessage("");
   }, []);
 
   const hasAnyFile = slots.some((s) => s.file !== null);
 
-  const handleSubmit = useCallback(async () => {
-    if (!hasAnyFile) {
+  // Step 1: Analyze files
+  const handleAnalyze = useCallback(async () => {
+    if (!hasAnyFile) return;
+
+    setStatus("analyzing");
+    setMessage("");
+    setAnalysis(null);
+
+    try {
+      const formData = new FormData();
+      for (const slot of slots) {
+        if (slot.file) formData.append(slot.key, slot.file);
+      }
+
+      const response = await fetch("/api/analyze-excel", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        setStatus("error");
+        setMessage(err.error ?? "Error analizando archivos");
+        return;
+      }
+
+      const result: AnalysisResult = await response.json();
+      setAnalysis(result);
+      setStatus("reviewed");
+    } catch (err) {
       setStatus("error");
-      setMessage("Selecciona al menos un archivo Excel para procesar.");
-      return;
+      setMessage("Error de conexion al analizar los archivos.");
     }
+  }, [hasAnyFile, slots]);
+
+  // Step 2: Confirm and upload
+  const handleConfirmUpload = useCallback(async () => {
+    if (!hasAnyFile) return;
 
     setStatus("loading");
     setMessage("");
 
     try {
       const formData = new FormData();
-
       for (const slot of slots) {
-        if (slot.file) {
-          formData.append(slot.key, slot.file);
-        }
+        if (slot.file) formData.append(slot.key, slot.file);
       }
 
       const response = await fetch("/api/upload-excel", {
@@ -141,26 +200,24 @@ export default function ExcelUpload({ onUploadComplete }: ExcelUploadProps) {
       }
 
       setStatus("success");
-
-      const posCount = result.inserted?.positions ?? 0;
-      const opsCount = result.inserted?.operations ?? 0;
-      const salCount = result.inserted?.balances ?? 0;
-      const newAccs = result.inserted?.newAccounts ?? 0;
-
+      const p = result.inserted?.positions ?? 0;
+      const o = result.inserted?.operations ?? 0;
+      const s = result.inserted?.balances ?? 0;
+      const n = result.inserted?.newAccounts ?? 0;
       setMessage(
-        `Insertado correctamente: ${posCount} posiciones, ${opsCount} operaciones, ${salCount} saldos. ${newAccs} cuentas nuevas descubiertas.`
+        `Insertado correctamente: ${p} posiciones, ${o} operaciones, ${s} saldos. ${n} cuentas nuevas.`
       );
 
       onUploadComplete?.(result);
     } catch (err) {
       setStatus("error");
-      setMessage(
-        err instanceof Error
-          ? `Error de conexion: ${err.message}`
-          : "Error inesperado al procesar los archivos."
-      );
+      setMessage("Error inesperado al procesar los archivos.");
     }
   }, [hasAnyFile, slots, onUploadComplete]);
+
+  const hasIssues =
+    analysis &&
+    Object.values(analysis.analyses).some((a) => a.issues.length > 0);
 
   return (
     <Card className="w-full max-w-2xl border bg-white shadow-sm">
@@ -170,8 +227,7 @@ export default function ExcelUpload({ onUploadComplete }: ExcelUploadProps) {
           Cargar Archivos Excel
         </CardTitle>
         <CardDescription>
-          Sube los archivos Excel de Mapfre para actualizar las carteras.
-          Formatos aceptados: .xlsx, .xls (max {MAX_FILE_SIZE_MB}MB cada uno).
+          Sube los archivos Excel de Mapfre. Se analizaran antes de cargarlos.
         </CardDescription>
       </CardHeader>
 
@@ -184,9 +240,7 @@ export default function ExcelUpload({ onUploadComplete }: ExcelUploadProps) {
             </Label>
             <div className="flex items-center gap-3">
               <input
-                ref={(el) => {
-                  fileInputRefs.current[index] = el;
-                }}
+                ref={(el) => { fileInputRefs.current[index] = el; }}
                 id={`file-${slot.key}`}
                 type="file"
                 accept={ACCEPTED_EXTENSIONS}
@@ -205,7 +259,6 @@ export default function ExcelUpload({ onUploadComplete }: ExcelUploadProps) {
                     type="button"
                     onClick={() => removeFile(index)}
                     className="ml-auto shrink-0 rounded p-0.5 text-green-600 hover:bg-green-100 hover:text-green-800"
-                    aria-label={`Quitar ${slot.file.name}`}
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -225,43 +278,124 @@ export default function ExcelUpload({ onUploadComplete }: ExcelUploadProps) {
           </div>
         ))}
 
-        {/* Submit Button */}
-        <Button
-          onClick={handleSubmit}
-          disabled={!hasAnyFile || status === "loading"}
-          className="w-full"
-          size="lg"
-        >
-          {status === "loading" ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Procesando y guardando en base de datos...
-            </>
-          ) : (
-            <>
-              <Upload className="mr-2 h-4 w-4" />
-              Procesar y Guardar
-            </>
-          )}
-        </Button>
+        {/* Step 1: Analyze Button */}
+        {status === "idle" && (
+          <Button
+            onClick={handleAnalyze}
+            disabled={!hasAnyFile}
+            className="w-full gap-2"
+            size="lg"
+          >
+            <Search className="h-4 w-4" />
+            Analizar antes de cargar
+          </Button>
+        )}
 
-        {/* Status Message */}
-        {message && (
+        {/* Analyzing state */}
+        {status === "analyzing" && (
+          <div className="flex items-center justify-center gap-3 rounded-lg border border-[#C9A84C]/30 bg-[#C9A84C]/5 px-4 py-6">
+            <Loader2 className="h-5 w-5 animate-spin text-[#C9A84C]" />
+            <div>
+              <p className="text-sm font-medium text-[#0B1D3A]">Analizando archivos...</p>
+              <p className="text-xs text-gray-500">Verificando formato, columnas y datos</p>
+            </div>
+          </div>
+        )}
+
+        {/* Step 2: Analysis Results */}
+        {status === "reviewed" && analysis && (
+          <div className="space-y-4">
+            {/* File summaries */}
+            {Object.entries(analysis.analyses).map(([type, a]) => (
+              <div
+                key={type}
+                className={`rounded-lg border px-4 py-3 ${
+                  a.issues.length > 0
+                    ? "border-amber-200 bg-amber-50"
+                    : "border-green-200 bg-green-50"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  {a.issues.length > 0 ? (
+                    <AlertCircle className="h-4 w-4 flex-shrink-0 text-amber-600" />
+                  ) : (
+                    <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-green-600" />
+                  )}
+                  <span className="text-sm font-medium text-gray-800">
+                    {a.fileName}
+                  </span>
+                  <span className="text-xs text-gray-500">
+                    {a.totalRows} filas · {a.columns.length} columnas
+                  </span>
+                </div>
+                {a.issues.length > 0 && (
+                  <ul className="ml-6 mt-1.5 space-y-0.5">
+                    {a.issues.map((issue, i) => (
+                      <li key={i} className="text-xs text-amber-700">
+                        ⚠️ {issue}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ))}
+
+            {/* AI Analysis */}
+            <div className="rounded-lg border border-[#0B1D3A]/10 bg-[#0B1D3A]/[0.02] p-4">
+              <div className="mb-2 flex items-center gap-2">
+                <Bot className="h-4 w-4 text-[#C9A84C]" />
+                <span className="text-xs font-semibold uppercase tracking-wider text-[#0B1D3A]">
+                  Analisis IA
+                </span>
+              </div>
+              <div className="whitespace-pre-wrap text-sm leading-relaxed text-gray-700">
+                {analysis.aiAnalysis}
+              </div>
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setAnalysis(null);
+                  setStatus("idle");
+                }}
+                className="flex-1"
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleConfirmUpload}
+                className="flex-1 gap-2"
+                size="lg"
+              >
+                <ArrowRight className="h-4 w-4" />
+                {hasIssues ? "Cargar de todos modos" : "Confirmar y cargar"}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Loading state */}
+        {status === "loading" && (
+          <div className="flex items-center justify-center gap-3 py-4">
+            <Loader2 className="h-5 w-5 animate-spin text-[#0B1D3A]" />
+            <span className="text-sm text-gray-600">Procesando y guardando en base de datos...</span>
+          </div>
+        )}
+
+        {/* Status messages */}
+        {message && (status === "success" || status === "error") && (
           <div
             className={`flex items-start gap-2 rounded-md p-3 text-sm ${
               status === "success"
                 ? "border border-green-200 bg-green-50 text-green-800"
-                : status === "error"
-                  ? "border border-red-200 bg-red-50 text-red-800"
-                  : ""
+                : "border border-red-200 bg-red-50 text-red-800"
             }`}
           >
-            {status === "success" && (
-              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-green-600" />
-            )}
-            {status === "error" && (
-              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
-            )}
+            {status === "success" && <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-green-600" />}
+            {status === "error" && <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />}
             <span>{message}</span>
           </div>
         )}

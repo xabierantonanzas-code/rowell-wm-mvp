@@ -60,9 +60,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Verificar rol admin
+    // Verificar rol admin/owner
     const role = user.app_metadata?.role;
-    if (role !== "admin") {
+    if (role !== "admin" && role !== "owner") {
       return NextResponse.json(
         { success: false, error: "Solo el administrador puede subir archivos." },
         { status: 403 }
