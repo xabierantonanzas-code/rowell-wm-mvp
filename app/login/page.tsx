@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
@@ -19,37 +18,27 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
 
-    const supabase = createClient();
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), password }),
+      });
 
-    const { error: authError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+      const data = await res.json();
 
-    if (authError) {
-      setError(
-        authError.message === "Invalid login credentials"
-          ? "Email o contraseña incorrectos"
-          : authError.message
-      );
+      if (!res.ok) {
+        setError(data.error ?? "Error al iniciar sesion");
+        setLoading(false);
+        return;
+      }
+
+      router.push(data.redirect);
+      router.refresh();
+    } catch {
+      setError("Error de conexion. Intenta de nuevo.");
       setLoading(false);
-      return;
     }
-
-    // Obtener rol del usuario para redirigir
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    const role = user?.app_metadata?.role;
-
-    if (role === "admin") {
-      router.push("/admin");
-    } else {
-      router.push("/dashboard");
-    }
-
-    router.refresh();
   };
 
   return (

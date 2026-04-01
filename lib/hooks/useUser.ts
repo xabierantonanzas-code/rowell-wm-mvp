@@ -4,10 +4,14 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
 
+export type AppRole = "owner" | "admin" | "client";
+
 interface UseUserReturn {
   user: User | null;
-  role: string | null;
+  role: AppRole;
+  isOwner: boolean;
   isAdmin: boolean;
+  isAdminOrOwner: boolean;
   loading: boolean;
   signOut: () => Promise<void>;
 }
@@ -19,13 +23,11 @@ export function useUser(): UseUserReturn {
   useEffect(() => {
     const supabase = createClient();
 
-    // Obtener usuario actual
     supabase.auth.getUser().then(({ data: { user: currentUser } }) => {
       setUser(currentUser);
       setLoading(false);
     });
 
-    // Suscribirse a cambios de auth
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -36,8 +38,11 @@ export function useUser(): UseUserReturn {
     return () => subscription.unsubscribe();
   }, []);
 
-  const role = user?.app_metadata?.role ?? null;
-  const isAdmin = role === "admin";
+  const rawRole = user?.app_metadata?.role ?? null;
+  const role: AppRole = rawRole === "owner" ? "owner" : rawRole === "admin" ? "admin" : "client";
+  const isOwner = role === "owner";
+  const isAdmin = role === "admin" || role === "owner";
+  const isAdminOrOwner = isAdmin;
 
   const signOut = async () => {
     const supabase = createClient();
@@ -46,5 +51,5 @@ export function useUser(): UseUserReturn {
     window.location.href = "/login";
   };
 
-  return { user, role, isAdmin, loading, signOut };
+  return { user, role, isOwner, isAdmin, isAdminOrOwner, loading, signOut };
 }

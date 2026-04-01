@@ -35,8 +35,8 @@ export default async function DashboardPage({
 
   if (!user) redirect("/login");
 
-  // Si es admin, redirigir al panel admin
-  if (user.app_metadata?.role === "admin") {
+  // Si es admin/owner, redirigir al panel admin
+  if (user.app_metadata?.role === "admin" || user.app_metadata?.role === "owner") {
     redirect("/admin");
   }
 

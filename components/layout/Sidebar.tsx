@@ -37,7 +37,7 @@ function SidebarContent({
   isMobile?: boolean;
 }) {
   const pathname = usePathname();
-  const { user, isAdmin, loading, signOut } = useUser();
+  const { user, isAdmin, isOwner, loading, signOut } = useUser();
 
   const visibleItems = NAV_ITEMS.filter((item) => !item.adminOnly || isAdmin);
 
@@ -129,7 +129,7 @@ function SidebarContent({
                   {user?.email ?? "Usuario"}
                 </p>
                 <p className="text-[10px] text-white/35">
-                  {isAdmin ? "Administrador" : "Cliente"}
+                  {isOwner ? "Owner" : isAdmin ? "Administrador" : "Cliente"}
                 </p>
               </div>
             </div>
