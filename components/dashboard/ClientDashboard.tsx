@@ -20,6 +20,7 @@ import {
 import PositionsTable from "@/components/dashboard/PositionsTable";
 import CommunicationPanel from "@/components/dashboard/CommunicationPanel";
 import CombinedChart from "@/components/dashboard/CombinedChart";
+import StrategyChart from "@/components/dashboard/StrategyChart";
 import {
   PieChart,
   Pie,
@@ -50,12 +51,17 @@ interface OperationsData {
   totalPages: number;
 }
 
+interface HistoryByAccount {
+  [accountId: string]: { date: string; totalValue: number }[];
+}
+
 interface DashboardData {
   accountId: string;
   dateFrom: string | null;
   dateTo: string | null;
   positions: Position[];
   history: HistoryPoint[];
+  historyByAccount?: HistoryByAccount;
   operations: OperationsData;
   cashBalance: number;
 }
@@ -824,6 +830,16 @@ export default function ClientDashboard({
   // Active rentabilidad periods based on selected method
   const rentabilidadPeriods = returnMethod === "twr" ? twrPeriods : mwrPeriods;
 
+  // Strategy chart series (per-account history)
+  const strategySeries = useMemo(() => {
+    if (!data.historyByAccount || accounts.length <= 1) return [];
+    return accounts.map((acc) => ({
+      accountId: acc.id,
+      label: acc.label || `...${acc.account_number.slice(-8)}`,
+      data: data.historyByAccount?.[acc.id] ?? [],
+    }));
+  }, [data.historyByAccount, accounts]);
+
   // Combined chart data: NAV + Rentabilidad % + Flujos por mes
   const combinedChartData = useMemo(() => {
     if (data.history.length === 0) return { chartData: [], kpis: null };
@@ -1118,6 +1134,13 @@ export default function ClientDashboard({
       ) : (
         <div className="rounded-xl border border-gray-200 bg-white p-12 text-center shadow-sm">
           <p className="text-sm text-gray-400">Sin datos suficientes para generar el grafico</p>
+        </div>
+      )}
+
+      {/* Gráfico acumulativo por estrategias (solo multi-cuenta) */}
+      {accounts.length > 1 && data.historyByAccount && strategySeries.length > 0 && (
+        <div className="mt-6">
+          <StrategyChart series={strategySeries} />
         </div>
       )}
 

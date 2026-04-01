@@ -409,6 +409,52 @@ export async function getPatrimonyHistory(
 }
 
 /**
+ * Obtiene historial de posiciones separado por cuenta.
+ * Devuelve un mapa: accountId -> [{date, totalValue}]
+ * Usado para el gráfico de estrategias (stacked area).
+ */
+export async function getHistoryByAccount(
+  accountIds: string[],
+  dateRange?: DateRange
+): Promise<Map<string, { date: string; totalValue: number }[]>> {
+  const supabase = await createClient();
+
+  let query = supabase
+    .from("positions")
+    .select("account_id, snapshot_date, position_value")
+    .in("account_id", accountIds)
+    .order("snapshot_date");
+
+  query = applyDateFilter(query, "snapshot_date", dateRange);
+
+  const { data, error } = await query;
+  if (error) throw error;
+
+  // Group by account_id, then by date
+  const byAccount = new Map<string, Map<string, number>>();
+  for (const row of data ?? []) {
+    if (!byAccount.has(row.account_id)) {
+      byAccount.set(row.account_id, new Map());
+    }
+    const dateMap = byAccount.get(row.account_id)!;
+    dateMap.set(row.snapshot_date, (dateMap.get(row.snapshot_date) ?? 0) + (row.position_value ?? 0));
+  }
+
+  const result = new Map<string, { date: string; totalValue: number }[]>();
+  byAccount.forEach((dateMap, accountId) => {
+    const entries = Array.from(dateMap.entries()) as [string, number][];
+    result.set(
+      accountId,
+      entries
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([date, totalValue]) => ({ date, totalValue }))
+    );
+  });
+
+  return result;
+}
+
+/**
  * Obtiene todas las snapshot_dates disponibles para una cuenta (o varias).
  * Util para determinar los anos con datos.
  * Si accountIds tiene más de 50 elementos, consulta sin filtro.

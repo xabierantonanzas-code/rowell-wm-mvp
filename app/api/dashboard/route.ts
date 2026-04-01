@@ -5,6 +5,7 @@ import {
   getPositionHistory,
   getAggregatedPositions,
   getAggregatedHistory,
+  getHistoryByAccount,
 } from "@/lib/queries/positions";
 import type { DateRange } from "@/lib/queries/positions";
 import { getOperations } from "@/lib/queries/operations";
@@ -95,12 +96,20 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // Per-account history (for strategy chart, multi-account only)
+    let historyByAccount: Record<string, { date: string; totalValue: number }[]> | undefined;
+    if (!isSingle) {
+      const histMap = await getHistoryByAccount(accountIds, dateRange);
+      historyByAccount = Object.fromEntries(histMap);
+    }
+
     return NextResponse.json({
       accountId: isSingle ? primaryAccountId : "all",
       dateFrom: dateFrom ?? null,
       dateTo: dateTo ?? null,
       positions,
       history,
+      historyByAccount,
       operations: {
         operations: opsResult.operations,
         total: opsResult.total,

@@ -6,6 +6,7 @@ import {
   getAggregatedPositions,
   getAggregatedHistory,
   getAvailableDateRange,
+  getHistoryByAccount,
 } from "@/lib/queries/positions";
 import type { DateRange } from "@/lib/queries/positions";
 import { getOperations } from "@/lib/queries/operations";
@@ -110,6 +111,13 @@ export default async function DashboardPage({
     cashBalance = balances.reduce((sum, b) => sum + (b.balance ?? 0), 0);
   }
 
+  // Per-account history (for strategy chart, multi-account)
+  let historyByAccount: Record<string, { date: string; totalValue: number }[]> | undefined;
+  if (!isSingle) {
+    const histMap = await getHistoryByAccount(activeAccountIds, dateRange);
+    historyByAccount = Object.fromEntries(histMap);
+  }
+
   // Nombre del cliente
   const clientName = accounts[0].clients?.full_name ?? user.email ?? "Mi Cartera";
 
@@ -119,6 +127,7 @@ export default async function DashboardPage({
     dateTo: dateToParam ?? null,
     positions,
     history,
+    historyByAccount,
     operations: {
       operations: opsResult.operations,
       total: opsResult.total,
