@@ -558,17 +558,17 @@ export async function getAllLatestPositions(dateRange?: DateRange): Promise<Posi
 export async function getAllPositionHistory(dateRange?: DateRange) {
   const supabase = await createClient();
 
-  const grouped = new Map<string, number>();
-  const PAGE_SIZE = 10000;
+  // Step 1: Get all unique snapshot dates
+  const allDates: string[] = [];
   let from = 0;
+  const DATE_PAGE = 1000;
 
   while (true) {
     let query = supabase
       .from("positions")
-      .select("snapshot_date, position_value")
+      .select("snapshot_date")
       .order("snapshot_date")
-      .order("id")
-      .range(from, from + PAGE_SIZE - 1);
+      .range(from, from + DATE_PAGE - 1);
 
     query = applyDateFilter(query, "snapshot_date", dateRange);
 
@@ -577,18 +577,45 @@ export async function getAllPositionHistory(dateRange?: DateRange) {
     if (!data || data.length === 0) break;
 
     for (const row of data) {
-      grouped.set(
-        row.snapshot_date,
-        (grouped.get(row.snapshot_date) ?? 0) + (row.position_value ?? 0)
-      );
+      if (!allDates.includes(row.snapshot_date)) {
+        allDates.push(row.snapshot_date);
+      }
     }
 
-    if (data.length < PAGE_SIZE) break;
-    from += PAGE_SIZE;
+    if (data.length < DATE_PAGE) break;
+    from += DATE_PAGE;
   }
 
-  return Array.from(grouped.entries()).map(([date, total]) => ({
-    date,
-    totalValue: total,
-  }));
+  const uniqueDates = Array.from(new Set(allDates)).sort();
+
+  // Step 2: For each date, sum all position values (paginated)
+  const results: { date: string; totalValue: number }[] = [];
+
+  for (const date of uniqueDates) {
+    let total = 0;
+    let offset = 0;
+    const BATCH = 1000;
+
+    while (true) {
+      const { data, error } = await supabase
+        .from("positions")
+        .select("position_value")
+        .eq("snapshot_date", date)
+        .range(offset, offset + BATCH - 1);
+
+      if (error) throw error;
+      if (!data || data.length === 0) break;
+
+      for (const row of data) {
+        total += row.position_value ?? 0;
+      }
+
+      if (data.length < BATCH) break;
+      offset += BATCH;
+    }
+
+    results.push({ date, totalValue: total });
+  }
+
+  return results;
 }
