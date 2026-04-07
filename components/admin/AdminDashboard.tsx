@@ -46,6 +46,8 @@ import {
   Tooltip,
   Legend,
 } from "recharts";
+import { classifyFlow, flowAmountEur } from "@/lib/operations-taxonomy";
+import { computeEurCostByIsin } from "@/lib/eur-cost-fifo";
 
 // ===========================================================================
 // Types
@@ -131,24 +133,27 @@ function formatDate(dateStr: string | null): string {
 }
 
 function getOpIcon(type: string | null) {
-  const t = (type ?? "").toLowerCase();
-  if (t.includes("compra") || t.includes("suscripci"))
+  const cat = classifyFlow(type ?? "");
+  if (cat === "plus")
     return <ArrowDownLeft className="h-3.5 w-3.5 text-green-600" />;
-  if (t.includes("venta") || t.includes("reembolso"))
+  if (cat === "minus")
     return <ArrowUpRight className="h-3.5 w-3.5 text-red-600" />;
   return <RefreshCw className="h-3.5 w-3.5 text-blue-500" />;
 }
 
 function getOpColor(type: string | null): string {
-  const t = (type ?? "").toLowerCase();
-  if (t.includes("compra") || t.includes("suscripci")) return "text-green-600";
-  if (t.includes("venta") || t.includes("reembolso")) return "text-red-600";
+  const cat = classifyFlow(type ?? "");
+  if (cat === "plus") return "text-green-600";
+  if (cat === "minus") return "text-red-600";
   return "text-blue-600";
 }
 
 // ===========================================================================
 // Sub-component: Client Dropdown with search
 // ===========================================================================
+
+// MVP6 P2.4: paginacion client-side de 25 en el dropdown del admin.
+const CLIENTS_PAGE_SIZE = 25;
 
 function ClientDropdown({
   clients,
@@ -168,8 +173,18 @@ function ClientDropdown({
   onSelect: (id: string | null) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [page, setPage] = useState(1);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Reset page cuando cambia la query de busqueda
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredClients.length / CLIENTS_PAGE_SIZE));
+  const pageStart = (page - 1) * CLIENTS_PAGE_SIZE;
+  const pageItems = filteredClients.slice(pageStart, pageStart + CLIENTS_PAGE_SIZE);
 
   // Close on outside click
   useEffect(() => {
@@ -269,7 +284,7 @@ function ClientDropdown({
                 No se encontraron clientes
               </p>
             ) : (
-              filteredClients.map((client) => (
+              pageItems.map((client) => (
                 <button
                   key={client.id}
                   onClick={() => { onSelect(client.id); setOpen(false); }}
@@ -296,6 +311,35 @@ function ClientDropdown({
               ))
             )}
           </div>
+          {/* Paginacion 25 (MVP6 P2.4) */}
+          {filteredClients.length > CLIENTS_PAGE_SIZE && (
+            <div className="flex items-center justify-between border-t border-gray-100 bg-gray-50 px-3 py-2 text-xs text-gray-500">
+              <span>
+                {pageStart + 1}-{Math.min(pageStart + CLIENTS_PAGE_SIZE, filteredClients.length)} de {filteredClients.length}
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  className="rounded border border-gray-200 bg-white px-2 py-1 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  ‹
+                </button>
+                <span className="px-2 tabular-nums">
+                  {page} / {totalPages}
+                </span>
+                <button
+                  type="button"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  className="rounded border border-gray-200 bg-white px-2 py-1 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  ›
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -503,14 +547,19 @@ export default function AdminDashboard({
     [positions]
   );
 
-  // Aportaciones netas, comisiones (from operations)
+  // FIFO EUR cost por ISIN para P&L con efecto divisa real (Edgard MVP6 #8)
+  const eurCostMap = useMemo(
+    () => computeEurCostByIsin(operations.operations),
+    [operations.operations]
+  );
+
+  // Aportaciones netas, comisiones (taxonomia oficial Edgard MVP6)
   const { netContributions, totalCommissions, totalRetentions } = useMemo(() => {
     let contributions = 0, withdrawals = 0, commissions = 0, retentions = 0;
     for (const op of operations.operations) {
-      const amount = Math.abs(op.eur_amount ?? 0);
-      const t = (op.operation_type ?? "").toLowerCase();
-      if (t.includes("compra") || t.includes("suscripci")) contributions += amount;
-      else if (t.includes("venta") || t.includes("reembolso")) withdrawals += amount;
+      const signed = flowAmountEur(op);
+      if (signed > 0) contributions += signed;
+      else if (signed < 0) withdrawals += Math.abs(signed);
       commissions += op.commission ?? 0;
       retentions += op.withholding ?? 0;
     }
@@ -556,14 +605,14 @@ export default function AdminDashboard({
     const map = new Map<string, { compras: number; ventas: number }>();
     for (const op of operations.operations) {
       if (!op.operation_date) continue;
+      const signed = flowAmountEur(op);
+      if (signed === 0) continue;
       const d = new Date(op.operation_date);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
       if (!map.has(key)) map.set(key, { compras: 0, ventas: 0 });
       const entry = map.get(key)!;
-      const t = (op.operation_type ?? "").toLowerCase();
-      const amount = Math.abs(op.eur_amount ?? 0);
-      if (t.includes("compra") || t.includes("suscripci")) entry.compras += amount;
-      else if (t.includes("venta") || t.includes("reembolso")) entry.ventas += amount;
+      if (signed > 0) entry.compras += signed;
+      else entry.ventas += Math.abs(signed);
     }
     let cumNet = 0;
     return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0])).map(([month, d]) => {
@@ -579,10 +628,7 @@ export default function AdminDashboard({
     const ops = [...operations.operations].sort((a, b) => (a.operation_date ?? "").localeCompare(b.operation_date ?? ""));
     for (const op of ops) {
       if (!op.operation_date) continue;
-      const t = (op.operation_type ?? "").toLowerCase();
-      const amount = Math.abs(op.eur_amount ?? 0);
-      if (t.includes("compra") || t.includes("suscripci")) cumContrib += amount;
-      else if (t.includes("venta") || t.includes("reembolso")) cumContrib -= amount;
+      cumContrib += flowAmountEur(op);
       opsByDate.set(op.operation_date, cumContrib);
     }
     let lastContrib = 0;
@@ -996,7 +1042,7 @@ export default function AdminDashboard({
         </CardHeader>
         <CardContent>
           {activeTab === "posiciones" ? (
-            <PositionsTable positions={positions} />
+            <PositionsTable positions={positions} eurCostMap={eurCostMap} />
           ) : (
             <div className="space-y-4">
               {operations.operations.length === 0 ? (

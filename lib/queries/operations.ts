@@ -1,5 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
 import type { DateRange } from "@/lib/queries/positions";
+import {
+  classifyFlow,
+  flowAmountEur,
+  isPlus,
+  isMinus,
+} from "@/lib/operations-taxonomy";
 
 /**
  * Obtiene operaciones de una cuenta, con paginacion y filtro por rango de fechas.
@@ -42,35 +48,8 @@ export async function getOperations(
 }
 
 // ===========================================================================
-// MVP4 — Flows & Analytics
+// MVP6 — Flows & Analytics (taxonomia oficial Edgard)
 // ===========================================================================
-
-const COMPRA_TYPES = new Set([
-  "SUSCRIPCIÓN FONDOS INVERSIÓN",
-  "SUSC.TRASPASO EXT.",
-  "SUSC.TRASPASO. INT.",
-  "SUSCRIPCION POR FUSION",
-  "COMPRA RV CONTADO",
-  "COMPRA SICAVS",
-  "ALTA IIC SWITCH",
-]);
-
-const VENTA_TYPES = new Set([
-  "REEMBOLSO FONDO INVERSIÓN",
-  "REEMBOLSO POR TRASPASO EXT.",
-  "REEMBOLSO POR TRASPASO INT.",
-  "REEMBOLSO OBLIGATORIO IIC",
-  "REEMBOLSO POR FUSION",
-  "VENTA RV CONTADO",
-]);
-
-function isCompra(type: string): boolean {
-  return COMPRA_TYPES.has(type.toUpperCase().trim());
-}
-
-function isVenta(type: string): boolean {
-  return VENTA_TYPES.has(type.toUpperCase().trim());
-}
 
 export interface FlowByPeriod {
   period: string;
@@ -87,7 +66,9 @@ export async function getFlowsByPeriod(
 
   const { data, error } = await supabase
     .from("operations")
-    .select("operation_type, eur_amount, operation_date")
+    .select(
+      "operation_type, eur_amount, gross_amount, fx_rate, operation_date"
+    )
     .in("account_id", accountIds);
 
   if (error) throw error;
@@ -96,6 +77,9 @@ export async function getFlowsByPeriod(
 
   for (const op of data ?? []) {
     if (!op.operation_date) continue;
+    const cat = classifyFlow(op.operation_type ?? "");
+    if (cat === "neutro") continue;
+
     const d = new Date(op.operation_date);
     let key: string;
     if (groupBy === "quarter") {
@@ -107,11 +91,11 @@ export async function getFlowsByPeriod(
 
     if (!map.has(key)) map.set(key, { inflows: 0, outflows: 0 });
     const entry = map.get(key)!;
-    const amount = Math.abs(op.eur_amount ?? 0);
-    const type = op.operation_type ?? "";
 
-    if (isCompra(type)) entry.inflows += amount;
-    else if (isVenta(type)) entry.outflows += amount;
+    // flowAmountEur ya devuelve PLUS positivo, MINUS negativo.
+    const signed = flowAmountEur(op);
+    if (signed > 0) entry.inflows += signed;
+    else entry.outflows += Math.abs(signed);
   }
 
   return Array.from(map.entries())
@@ -137,7 +121,7 @@ export async function getNetContributions(
 
   const { data, error } = await supabase
     .from("operations")
-    .select("operation_type, eur_amount")
+    .select("operation_type, eur_amount, gross_amount, fx_rate")
     .in("account_id", accountIds);
 
   if (error) throw error;
@@ -146,10 +130,9 @@ export async function getNetContributions(
   let totalWithdrawals = 0;
 
   for (const op of data ?? []) {
-    const amount = Math.abs(op.eur_amount ?? 0);
-    const type = op.operation_type ?? "";
-    if (isCompra(type)) totalContributions += amount;
-    else if (isVenta(type)) totalWithdrawals += amount;
+    const signed = flowAmountEur(op);
+    if (signed > 0) totalContributions += signed;
+    else if (signed < 0) totalWithdrawals += Math.abs(signed);
   }
 
   return {

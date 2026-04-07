@@ -2,6 +2,7 @@
 
 import type { Operation } from "@/lib/types/database";
 import { ArrowUpRight, ArrowDownLeft, RefreshCw } from "lucide-react";
+import { classifyFlow } from "@/lib/operations-taxonomy";
 
 interface OperationsTableProps {
   operations: Operation[];
@@ -30,20 +31,20 @@ function formatDate(dateStr: string | null): string {
 }
 
 function getOperationIcon(type: string | null) {
-  const t = (type ?? "").toLowerCase();
-  if (t.includes("compra") || t.includes("suscripci")) {
+  const cat = classifyFlow(type ?? "");
+  if (cat === "plus") {
     return <ArrowDownLeft className="h-4 w-4 text-green-600" />;
   }
-  if (t.includes("venta") || t.includes("reembolso")) {
+  if (cat === "minus") {
     return <ArrowUpRight className="h-4 w-4 text-red-600" />;
   }
   return <RefreshCw className="h-4 w-4 text-blue-500" />;
 }
 
 function getOperationColor(type: string | null): string {
-  const t = (type ?? "").toLowerCase();
-  if (t.includes("compra") || t.includes("suscripci")) return "text-green-600";
-  if (t.includes("venta") || t.includes("reembolso")) return "text-red-600";
+  const cat = classifyFlow(type ?? "");
+  if (cat === "plus") return "text-green-600";
+  if (cat === "minus") return "text-red-600";
   return "text-blue-600";
 }
 

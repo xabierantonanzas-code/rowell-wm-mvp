@@ -341,6 +341,21 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const { invalidateCache } = await import("@/lib/cache");
     invalidateCache("all_");
 
+    // Refresh vista materializada client_summary (MVP6 P2.4).
+    // Si la vista no existe todavia (migracion 007 sin aplicar), ignoramos
+    // el error - el resto del upload sigue funcionando.
+    try {
+      const refreshResult = await adminDb.rpc("refresh_client_summary");
+      if (refreshResult.error) {
+        console.warn(
+          "[upload] refresh_client_summary fallo (migracion pendiente?):",
+          refreshResult.error.message
+        );
+      }
+    } catch (e) {
+      console.warn("[upload] refresh_client_summary throw:", e);
+    }
+
     // --- Registrar upload ---
     await adminDb.from("uploads").insert({
       uploaded_by: user.id,

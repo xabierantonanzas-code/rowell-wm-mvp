@@ -511,49 +511,22 @@ export function parseOperations(buffer: Buffer): ParseResult<Operation> {
 }
 
 // ===========================================================================
-// Clasificacion de operaciones por taxonomia Mapfre
+// Clasificacion de operaciones (delegada a taxonomia oficial)
 // ===========================================================================
+//
+// La taxonomia PLUS / MINUS / NEUTRO esta definida en lib/operations-taxonomy.ts
+// segun la spec de Edgard. Mantenemos esta funcion como wrapper porque otros
+// modulos importan classifyOperation y OperationCategory.
 
-const COMPRAS = new Set([
-  "SUSCRIPCIÓN FONDOS INVERSIÓN",
-  "SUSC.TRASPASO EXT.",
-  "SUSC.TRASPASO. INT.",
-  "SUSCRIPCION POR FUSION",
-  "COMPRA RV CONTADO",
-  "COMPRA SICAVS",
-  "ALTA IIC SWITCH",
-]);
+import { classifyFlow } from "@/lib/operations-taxonomy";
 
-const VENTAS = new Set([
-  "REEMBOLSO FONDO INVERSIÓN",
-  "REEMBOLSO POR TRASPASO EXT.",
-  "REEMBOLSO POR TRASPASO INT.",
-  "REEMBOLSO OBLIGATORIO IIC",
-  "REEMBOLSO POR FUSION",
-  "VENTA RV CONTADO",
-]);
-
-const TRASPASOS = new Set([
-  "RECEPCION INTERNA IIC LP",
-  "TRASPASO INTERNO IIC LP",
-]);
-
-const CORPORATIVOS = new Set([
-  "AJUSTE PARTICIP SUSCRITAS",
-  "ALTA DE NUEVO VALOR POR SPLIT",
-  "BAJA DE VALOR POR SPLIT",
-  "LIQUIDACION IICS",
-]);
-
-export type OperationCategory = "compra" | "venta" | "traspaso" | "corporativo" | "otro";
+export type OperationCategory = "compra" | "venta" | "neutro";
 
 export function classifyOperation(operationType: string): OperationCategory {
-  const upper = operationType.toUpperCase().trim();
-  if (COMPRAS.has(upper)) return "compra";
-  if (VENTAS.has(upper)) return "venta";
-  if (TRASPASOS.has(upper)) return "traspaso";
-  if (CORPORATIVOS.has(upper)) return "corporativo";
-  return "otro";
+  const cat = classifyFlow(operationType);
+  if (cat === "plus") return "compra";
+  if (cat === "minus") return "venta";
+  return "neutro";
 }
 
 // ===========================================================================

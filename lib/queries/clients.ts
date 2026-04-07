@@ -87,10 +87,52 @@ export async function searchAccounts(query: string) {
 
 /**
  * Obtiene las cuentas de un cliente por su email.
+ *
+ * MVP6 punto 9 (Edgard): un cliente puede ser titular y/o representante
+ * legal de varias cuentas. Resolvemos primero via account_holders (la
+ * tabla many-to-many de la migracion 005). Si la tabla no existe todavia
+ * (migracion sin aplicar), caemos al esquema legacy accounts.client_id
+ * filtrando por clients.email.
  */
 export async function getClientAccounts(email: string): Promise<AccountWithClient[]> {
   const supabase = await createClient();
 
+  // Resolver client.id por email
+  const { data: client } = await supabase
+    .from("clients")
+    .select("id")
+    .eq("email", email)
+    .maybeSingle();
+
+  if (!client) return [];
+
+  // Intento 1: usar account_holders (titular + representante)
+  const holdersResult = await supabase
+    .from("account_holders")
+    .select("account_id")
+    .eq("client_id", client.id);
+
+  if (!holdersResult.error && holdersResult.data && holdersResult.data.length > 0) {
+    const accountIds = holdersResult.data.map((h) => h.account_id);
+    const { data: accs, error } = await supabase
+      .from("accounts")
+      .select(`
+        id,
+        account_number,
+        label,
+        created_at,
+        clients (
+          id,
+          full_name,
+          email
+        )
+      `)
+      .in("id", accountIds);
+    if (error) throw error;
+    return (accs ?? []) as unknown as AccountWithClient[];
+  }
+
+  // Fallback legacy: filtrar por clients.email (1 cliente = 1 conjunto de cuentas)
   const { data, error } = await supabase
     .from("accounts")
     .select(`

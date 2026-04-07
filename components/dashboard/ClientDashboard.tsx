@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import type { Position, Operation } from "@/lib/types/database";
 import {
   TrendingUp,
@@ -29,6 +29,13 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import {
+  classifyFlow,
+  flowAmountEur,
+  isPlus,
+  isMinus,
+} from "@/lib/operations-taxonomy";
+import { computeEurCostByIsin } from "@/lib/eur-cost-fifo";
 
 // ===========================================================================
 // Types
@@ -123,19 +130,164 @@ function formatDate(dateStr: string | null): string {
   });
 }
 
+// ===========================================================================
+// DateRangeBar - selector de fechas + botones de periodo (Edgard MVP6 #3+#4)
+// ===========================================================================
+//
+// Fix iOS Safari: el truco anterior usaba type="text" y cambiaba a "date"
+// onFocus, lo cual rompe el picker nativo en iOS Safari y no muestra
+// "Desde"/"Hasta" como label real. Aqui usamos siempre type="date" + un
+// label flotante encima cuando esta vacio, y abrimos el picker
+// programaticamente con showPicker() en click.
+
+interface DateRangeBarProps {
+  dateFrom?: string;
+  dateTo?: string;
+  onChange: (from: string | undefined, to: string | undefined) => void;
+  minDate?: string;
+  maxDate?: string;
+  /** Fecha de la 1a operacion registrada para esta CV (YYYY-MM-DD). */
+  originDate?: string | null;
+}
+
+function DateRangeBar({
+  dateFrom,
+  dateTo,
+  onChange,
+  minDate,
+  maxDate,
+  originDate,
+}: DateRangeBarProps) {
+  const fromRef = useRef<HTMLInputElement>(null);
+  const toRef = useRef<HTMLInputElement>(null);
+
+  const todayIso = () => new Date().toISOString().split("T")[0];
+  const minusDays = (d: number) => {
+    const x = new Date();
+    x.setDate(x.getDate() - d);
+    return x.toISOString().split("T")[0];
+  };
+  const ytdIso = () => `${new Date().getFullYear()}-01-01`;
+
+  const periods = useMemo(
+    () => [
+      { label: "1M", from: minusDays(30), to: todayIso() },
+      { label: "YTD", from: ytdIso(), to: todayIso() },
+      { label: "1A", from: minusDays(365), to: todayIso() },
+      ...(originDate
+        ? [{ label: "Origen", from: originDate, to: todayIso() }]
+        : []),
+    ],
+    [originDate]
+  );
+
+  const activeLabel = useMemo(() => {
+    if (!dateFrom && !dateTo) return null;
+    return periods.find((p) => p.from === dateFrom && p.to === dateTo)?.label ?? null;
+  }, [dateFrom, dateTo, periods]);
+
+  const openPicker = (ref: React.RefObject<HTMLInputElement>) => {
+    const el = ref.current;
+    if (!el) return;
+    if (typeof el.showPicker === "function") {
+      try {
+        el.showPicker();
+        return;
+      } catch {
+        /* fall through */
+      }
+    }
+    el.focus();
+  };
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <Calendar className="h-4 w-4 flex-shrink-0 text-white/40" />
+      {/* Botones de periodo */}
+      <div className="flex flex-wrap items-center gap-1">
+        {periods.map((p) => (
+          <button
+            key={p.label}
+            type="button"
+            onClick={() => onChange(p.from, p.to)}
+            className={`rounded-md border px-2 py-1 text-[10px] font-semibold uppercase tracking-wider transition-colors ${
+              activeLabel === p.label
+                ? "border-[#c9a94e] bg-[#c9a94e] text-[#0B1D3A]"
+                : "border-white/20 bg-white/10 text-white/80 hover:border-[#c9a94e] hover:text-white"
+            }`}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+      {/* Inputs nativos */}
+      <div className="relative flex flex-wrap items-center gap-1.5">
+        <div className="relative">
+          <input
+            ref={fromRef}
+            type="date"
+            value={dateFrom ?? ""}
+            min={minDate}
+            max={dateTo || maxDate}
+            onChange={(e) => onChange(e.target.value || undefined, dateTo)}
+            onClick={() => openPicker(fromRef)}
+            style={{ WebkitAppearance: "auto", appearance: "auto" }}
+            className="min-w-[125px] cursor-pointer rounded-lg border border-white/20 bg-white/10 px-2 py-2 text-xs font-medium text-white backdrop-blur-sm focus:border-[#c9a94e] focus:outline-none [color-scheme:dark] sm:py-1.5"
+            aria-label="Fecha desde"
+          />
+          {!dateFrom && (
+            <span className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-xs text-white/40">
+              Desde
+            </span>
+          )}
+        </div>
+        <span className="text-xs text-white/40">—</span>
+        <div className="relative">
+          <input
+            ref={toRef}
+            type="date"
+            value={dateTo ?? ""}
+            min={dateFrom || minDate}
+            max={maxDate}
+            onChange={(e) => onChange(dateFrom, e.target.value || undefined)}
+            onClick={() => openPicker(toRef)}
+            style={{ WebkitAppearance: "auto", appearance: "auto" }}
+            className="min-w-[125px] cursor-pointer rounded-lg border border-white/20 bg-white/10 px-2 py-2 text-xs font-medium text-white backdrop-blur-sm focus:border-[#c9a94e] focus:outline-none [color-scheme:dark] sm:py-1.5"
+            aria-label="Fecha hasta"
+          />
+          {!dateTo && (
+            <span className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-xs text-white/40">
+              Hasta
+            </span>
+          )}
+        </div>
+        {(dateFrom || dateTo) && (
+          <button
+            type="button"
+            onClick={() => onChange(undefined, undefined)}
+            className="rounded-lg bg-white/10 px-2 py-2 text-xs font-medium text-white/70 transition-colors hover:bg-white/20 sm:py-1.5"
+          >
+            Limpiar
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function getOpIcon(type: string | null) {
-  const t = (type ?? "").toLowerCase();
-  if (t.includes("compra") || t.includes("suscripci"))
+  const cat = classifyFlow(type ?? "");
+  if (cat === "plus")
     return <ArrowDownLeft className="h-3.5 w-3.5 text-green-600" />;
-  if (t.includes("venta") || t.includes("reembolso"))
+  if (cat === "minus")
     return <ArrowUpRight className="h-3.5 w-3.5 text-red-600" />;
   return <RefreshCw className="h-3.5 w-3.5 text-blue-500" />;
 }
 
 function getOpColor(type: string | null): string {
-  const t = (type ?? "").toLowerCase();
-  if (t.includes("compra") || t.includes("suscripci")) return "text-green-600";
-  if (t.includes("venta") || t.includes("reembolso")) return "text-red-600";
+  const cat = classifyFlow(type ?? "");
+  if (cat === "plus") return "text-green-600";
+  if (cat === "minus") return "text-red-600";
   return "text-blue-600";
 }
 
@@ -682,14 +834,24 @@ export default function ClientDashboard({
     });
   }, [data.positions]);
 
-  // Aportaciones netas y comisiones (computed from operations)
+  // FIFO de coste EUR por ISIN -> permite mostrar P&L con efecto divisa real
+  // en PositionsTable. Reconstruye el coste de las posiciones actuales a
+  // partir del Registro de Operaciones (PLUS = compras, MINUS = ventas).
+  const eurCostMap = useMemo(
+    () => computeEurCostByIsin(data.operations.operations),
+    [data.operations.operations]
+  );
+
+  // Aportaciones netas y comisiones (taxonomia oficial Edgard MVP6)
+  // PLUS  = CONTRAVALOR EFECTIVO NETO (eur_amount)
+  // MINUS = EFECTIVO BRUTO * CAMBIO DIVISA (gross_amount * fx_rate)
+  // NEUTRO = ignorar
   const { netContributions, totalContributions, totalWithdrawals, totalCommissions, totalRetentions } = useMemo(() => {
     let contributions = 0, withdrawals = 0, commissions = 0, retentions = 0;
     for (const op of data.operations.operations) {
-      const amount = Math.abs(op.eur_amount ?? 0);
-      const t = (op.operation_type ?? "").toLowerCase();
-      if (t.includes("compra") || t.includes("suscripci")) contributions += amount;
-      else if (t.includes("venta") || t.includes("reembolso")) withdrawals += amount;
+      const signed = flowAmountEur(op);
+      if (signed > 0) contributions += signed;
+      else if (signed < 0) withdrawals += Math.abs(signed);
       commissions += op.commission ?? 0;
       retentions += op.withholding ?? 0;
     }
@@ -752,26 +914,18 @@ export default function ClientDashboard({
   }, [data.history, totalValue]);
 
   // Rentabilidad por periodos — MWR (Money Weighted Return / Modified Dietz)
-  // Traspasos internos (TRASPASO INT.) no cuentan como flujo de capital nuevo
+  // Solo flujos PLUS y MINUS reales segun taxonomia oficial (Edgard MVP6).
+  // Los traspasos internos, fusiones y splits son NEUTROS y se descartan.
   const mwrPeriods = useMemo(() => {
     if (data.history.length === 0 || totalValue === 0) return [];
-
-    const TRASPASO_INT_KEYWORDS = ["traspaso int", "traspaso. int"];
-    const isTraspInterno = (t: string) =>
-      TRASPASO_INT_KEYWORDS.some((kw) => t.toLowerCase().includes(kw));
 
     // Build sorted cashflows from operations (only real external flows)
     const cashflows: { date: string; amount: number }[] = [];
     for (const op of data.operations.operations) {
       if (!op.operation_date || !op.operation_type) continue;
-      if (isTraspInterno(op.operation_type)) continue;
-      const t = op.operation_type.toLowerCase();
-      const amount = Math.abs(op.eur_amount ?? 0);
-      if (t.includes("compra") || t.includes("suscripci")) {
-        cashflows.push({ date: op.operation_date, amount }); // inflow = positive
-      } else if (t.includes("venta") || t.includes("reembolso")) {
-        cashflows.push({ date: op.operation_date, amount: -amount }); // outflow = negative
-      }
+      const signed = flowAmountEur(op);
+      if (signed === 0) continue;
+      cashflows.push({ date: op.operation_date, amount: signed });
     }
     cashflows.sort((a, b) => a.date.localeCompare(b.date));
 
@@ -842,13 +996,10 @@ export default function ClientDashboard({
   }, [data.historyByAccount, accounts]);
 
   // Combined chart data: NAV + Rentabilidad % + Flujos por mes
-  // Depends on returnMethod so the chart line reflects TWR or MWR
+  // Depends on returnMethod so the chart line reflects TWR or MWR.
+  // Solo considera flujos PLUS/MINUS reales (taxonomia oficial Edgard MVP6).
   const combinedChartData = useMemo(() => {
     if (data.history.length === 0) return { chartData: [], kpis: null };
-
-    const TRASPASO_INT_KEYWORDS = ["traspaso int", "traspaso. int"];
-    const isTraspInterno = (t: string) =>
-      TRASPASO_INT_KEYWORDS.some((kw) => t.toLowerCase().includes(kw));
 
     // Group history by month (use last snapshot of each month as NAV)
     const navByMonth = new Map<string, { nav: number; date: string }>();
@@ -865,22 +1016,16 @@ export default function ClientDashboard({
 
     for (const op of data.operations.operations) {
       if (!op.operation_date || !op.operation_type) continue;
-      if (returnMethod === "mwr" && isTraspInterno(op.operation_type)) continue;
+
+      const signed = flowAmountEur(op);
+      if (signed === 0) continue; // NEUTRO
 
       const d = new Date(op.operation_date);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      const t = (op.operation_type ?? "").toLowerCase();
-      const amount = Math.abs(op.eur_amount ?? 0);
 
-      if (t.includes("compra") || t.includes("suscripci")) {
-        flowsByMonthMap.set(key, (flowsByMonthMap.get(key) ?? 0) + amount);
-        if (!dailyFlowsByMonth.has(key)) dailyFlowsByMonth.set(key, []);
-        dailyFlowsByMonth.get(key)!.push({ date: op.operation_date, amount });
-      } else if (t.includes("venta") || t.includes("reembolso")) {
-        flowsByMonthMap.set(key, (flowsByMonthMap.get(key) ?? 0) - amount);
-        if (!dailyFlowsByMonth.has(key)) dailyFlowsByMonth.set(key, []);
-        dailyFlowsByMonth.get(key)!.push({ date: op.operation_date, amount: -amount });
-      }
+      flowsByMonthMap.set(key, (flowsByMonthMap.get(key) ?? 0) + signed);
+      if (!dailyFlowsByMonth.has(key)) dailyFlowsByMonth.set(key, []);
+      dailyFlowsByMonth.get(key)!.push({ date: op.operation_date, amount: signed });
     }
 
     // Build chart data sorted by month
@@ -1021,42 +1166,15 @@ export default function ClientDashboard({
                 </select>
               </div>
             )}
-            {/* Date range */}
-            <div className="flex flex-wrap items-center gap-1.5">
-              <Calendar className="h-4 w-4 flex-shrink-0 text-white/40" />
-              <input
-                type={dateFrom ? "date" : "text"}
-                value={dateFrom ?? ""}
-                placeholder="Desde"
-                readOnly={!dateFrom}
-                onFocus={(e) => { (e.target as HTMLInputElement).type = "date"; }}
-                min={availableDateRange?.minDate}
-                max={dateTo || availableDateRange?.maxDate}
-                onChange={(e) => handleDateChange(e.target.value || undefined, dateTo)}
-                className="min-w-[100px] flex-1 rounded-lg border border-white/20 bg-white/10 px-2 py-2 text-xs font-medium text-white placeholder:text-white/30 backdrop-blur-sm focus:border-[#c9a94e] focus:outline-none [color-scheme:dark] sm:flex-none sm:py-1.5"
-              />
-              <span className="text-xs text-white/40">—</span>
-              <input
-                type={dateTo ? "date" : "text"}
-                value={dateTo ?? ""}
-                placeholder="Hasta"
-                readOnly={!dateTo}
-                onFocus={(e) => { (e.target as HTMLInputElement).type = "date"; }}
-                min={dateFrom || availableDateRange?.minDate}
-                max={availableDateRange?.maxDate}
-                onChange={(e) => handleDateChange(dateFrom, e.target.value || undefined)}
-                className="min-w-[100px] flex-1 rounded-lg border border-white/20 bg-white/10 px-2 py-2 text-xs font-medium text-white placeholder:text-white/30 backdrop-blur-sm focus:border-[#c9a94e] focus:outline-none [color-scheme:dark] sm:flex-none sm:py-1.5"
-              />
-              {(dateFrom || dateTo) && (
-                <button
-                  onClick={() => handleDateChange(undefined, undefined)}
-                  className="rounded-lg bg-white/10 px-2 py-2 text-xs font-medium text-white/70 hover:bg-white/20 transition-colors sm:py-1.5"
-                >
-                  Limpiar
-                </button>
-              )}
-            </div>
-            {/* TWR/MWR toggle removed from header — now inline in rentabilidad section */}
+            {/* Date range con botones de periodo (Edgard MVP6 #3 + #4) */}
+            <DateRangeBar
+              dateFrom={dateFrom}
+              dateTo={dateTo}
+              onChange={handleDateChange}
+              minDate={availableDateRange?.minDate}
+              maxDate={availableDateRange?.maxDate}
+              originDate={originDate}
+            />
           </div>
         </div>
       </div>
@@ -1167,9 +1285,9 @@ export default function ClientDashboard({
         </div>
       )}
 
-      {/* Top Holdings */}
+      {/* Cartera completa con sub-secciones IIC / RV (Edgard MVP6 #10) */}
       <div className="mt-4">
-        <TopHoldings positions={data.positions} />
+        <PositionsTable positions={data.positions} eurCostMap={eurCostMap} />
       </div>
 
       <SectionDivider />
