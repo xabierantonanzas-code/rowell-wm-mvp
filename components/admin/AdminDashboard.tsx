@@ -48,6 +48,7 @@ import {
 } from "recharts";
 import { classifyFlow, flowAmountEur } from "@/lib/operations-taxonomy";
 import { computeEurCostByIsin } from "@/lib/eur-cost-fifo";
+import { buildProductTypeMap } from "@/lib/product-type-from-ops";
 
 // ===========================================================================
 // Types
@@ -553,6 +554,13 @@ export default function AdminDashboard({
     [operations.operations]
   );
 
+  // ISIN -> tipo de producto desde el operation_type de la 1a compra
+  // (Edgard MVP6 #2b - fuente fiable confirmada en reunion)
+  const productTypeMap = useMemo(
+    () => buildProductTypeMap(operations.operations),
+    [operations.operations]
+  );
+
   // Aportaciones netas, comisiones (taxonomia oficial Edgard MVP6)
   const { netContributions, totalCommissions, totalRetentions } = useMemo(() => {
     let contributions = 0, withdrawals = 0, commissions = 0, retentions = 0;
@@ -639,30 +647,39 @@ export default function AdminDashboard({
     });
   }, [history, operations.operations]);
 
+  // MVP6 #6: rentabilidad acumulada real = valor_cartera - aportaciones netas
+  // (NO sumamos saldo aqui porque admin no recibe cash_balances agregados)
+  const rentabAcumEur = totalValue - netContributions;
+  const rentabAcumPct =
+    netContributions > 0 ? (rentabAcumEur / netContributions) * 100 : 0;
+  const rentabPositive = rentabAcumEur >= 0;
+
   const kpis = [
     {
-      label: "Patrimonio total",
+      label: selectedClient ? "Valor cartera" : "AUM Total",
       value: formatEur(totalValue),
-      sub: selectedClient ? `Coste: ${formatEur(totalCost)}` : `AUM Total (${aumData.totalAccounts} cuentas)`,
+      sub: selectedClient
+        ? `${positions.length} posiciones`
+        : `${aumData.totalAccounts} cuentas`,
       accent: false,
     },
     {
       label: "Patrimonio invertido",
-      value: formatEur(totalValue),
-      sub: `${positions.length} posiciones`,
+      value: formatEur(netContributions),
+      sub: "Aportaciones netas reales",
       accent: false,
     },
     {
-      label: "Plusvalia latente",
-      value: `${pnl >= 0 ? "+" : ""}${formatEur(totalValue - totalCost)}`,
-      sub: `${pnl >= 0 ? "+" : ""}${pnl.toFixed(2)}% sobre coste`,
+      label: "Rentabilidad acumulada",
+      value: `${rentabPositive ? "+" : ""}${formatEur(rentabAcumEur)}`,
+      sub: `${rentabPositive ? "+" : ""}${rentabAcumPct.toFixed(2)}% sobre invertido`,
       accent: true,
-      positive: pnl >= 0,
+      positive: rentabPositive,
     },
     {
-      label: "Plusvalia latente %",
+      label: "Plusvalia latente (coste)",
       value: `${pnl >= 0 ? "+" : ""}${pnl.toFixed(2)}%`,
-      sub: `Coste: ${formatEur(totalCost)}`,
+      sub: `Sobre coste medio en divisa origen`,
       accent: true,
       positive: pnl >= 0,
     },
@@ -717,32 +734,44 @@ export default function AdminDashboard({
           </p>
         </div>
 
-        {/* Filtro de fechas */}
+        {/* Filtro de fechas (Edgard MVP6 #3: fix iOS Safari) */}
         <div className="flex flex-wrap items-center gap-1.5">
           <Calendar className="h-4 w-4 flex-shrink-0 text-gray-400" />
-          <input
-            type={dateFrom ? "date" : "text"}
-            value={dateFrom ?? ""}
-            placeholder="Desde"
-            readOnly={!dateFrom}
-            onFocus={(e) => { (e.target as HTMLInputElement).type = "date"; }}
-            min={availableDateRange?.minDate}
-            max={dateTo || availableDateRange?.maxDate}
-            onChange={(e) => handleDateChange(e.target.value || undefined, dateTo)}
-            className="min-w-[100px] flex-1 rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs font-medium text-gray-700 placeholder:text-gray-400 shadow-sm focus:border-rowell-navy focus:outline-none focus:ring-1 focus:ring-rowell-navy sm:flex-none sm:py-1.5"
-          />
+          <div className="relative">
+            <input
+              type="date"
+              value={dateFrom ?? ""}
+              min={availableDateRange?.minDate}
+              max={dateTo || availableDateRange?.maxDate}
+              onChange={(e) => handleDateChange(e.target.value || undefined, dateTo)}
+              style={{ WebkitAppearance: "auto" as any, appearance: "auto" as any }}
+              className="min-w-[125px] cursor-pointer rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs font-medium text-gray-700 shadow-sm focus:border-rowell-navy focus:outline-none focus:ring-1 focus:ring-rowell-navy sm:py-1.5"
+              aria-label="Fecha desde"
+            />
+            {!dateFrom && (
+              <span className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-xs text-gray-400">
+                Desde
+              </span>
+            )}
+          </div>
           <span className="text-xs text-gray-400">—</span>
-          <input
-            type={dateTo ? "date" : "text"}
-            value={dateTo ?? ""}
-            placeholder="Hasta"
-            readOnly={!dateTo}
-            onFocus={(e) => { (e.target as HTMLInputElement).type = "date"; }}
-            min={dateFrom || availableDateRange?.minDate}
-            max={availableDateRange?.maxDate}
-            onChange={(e) => handleDateChange(dateFrom, e.target.value || undefined)}
-            className="min-w-[100px] flex-1 rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs font-medium text-gray-700 placeholder:text-gray-400 shadow-sm focus:border-rowell-navy focus:outline-none focus:ring-1 focus:ring-rowell-navy sm:flex-none sm:py-1.5"
-          />
+          <div className="relative">
+            <input
+              type="date"
+              value={dateTo ?? ""}
+              min={dateFrom || availableDateRange?.minDate}
+              max={availableDateRange?.maxDate}
+              onChange={(e) => handleDateChange(dateFrom, e.target.value || undefined)}
+              style={{ WebkitAppearance: "auto" as any, appearance: "auto" as any }}
+              className="min-w-[125px] cursor-pointer rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs font-medium text-gray-700 shadow-sm focus:border-rowell-navy focus:outline-none focus:ring-1 focus:ring-rowell-navy sm:py-1.5"
+              aria-label="Fecha hasta"
+            />
+            {!dateTo && (
+              <span className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-xs text-gray-400">
+                Hasta
+              </span>
+            )}
+          </div>
           {(dateFrom || dateTo) && (
             <button
               onClick={() => handleDateChange(undefined, undefined)}
@@ -1042,7 +1071,11 @@ export default function AdminDashboard({
         </CardHeader>
         <CardContent>
           {activeTab === "posiciones" ? (
-            <PositionsTable positions={positions} eurCostMap={eurCostMap} />
+            <PositionsTable
+              positions={positions}
+              eurCostMap={eurCostMap}
+              productTypeMap={productTypeMap}
+            />
           ) : (
             <div className="space-y-4">
               {operations.operations.length === 0 ? (

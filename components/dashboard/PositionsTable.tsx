@@ -2,7 +2,8 @@
 
 import type { Position } from "@/lib/types/database";
 import { useMemo } from "react";
-import { classifyProduct, type ProductType } from "@/lib/product-type";
+import { type ProductType } from "@/lib/product-type";
+import { resolveProductType } from "@/lib/product-type-from-ops";
 import {
   eurCostForPosition,
   type EurCostInfo,
@@ -17,6 +18,12 @@ interface PositionsTableProps {
    * Si NO esta presente, se aproxima con el fx_rate del snapshot actual.
    */
   eurCostMap?: Map<string, EurCostInfo>;
+  /**
+   * Map ISIN -> tipo de producto (iic | rv) calculado a partir del
+   * Registro de Operaciones (operation_type de la 1a compra). Es la
+   * fuente fiable. Si no esta presente, cae a heuristica.
+   */
+  productTypeMap?: Map<string, ProductType>;
 }
 
 function formatEur(value: number): string {
@@ -221,7 +228,7 @@ function PositionsSection({
   );
 }
 
-export default function PositionsTable({ positions, eurCostMap }: PositionsTableProps) {
+export default function PositionsTable({ positions, eurCostMap, productTypeMap }: PositionsTableProps) {
   const totalValue = useMemo(
     () => positions.reduce((sum, p) => sum + (p.position_value ?? 0), 0),
     [positions]
@@ -231,14 +238,14 @@ export default function PositionsTable({ positions, eurCostMap }: PositionsTable
     const iic: Position[] = [];
     const rv: Position[] = [];
     for (const p of positions) {
-      const t: ProductType = classifyProduct(p.isin, p.product_name);
+      const t: ProductType = resolveProductType(p.isin, p.product_name, productTypeMap);
       (t === "iic" ? iic : rv).push(p);
     }
     // Orden por valor descendente dentro de cada seccion
     iic.sort((a, b) => (b.position_value ?? 0) - (a.position_value ?? 0));
     rv.sort((a, b) => (b.position_value ?? 0) - (a.position_value ?? 0));
     return { iic, rv };
-  }, [positions]);
+  }, [positions, productTypeMap]);
 
   if (positions.length === 0) {
     return (

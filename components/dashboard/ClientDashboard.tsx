@@ -37,6 +37,7 @@ import {
 } from "@/lib/operations-taxonomy";
 import { computeEurCostByIsin } from "@/lib/eur-cost-fifo";
 import { classifyProduct } from "@/lib/product-type";
+import { buildProductTypeMap, resolveProductType } from "@/lib/product-type-from-ops";
 
 // ===========================================================================
 // Types
@@ -327,31 +328,50 @@ function InvestorProfileCard({
   pnl,
   fundCount,
   cashBalance,
+  netContributions,
   latestDate,
   positions,
 }: {
+  /** Valor de cartera (suma de positions, NO incluye saldo). */
   totalValue: number;
+  /** Coste medio total (units * avg_cost en divisa original convertido). */
   totalCost: number;
+  /** Plusvalía % calculada sobre coste medio (NO incluye efecto divisa). */
   pnl: number;
   fundCount: number;
+  /** Saldo de cuenta de efectivo. */
   cashBalance: number;
+  /** Aportaciones netas reales: SUM(PLUS) - SUM(MINUS) sobre operations.
+   *  Es lo que Edgard llama "Patrimonio invertido". */
+  netContributions: number;
   latestDate: string;
   positions: Position[];
 }) {
-  const investedValue = totalValue - cashBalance;
-  const cashPct = totalValue > 0 ? (cashBalance / totalValue) * 100 : 0;
+  // MVP6 Edgard #6: arreglos al tile.
+  // - patrimonioTotal = valor_cartera + saldo (antes mostraba solo cartera)
+  // - patrimonioInvertido = aportaciones netas reales (PLUS-MINUS),
+  //   no "totalValue - cashBalance" como se calculaba mal antes
+  // - rentabilidad acumulada = valor_cartera - patrimonio_invertido
+  //   (Edgard punto 6: 70.675€ = 24,29% para Aurum-077)
+  // - %Efectivo = saldo / patrimonio_total
+  const patrimonioTotal = totalValue + cashBalance;
+  const cashPct = patrimonioTotal > 0 ? (cashBalance / patrimonioTotal) * 100 : 0;
+  const rentabilidadAcumEur = totalValue - netContributions;
+  const rentabilidadAcumPct =
+    netContributions > 0 ? (rentabilidadAcumEur / netContributions) * 100 : 0;
+  const rentabPositive = rentabilidadAcumEur >= 0;
   const isinCount = new Set(positions.map((p) => p.isin).filter(Boolean)).size;
 
   const kpis = [
     {
       label: "Patrimonio total",
-      value: formatEur(totalValue),
-      sub: `Coste: ${formatEur(totalCost)}`,
+      value: formatEur(patrimonioTotal),
+      sub: `Cartera + efectivo`,
       accent: false,
     },
     {
-      label: "Patrimonio invertido",
-      value: formatEur(investedValue),
+      label: "Valor cartera",
+      value: formatEur(totalValue),
       sub: `${fundCount} posiciones`,
       accent: false,
     },
@@ -368,18 +388,17 @@ function InvestorProfileCard({
       accent: false,
     },
     {
-      label: "Plusvalia latente",
-      value: `${pnl >= 0 ? "+" : ""}${formatEur(totalValue - totalCost)}`,
-      sub: `${pnl >= 0 ? "+" : ""}${pnl.toFixed(2)}% sobre coste`,
-      accent: true,
-      positive: pnl >= 0,
+      label: "Patrimonio invertido",
+      value: formatEur(netContributions),
+      sub: "Aportaciones netas reales",
+      accent: false,
     },
     {
-      label: "Plusvalia latente %",
-      value: `${pnl >= 0 ? "+" : ""}${pnl.toFixed(2)}%`,
-      sub: `Coste: ${formatEur(totalCost)}`,
+      label: "Rentabilidad acumulada",
+      value: `${rentabPositive ? "+" : ""}${formatEur(rentabilidadAcumEur)}`,
+      sub: `${rentabPositive ? "+" : ""}${rentabilidadAcumPct.toFixed(2)}% sobre invertido`,
       accent: true,
-      positive: pnl >= 0,
+      positive: rentabPositive,
     },
     {
       label: "N° fondos",
@@ -843,6 +862,13 @@ export default function ClientDashboard({
     [data.operations.operations]
   );
 
+  // Map ISIN -> tipo de producto (iic | rv) deducido de operation_type de
+  // la primera compra. Fuente fiable confirmada por Edgard MVP6 #2b.
+  const productTypeMap = useMemo(
+    () => buildProductTypeMap(data.operations.operations),
+    [data.operations.operations]
+  );
+
   // Fecha de la 1a operacion registrada para esta CV (Edgard MVP6 #4:
   // boton "Desde origen" = primera operacion de la cuenta).
   const originDate = useMemo(() => {
@@ -1024,10 +1050,11 @@ export default function ClientDashboard({
     if (data.history.length === 0) return { chartData: [], flowEvents: [], kpis: null };
 
     // 1) Ratio cash : iic : rv del snapshot actual
+    // Usamos la fuente fiable: operation_type de la 1a compra (MVP6 #2b)
     let rvValue = 0;
     let iicValue = 0;
     for (const p of data.positions) {
-      const t = classifyProduct(p.isin, p.product_name);
+      const t = resolveProductType(p.isin, p.product_name, productTypeMap);
       if (t === "rv") rvValue += p.position_value ?? 0;
       else iicValue += p.position_value ?? 0;
     }
@@ -1148,7 +1175,7 @@ export default function ClientDashboard({
         aportacionesNetas,
       },
     };
-  }, [data.history, data.positions, data.cashBalance, data.operations.operations, returnMethod]);
+  }, [data.history, data.positions, data.cashBalance, data.operations.operations, returnMethod, productTypeMap]);
 
   return (
     <div className={`space-y-1 ${loading ? "opacity-50 pointer-events-none" : ""}`}>
@@ -1267,6 +1294,7 @@ export default function ClientDashboard({
         pnl={pnl}
         fundCount={data.positions.length}
         cashBalance={data.cashBalance}
+        netContributions={netContributions}
         latestDate={latestDate}
         positions={data.positions}
       />
@@ -1324,7 +1352,11 @@ export default function ClientDashboard({
 
       {/* Cartera completa con sub-secciones IIC / RV (Edgard MVP6 #10) */}
       <div className="mt-4">
-        <PositionsTable positions={data.positions} eurCostMap={eurCostMap} />
+        <PositionsTable
+          positions={data.positions}
+          eurCostMap={eurCostMap}
+          productTypeMap={productTypeMap}
+        />
       </div>
 
       <SectionDivider />

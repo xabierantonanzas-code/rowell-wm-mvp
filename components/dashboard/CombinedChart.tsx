@@ -38,16 +38,20 @@ export interface CombinedChartDataPoint {
   date: string;
   /** Label corto para eje X: "15 ene 25". */
   label: string;
-  /** Desglose NAV apilado. */
-  cash: number;
-  iic: number;
-  rv: number;
-  /** Total NAV = cash + iic + rv. Redundante para tooltip. */
-  nav: number;
-  /** Rentabilidad % del mes (o periodo entre snapshots). */
-  returnPct: number;
-  /** Aportacion neta acumulada en este punto del tiempo. */
+  /** Desglose NAV apilado. Solo presente en snapshots reales. */
+  cash?: number;
+  iic?: number;
+  rv?: number;
+  /** Total NAV = cash + iic + rv. Solo presente en snapshots reales. */
+  nav?: number;
+  /** Rentabilidad % del periodo. Solo presente en snapshots reales. */
+  returnPct?: number;
+  /** Aportacion neta acumulada en este punto del tiempo. Siempre presente. */
   netContrib: number;
+  /** Marcador PLUS (importe positivo) - solo en puntos de evento. */
+  plusMarker?: number;
+  /** Marcador MINUS (importe negativo) - solo en puntos de evento. */
+  minusMarker?: number;
 }
 
 interface CombinedChartProps {
@@ -171,25 +175,44 @@ export default function CombinedChart({ data, flowEvents, kpis }: CombinedChartP
   const showReturn = view === "general" || view === "rentabilidad";
   const showFlows = view === "general" || view === "aportaciones";
 
-  // Mezcla snapshots + eventos para la linea de aportaciones acumuladas:
-  // queremos el dato netContrib en CADA punto del eje X, asi que mapeamos
-  // cada flow event a un punto sintetico ordenado por fecha junto con los
-  // snapshots. Pero recharts requiere un array unico, asi que extendemos
-  // los snapshots con la netContrib calculada.
+  // Construir un unico array unificado: snapshots (con NAV apilado) + eventos
+  // PLUS/MINUS (con marcadores) ordenados cronologicamente. Recharts pintara
+  // cada serie en su X correspondiente y los marcadores caen sobre la linea
+  // de aportaciones netas en su fecha exacta (Edgard MVP6 #2a).
   const chartData = useMemo(() => {
-    // Para los marcadores (Scatter), enriquecemos cada event con isPlus/isMinus
-    return data;
-  }, [data]);
+    type Pt = CombinedChartDataPoint;
+    const points: Pt[] = [...data];
 
-  // Eventos plus/minus para Scatter (puntos verdes y rojos sobre la linea)
-  const plusEvents = useMemo(
-    () => flowEvents.filter((e) => e.amount > 0),
-    [flowEvents]
-  );
-  const minusEvents = useMemo(
-    () => flowEvents.filter((e) => e.amount < 0),
-    [flowEvents]
-  );
+    // Insertar cada flow event como punto sintetico para que el Scatter lo
+    // ubique en su fecha exacta. Solo aporta netContrib + marker (no NAV).
+    for (const e of flowEvents) {
+      // Si ya hay un snapshot con esta misma fecha, le anadimos el marker
+      // en lugar de duplicar el punto.
+      const existing = points.find((p) => p.date === e.date);
+      if (existing) {
+        if (e.amount > 0) existing.plusMarker = e.netAfter;
+        else existing.minusMarker = e.netAfter;
+        continue;
+      }
+      const label = new Date(e.date).toLocaleDateString("es-ES", {
+        day: "2-digit",
+        month: "short",
+        year: "2-digit",
+      });
+      points.push({
+        date: e.date,
+        label,
+        netContrib: e.netAfter,
+        ...(e.amount > 0
+          ? { plusMarker: e.netAfter }
+          : { minusMarker: e.netAfter }),
+      });
+    }
+
+    // Ordenar cronologicamente
+    points.sort((a, b) => a.date.localeCompare(b.date));
+    return points;
+  }, [data, flowEvents]);
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
@@ -311,6 +334,29 @@ export default function CombinedChart({ data, flowEvents, kpis }: CombinedChartP
                   />
                 )}
 
+                {/* Marcadores PLUS (verde) y MINUS (rojo) en la fecha exacta
+                    de cada operacion, sobre la linea de aportaciones netas
+                    (Edgard MVP6 #2a). Solo aparecen en puntos sinteticos
+                    inyectados en chartData con plusMarker / minusMarker. */}
+                {showFlows && (
+                  <Scatter
+                    yAxisId="eur"
+                    dataKey="plusMarker"
+                    name="Aportacion (PLUS)"
+                    fill="#10b981"
+                    shape="circle"
+                  />
+                )}
+                {showFlows && (
+                  <Scatter
+                    yAxisId="eur"
+                    dataKey="minusMarker"
+                    name="Reembolso (MINUS)"
+                    fill="#ef4444"
+                    shape="circle"
+                  />
+                )}
+
                 {/* Linea de rentabilidad (centrada con NAV bars por usar
                     el mismo eje X). Edgard MVP6 #2c */}
                 {showReturn && (
@@ -335,39 +381,21 @@ export default function CombinedChart({ data, flowEvents, kpis }: CombinedChartP
         </div>
       </div>
 
-      {/* Lista compacta de eventos PLUS / MINUS bajo el grafico
-          (muestra los marcadores que en la spec original van DENTRO del
-          chart como puntos verdes/rojos. Recharts requiere bastante
-          gimnasia para mezclar Scatter de fechas continuas con Bar de
-          fechas discretas, asi que los pintamos abajo como pildoras). */}
+      {/* Leyenda compacta de los marcadores (los puntos PLUS/MINUS estan
+          dentro del chart sobre la linea de aportaciones netas) */}
       {showFlows && flowEvents.length > 0 && (
-        <div className="border-t border-gray-100 px-3 py-3 sm:px-5">
-          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
-            Movimientos del periodo ({flowEvents.length})
-          </p>
-          <div className="flex max-h-24 flex-wrap gap-1.5 overflow-y-auto">
-            {flowEvents.slice(-40).map((e, i) => {
-              const isPlus = e.amount > 0;
-              return (
-                <span
-                  key={i}
-                  className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${
-                    isPlus
-                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                      : "border-red-200 bg-red-50 text-red-700"
-                  }`}
-                  title={`${e.date} · ${formatEur(e.amount)}`}
-                >
-                  <span
-                    className={`inline-block h-1.5 w-1.5 rounded-full ${
-                      isPlus ? "bg-emerald-500" : "bg-red-500"
-                    }`}
-                  />
-                  {e.date.slice(8, 10)}/{e.date.slice(5, 7)} {formatEur(Math.abs(e.amount))}
-                </span>
-              );
-            })}
-          </div>
+        <div className="flex items-center gap-3 border-t border-gray-100 px-3 py-2 text-[10px] text-gray-500 sm:px-5">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="inline-block h-2 w-2 rounded-full bg-[#10b981]" />
+            Aportacion (PLUS)
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="inline-block h-2 w-2 rounded-full bg-[#ef4444]" />
+            Reembolso (MINUS)
+          </span>
+          <span className="ml-auto tabular-nums">
+            {flowEvents.length} movimientos en el periodo
+          </span>
         </div>
       )}
     </div>
