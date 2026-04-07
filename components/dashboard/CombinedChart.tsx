@@ -175,42 +175,32 @@ export default function CombinedChart({ data, flowEvents, kpis }: CombinedChartP
   const showReturn = view === "general" || view === "rentabilidad";
   const showFlows = view === "general" || view === "aportaciones";
 
-  // Construir un unico array unificado: snapshots (con NAV apilado) + eventos
-  // PLUS/MINUS (con marcadores) ordenados cronologicamente. Recharts pintara
-  // cada serie en su X correspondiente y los marcadores caen sobre la linea
-  // de aportaciones netas en su fecha exacta (Edgard MVP6 #2a).
+  // Construir el chartData manteniendo SOLO los snapshots reales como
+  // puntos del eje X (con NAV apilado). Los flow events se asocian al
+  // snapshot mas cercano (anterior o igual) y se renderizan como marcadores
+  // PLUS / MINUS encima de la linea de aportaciones netas.
+  //
+  // Esto evita los "huecos" visuales que provocaba inyectar puntos
+  // sinteticos sin NAV: el eje X se mantiene uniforme en snapshots reales.
+  // (Si en un mismo snapshot hay varios eventos PLUS o MINUS, mostramos
+  // un unico marker apuntando al netContrib final del snapshot.)
   const chartData = useMemo(() => {
-    type Pt = CombinedChartDataPoint;
-    const points: Pt[] = [...data];
+    if (data.length === 0) return [];
 
-    // Insertar cada flow event como punto sintetico para que el Scatter lo
-    // ubique en su fecha exacta. Solo aporta netContrib + marker (no NAV).
+    // Trabajamos sobre una copia mutable
+    const points: CombinedChartDataPoint[] = data.map((p) => ({ ...p }));
+    points.sort((a, b) => a.date.localeCompare(b.date));
+
+    // Para cada flow event, encontrar el snapshot mas cercano (el primero
+    // cuyo date >= event.date; si no hay, el ultimo)
     for (const e of flowEvents) {
-      // Si ya hay un snapshot con esta misma fecha, le anadimos el marker
-      // en lugar de duplicar el punto.
-      const existing = points.find((p) => p.date === e.date);
-      if (existing) {
-        if (e.amount > 0) existing.plusMarker = e.netAfter;
-        else existing.minusMarker = e.netAfter;
-        continue;
-      }
-      const label = new Date(e.date).toLocaleDateString("es-ES", {
-        day: "2-digit",
-        month: "short",
-        year: "2-digit",
-      });
-      points.push({
-        date: e.date,
-        label,
-        netContrib: e.netAfter,
-        ...(e.amount > 0
-          ? { plusMarker: e.netAfter }
-          : { minusMarker: e.netAfter }),
-      });
+      let target = points.find((p) => p.date >= e.date);
+      if (!target) target = points[points.length - 1];
+      if (!target) continue;
+      if (e.amount > 0) target.plusMarker = target.netContrib;
+      else target.minusMarker = target.netContrib;
     }
 
-    // Ordenar cronologicamente
-    points.sort((a, b) => a.date.localeCompare(b.date));
     return points;
   }, [data, flowEvents]);
 

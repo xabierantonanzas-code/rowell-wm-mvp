@@ -10,7 +10,11 @@ import {
   getAllPositionHistory,
 } from "@/lib/queries/positions";
 import type { DateRange } from "@/lib/queries/positions";
-import { getOperations } from "@/lib/queries/operations";
+import {
+  getOperations,
+  getNetContributionsAll,
+  getAllOperationsForAccounts,
+} from "@/lib/queries/operations";
 import { getCashBalances } from "@/lib/queries/balances";
 import AdminDashboard from "@/components/admin/AdminDashboard";
 import ClientDashboard from "@/components/dashboard/ClientDashboard";
@@ -128,18 +132,30 @@ export default async function AdminPage({
     const isSingle = clientAccountIds.length === 1;
     const primaryAccountId = clientAccountIds[0];
 
-    const [positions, history, opsResult, availDateRange] = await Promise.all([
+    // MVP6 #6: SIEMPRE traer TODAS las operations del cliente para los
+    // calculos (patrimonio invertido, rentabilidad, FIFO). Antes se traian
+    // solo 25 paginadas y eso rompia los KPIs en clientes con muchos
+    // movimientos como Aurum-077 (174 ops).
+    const [positions, history, allOps, availDateRange] = await Promise.all([
       isSingle
         ? (await import("@/lib/queries/positions")).getLatestPositions(primaryAccountId, dateRange)
         : getAggregatedPositions(clientAccountIds, dateRange),
       isSingle
         ? (await import("@/lib/queries/positions")).getPositionHistory(primaryAccountId, dateRange)
         : getAggregatedHistory(clientAccountIds, dateRange),
-      isSingle
-        ? getOperations(primaryAccountId, { dateRange, page: 1, pageSize: 25 })
-        : Promise.resolve({ operations: [] as any[], total: 0, page: 1, totalPages: 0, pageSize: 25 }),
+      getAllOperationsForAccounts(clientAccountIds, dateRange),
       getAvailableDateRange(clientAccountIds),
     ]);
+
+    // Para el TAB visual de Operaciones, paginar in-memory (page 1, 25/pag)
+    const PAGE_SIZE = 25;
+    const opsResult = {
+      operations: allOps.slice(0, PAGE_SIZE),
+      total: allOps.length,
+      page: 1,
+      pageSize: PAGE_SIZE,
+      totalPages: Math.max(1, Math.ceil(allOps.length / PAGE_SIZE)),
+    };
 
     // Cash balance
     let cashBalance = 0;
@@ -162,10 +178,13 @@ export default async function AdminPage({
       positions,
       history,
       historyByAccount,
+      // MVP6 #6: pasamos TODAS las ops (allOps) en operations.operations
+      // para que los useMemo de netContributions/FIFO/productTypeMap calculen
+      // sobre el historico completo. El TAB visual paginara client-side.
       operations: {
-        operations: opsResult.operations,
-        total: opsResult.total,
-        page: opsResult.page,
+        operations: allOps,
+        total: allOps.length,
+        page: 1,
         totalPages: opsResult.totalPages,
       },
       cashBalance,
@@ -215,10 +234,13 @@ export default async function AdminPage({
   // =========================================================================
   // ALL CLIENTS → aggregated admin view
   // =========================================================================
-  const [positions, history, availDateRange] = await Promise.all([
+  const [positions, history, availDateRange, netContribGlobal] = await Promise.all([
     getAllLatestPositions(dateRange),
     getAllPositionHistory(dateRange),
     getAvailableDateRange([]),
+    // MVP6 #6: agregado global de aportaciones netas para que el tile
+    // "Patrimonio invertido" no muestre 0€ en vista global.
+    getNetContributionsAll(),
   ]);
 
   return (
@@ -233,6 +255,7 @@ export default async function AdminPage({
       initialPositions={positions}
       initialHistory={history}
       initialOperations={{ operations: [], total: 0, page: 1, totalPages: 0 }}
+      initialNetContributionsGlobal={netContribGlobal.netContributions}
       activeClientName="Todos los Clientes"
       totalAccounts={accounts.length}
       invitations={invitations}

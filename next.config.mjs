@@ -1,5 +1,13 @@
 import { withSentryConfig } from "@sentry/nextjs";
 
+const isDev = process.env.NODE_ENV === "development";
+
+// CSP: en dev necesitamos 'unsafe-eval' porque react-refresh (HMR) usa eval().
+// En produccion JAMAS se incluye 'unsafe-eval' por seguridad (amplifica XSS).
+const scriptSrc = isDev
+  ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
+  : "script-src 'self' 'unsafe-inline'";
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   async headers() {
@@ -23,11 +31,11 @@ const nextConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline'",
+              scriptSrc,
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: blob:",
-              "connect-src 'self' https://*.supabase.co https://*.sentry.io",
+              "connect-src 'self' https://*.supabase.co https://*.sentry.io" + (isDev ? " ws://localhost:*" : ""),
               "frame-ancestors 'none'",
             ].join("; "),
           },

@@ -96,6 +96,11 @@ interface AdminDashboardProps {
   initialPositions: Position[];
   initialHistory: HistoryPoint[];
   initialOperations: OperationsData;
+  /** Aportaciones netas globales (PLUS-MINUS) calculadas en server cuando la
+   * vista es "Todos los clientes". Si se pasa, sobreescribe el calculo
+   * en runtime sobre operations.operations (que en vista global esta vacio
+   * porque el server no carga las 10k+ operations). MVP6 #6. */
+  initialNetContributionsGlobal?: number;
   activeClientName: string;
   totalAccounts: number;
   invitations?: InvitationInfo[];
@@ -366,6 +371,7 @@ export default function AdminDashboard({
   totalAccounts,
   invitations = [],
   selectorOnly = false,
+  initialNetContributionsGlobal,
 }: AdminDashboardProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -561,7 +567,12 @@ export default function AdminDashboard({
     [operations.operations]
   );
 
-  // Aportaciones netas, comisiones (taxonomia oficial Edgard MVP6)
+  // Aportaciones netas, comisiones (taxonomia oficial Edgard MVP6).
+  // En vista global ("Todos los clientes") el server NO trae las 10k+
+  // operations en initialOperations (estaria vacio), asi que usamos
+  // initialNetContributionsGlobal calculado server-side por
+  // getNetContributionsAll(). Cuando hay cliente seleccionado, calculamos
+  // sobre el array de operations local (mas barato y permite filtros UI).
   const { netContributions, totalCommissions, totalRetentions } = useMemo(() => {
     let contributions = 0, withdrawals = 0, commissions = 0, retentions = 0;
     for (const op of operations.operations) {
@@ -571,8 +582,14 @@ export default function AdminDashboard({
       commissions += op.commission ?? 0;
       retentions += op.withholding ?? 0;
     }
-    return { netContributions: contributions - withdrawals, totalCommissions: commissions, totalRetentions: retentions };
-  }, [operations.operations]);
+    // Override con valor global precalculado si estamos en vista "Todos"
+    const isGlobalView = !selectedClient;
+    const netContrib =
+      isGlobalView && typeof initialNetContributionsGlobal === "number"
+        ? initialNetContributionsGlobal
+        : contributions - withdrawals;
+    return { netContributions: netContrib, totalCommissions: commissions, totalRetentions: retentions };
+  }, [operations.operations, selectedClient, initialNetContributionsGlobal]);
 
   const plusvaliaTotalEco = totalValue - netContributions;
 

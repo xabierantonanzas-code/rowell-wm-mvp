@@ -9,7 +9,7 @@ import {
   getHistoryByAccount,
 } from "@/lib/queries/positions";
 import type { DateRange } from "@/lib/queries/positions";
-import { getOperations } from "@/lib/queries/operations";
+import { getOperations, getAllOperationsForAccounts } from "@/lib/queries/operations";
 import { getCashBalances } from "@/lib/queries/balances";
 import { getClientAccounts } from "@/lib/queries/clients";
 import {
@@ -103,19 +103,30 @@ export default async function DashboardPage({
   const isSingle = activeAccountIds.length === 1;
   const primaryAccountId = activeAccountIds[0];
 
-  // Fetch datos en paralelo
-  const [positions, history, opsResult, availableDateRange] = await Promise.all([
+  // Fetch datos en paralelo. MVP6 #6: traemos TODAS las operations (sin
+  // paginar) porque los useMemo del componente calculan netContributions,
+  // FIFO eur cost y productTypeMap sobre el historico completo. Antes se
+  // traian solo 25 paginadas y rompia los KPIs en clientes con muchos
+  // movimientos.
+  const [positions, history, allOps, availableDateRange] = await Promise.all([
     isSingle
       ? getLatestPositions(primaryAccountId, dateRange)
       : getAggregatedPositions(activeAccountIds, dateRange),
     isSingle
       ? getPositionHistory(primaryAccountId, dateRange)
       : getAggregatedHistory(activeAccountIds, dateRange),
-    isSingle
-      ? getOperations(primaryAccountId, { dateRange, page: 1, pageSize: 25 })
-      : Promise.resolve({ operations: [] as any[], total: 0, page: 1, totalPages: 0, pageSize: 25 }),
+    getAllOperationsForAccounts(activeAccountIds, dateRange),
     getAvailableDateRange(accountIds),
   ]);
+
+  const PAGE_SIZE = 25;
+  const opsResult = {
+    operations: allOps.slice(0, PAGE_SIZE),
+    total: allOps.length,
+    page: 1,
+    pageSize: PAGE_SIZE,
+    totalPages: Math.max(1, Math.ceil(allOps.length / PAGE_SIZE)),
+  };
 
   // Cash balance
   let cashBalance = 0;
@@ -141,10 +152,11 @@ export default async function DashboardPage({
     positions,
     history,
     historyByAccount,
+    // MVP6 #6: TODAS las ops para los useMemo del componente
     operations: {
-      operations: opsResult.operations,
-      total: opsResult.total,
-      page: opsResult.page,
+      operations: allOps,
+      total: allOps.length,
+      page: 1,
       totalPages: opsResult.totalPages,
     },
     cashBalance,

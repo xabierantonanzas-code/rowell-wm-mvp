@@ -8,6 +8,54 @@ import {
 } from "@/lib/operations-taxonomy";
 
 /**
+ * Obtiene TODAS las operaciones de uno o varios accounts (sin paginacion).
+ *
+ * Necesario para los calculos de patrimonio invertido / rentabilidad
+ * acumulada / FIFO eur cost: estos calculos requieren ver el HISTORICO
+ * COMPLETO de operations, no un subset paginado. La paginacion (page=25)
+ * que usa el TAB de Operaciones del dashboard solo sirve para la UI, NO
+ * para los calculos.
+ *
+ * MVP6 #6: Edgard reporto que el Patrimonio invertido salia mal en
+ * cliente individual porque solo se cargaban 25 ops.
+ *
+ * Pagina internamente de 1000 en 1000 para esquivar el limite Supabase.
+ */
+export async function getAllOperationsForAccounts(
+  accountIds: string[],
+  dateRange?: DateRange
+): Promise<any[]> {
+  if (accountIds.length === 0) return [];
+  const supabase = await createClient();
+
+  const all: any[] = [];
+  let from = 0;
+  const PAGE = 1000;
+
+  for (;;) {
+    let q = supabase
+      .from("operations")
+      .select("*")
+      .in("account_id", accountIds)
+      .order("operation_date", { ascending: false })
+      .range(from, from + PAGE - 1);
+
+    if (dateRange?.dateFrom) q = q.gte("operation_date", dateRange.dateFrom);
+    if (dateRange?.dateTo) q = q.lte("operation_date", dateRange.dateTo);
+
+    const { data, error } = await q;
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+
+    all.push(...data);
+    if (data.length < PAGE) break;
+    from += PAGE;
+  }
+
+  return all;
+}
+
+/**
  * Obtiene operaciones de una cuenta, con paginacion y filtro por rango de fechas.
  */
 export async function getOperations(
@@ -133,6 +181,50 @@ export async function getNetContributions(
     const signed = flowAmountEur(op);
     if (signed > 0) totalContributions += signed;
     else if (signed < 0) totalWithdrawals += Math.abs(signed);
+  }
+
+  return {
+    totalContributions,
+    totalWithdrawals,
+    netContributions: totalContributions - totalWithdrawals,
+  };
+}
+
+/**
+ * Variante de getNetContributions sin filtro por cuentas: agrega TODAS las
+ * operations de la BD. Usado en la vista global del admin (Edgard MVP6:
+ * el tile "Patrimonio invertido" debe sumar las aportaciones netas de
+ * todos los clientes, no solo del seleccionado).
+ *
+ * Pagina de 1000 en 1000 para evitar el limite de Supabase.
+ */
+export async function getNetContributionsAll(): Promise<NetContributions> {
+  const supabase = await createClient();
+
+  let totalContributions = 0;
+  let totalWithdrawals = 0;
+  let from = 0;
+  const PAGE = 1000;
+
+  // Loop hasta agotar los registros
+  // (10.451 ops actuales -> 11 paginas)
+  for (;;) {
+    const { data, error } = await supabase
+      .from("operations")
+      .select("operation_type, eur_amount, gross_amount, fx_rate")
+      .range(from, from + PAGE - 1);
+
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+
+    for (const op of data) {
+      const signed = flowAmountEur(op);
+      if (signed > 0) totalContributions += signed;
+      else if (signed < 0) totalWithdrawals += Math.abs(signed);
+    }
+
+    if (data.length < PAGE) break;
+    from += PAGE;
   }
 
   return {
