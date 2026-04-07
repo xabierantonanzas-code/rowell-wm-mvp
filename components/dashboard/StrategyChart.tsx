@@ -54,9 +54,9 @@ function getStrategyRank(label: string): number {
 
 // Palette: graduated Rowell tones
 const AREA_COLORS = [
-  "#0B1D3A",  // Navy (conservadora)
-  "#1e3a5f",  // Medium navy (moderada)
-  "#C9A84C",  // Gold (agresiva)
+  "#3D4F63",  // Navy (conservadora)
+  "#3D4F63",  // Medium navy (moderada)
+  "#B8965A",  // Gold (agresiva)
   "#2563eb",  // Blue
   "#059669",  // Green
   "#7c3aed",  // Violet
@@ -108,7 +108,7 @@ function CustomTooltip({ active, payload, label }: any) {
             <span className="font-medium text-gray-800">{formatEur(entry.value)}</span>
           </div>
         ))}
-      <div className="mt-1.5 border-t border-gray-100 pt-1.5 text-xs font-semibold text-[#0B1D3A]">
+      <div className="mt-1.5 border-t border-gray-100 pt-1.5 text-xs font-semibold text-[#3D4F63]">
         Total: {formatEur(total)}
       </div>
     </div>
@@ -174,7 +174,7 @@ export default function StrategyChart({ series }: StrategyChartProps) {
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm sm:p-6">
-      <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#0B1D3A] sm:mb-4 sm:text-sm">
+      <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#3D4F63] sm:mb-4 sm:text-sm">
         Evolucion por Estrategia
       </h3>
       <div className="overflow-x-auto">

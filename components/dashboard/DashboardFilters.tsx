@@ -118,8 +118,8 @@ export function DateRangeSelector({
             onClick={() => setDateRange(p.from, p.to)}
             className={`rounded-md border px-2 py-1 text-[11px] font-semibold uppercase tracking-wider transition-colors ${
               activeLabel === p.label
-                ? "border-[#C9A84C] bg-[#C9A84C] text-white"
-                : "border-gray-200 bg-white text-gray-600 hover:border-[#C9A84C] hover:text-[#0B1D3A]"
+                ? "border-[#B8965A] bg-[#B8965A] text-white"
+                : "border-gray-200 bg-white text-gray-600 hover:border-[#B8965A] hover:text-[#3D4F63]"
             }`}
           >
             {p.label}
@@ -135,7 +135,7 @@ export function DateRangeSelector({
           value={dateFrom ?? ""}
           onChange={(e) => setDateRange(e.target.value || undefined, dateTo)}
           onClick={() => openPicker(fromRef)}
-          style={{ WebkitAppearance: "auto", appearance: "auto" }}
+          style={{ WebkitAppearance: "auto" as any, appearance: "auto" as any }}
           className="min-w-[130px] cursor-pointer rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs font-medium text-gray-700 shadow-sm focus:border-rowell-navy focus:outline-none focus:ring-1 focus:ring-rowell-navy"
           aria-label="Fecha desde"
         />
@@ -146,7 +146,7 @@ export function DateRangeSelector({
           value={dateTo ?? ""}
           onChange={(e) => setDateRange(dateFrom, e.target.value || undefined)}
           onClick={() => openPicker(toRef)}
-          style={{ WebkitAppearance: "auto", appearance: "auto" }}
+          style={{ WebkitAppearance: "auto" as any, appearance: "auto" as any }}
           className="min-w-[130px] cursor-pointer rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs font-medium text-gray-700 shadow-sm focus:border-rowell-navy focus:outline-none focus:ring-1 focus:ring-rowell-navy"
           aria-label="Fecha hasta"
         />

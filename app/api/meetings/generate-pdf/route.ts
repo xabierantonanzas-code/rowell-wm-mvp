@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
 - Puntos clave: ${(m.key_points ?? []).join(", ") || "Ninguno"}
 - Acciones acordadas: ${(m.agreed_actions ?? []).join(", ") || "Ninguna"}
 - Proxima reunion: ${m.next_meeting_date ?? "Por definir"}
-Branding Rowell: navy #0B1D3A, gold #C9A84C.
+Branding Rowell: navy #3D4F63, gold #B8965A.
 Incluye cabecera con logo textual "Rowell Patrimonios", cuerpo estructurado y pie de pagina.
 Devuelve SOLO el HTML completo, sin markdown, sin backticks.`,
       },

@@ -77,9 +77,9 @@ export default function SystemPanel() {
     <div className="space-y-4">
       {/* Header */}
       <div className="relative">
-        <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-[#0B1D3A] to-[#1a3a5c] opacity-90" />
+        <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-[#3D4F63] to-[#1a3a5c] opacity-90" />
         <h2 className="relative flex items-center gap-2 px-4 py-2.5 font-display text-sm font-bold text-white sm:px-6 sm:py-3 sm:text-lg">
-          <Shield className="h-5 w-5 text-[#C9A84C]" />
+          <Shield className="h-5 w-5 text-[#B8965A]" />
           Sistema (Solo Owner)
         </h2>
       </div>
@@ -90,7 +90,7 @@ export default function SystemPanel() {
           onClick={() => setActiveTab("tokens")}
           className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all ${
             activeTab === "tokens"
-              ? "bg-white text-[#0B1D3A] shadow-sm"
+              ? "bg-white text-[#3D4F63] shadow-sm"
               : "text-gray-500 hover:text-gray-700"
           }`}
         >
@@ -101,7 +101,7 @@ export default function SystemPanel() {
           onClick={() => setActiveTab("security")}
           className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all ${
             activeTab === "security"
-              ? "bg-white text-[#0B1D3A] shadow-sm"
+              ? "bg-white text-[#3D4F63] shadow-sm"
               : "text-gray-500 hover:text-gray-700"
           }`}
         >
@@ -170,12 +170,12 @@ function TokensTab({ data }: { data: TokenSummary | null }) {
             className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
           >
             <div className="flex items-center gap-2">
-              <kpi.icon className="h-4 w-4 text-[#C9A84C]" />
+              <kpi.icon className="h-4 w-4 text-[#B8965A]" />
               <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400">
                 {kpi.label}
               </p>
             </div>
-            <p className="mt-1 text-xl font-bold text-[#0B1D3A]">{kpi.value}</p>
+            <p className="mt-1 text-xl font-bold text-[#3D4F63]">{kpi.value}</p>
             <p className="text-[10px] text-gray-400">{kpi.sub}</p>
           </div>
         ))}
@@ -185,7 +185,7 @@ function TokensTab({ data }: { data: TokenSummary | null }) {
       {data.byEndpoint.length > 0 && (
         <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
           <div className="border-b border-gray-100 px-4 py-3">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-[#0B1D3A]">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-[#3D4F63]">
               Uso por Endpoint
             </h3>
           </div>
@@ -235,7 +235,7 @@ function SecurityTab({ logs }: { logs: SecurityLog[] }) {
   return (
     <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
       <div className="border-b border-gray-100 px-4 py-3">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-[#0B1D3A]">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-[#3D4F63]">
           Ultimos 100 eventos
         </h3>
       </div>

@@ -55,14 +55,14 @@ function SidebarContent({
           className="flex items-center gap-2.5"
           onClick={onClose}
         >
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#C9A84C]/20">
-            <TrendingUp className="h-4 w-4 text-[#C9A84C]" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#B8965A]/20">
+            <TrendingUp className="h-4 w-4 text-[#B8965A]" />
           </div>
           <div>
             <span className="font-display text-lg font-bold leading-none text-white">
               Rowell
             </span>
-            <p className="text-[9px] font-medium uppercase tracking-[0.18em] text-[#C9A84C]">
+            <p className="text-[9px] font-medium uppercase tracking-[0.18em] text-[#B8965A]">
               Patrimonios
             </p>
           </div>
@@ -95,17 +95,17 @@ function SidebarContent({
               className={cn(
                 "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150",
                 isActive
-                  ? "bg-[#C9A84C]/15 text-white"
+                  ? "bg-[#B8965A]/15 text-white"
                   : "text-white/50 hover:bg-white/5 hover:text-white/90"
               )}
             >
               {isActive && (
-                <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r-full bg-[#C9A84C]" />
+                <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r-full bg-[#B8965A]" />
               )}
               <Icon
                 className={cn(
                   "h-4 w-4 flex-shrink-0",
-                  isActive ? "text-[#C9A84C]" : "text-white/30 group-hover:text-white/60"
+                  isActive ? "text-[#B8965A]" : "text-white/30 group-hover:text-white/60"
                 )}
               />
               {item.label}
@@ -123,7 +123,7 @@ function SidebarContent({
         ) : (
           <div className="space-y-3">
             <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#C9A84C] text-xs font-semibold text-[#0B1D3A]">
+              <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#B8965A] text-xs font-semibold text-[#3D4F63]">
                 {initials}
               </div>
               <div className="min-w-0">
@@ -175,7 +175,7 @@ export default function Sidebar() {
       {/* Mobile hamburger button — fixed top-left */}
       <button
         onClick={() => setMobileOpen(true)}
-        className="fixed left-3 top-3 z-40 flex h-10 w-10 items-center justify-center rounded-lg bg-[#0B1D3A] text-white shadow-lg md:hidden"
+        className="fixed left-3 top-3 z-40 flex h-10 w-10 items-center justify-center rounded-lg bg-[#3D4F63] text-white shadow-lg md:hidden"
         aria-label="Abrir menu"
       >
         <Menu className="h-5 w-5" />
@@ -190,7 +190,7 @@ export default function Sidebar() {
             onClick={() => setMobileOpen(false)}
           />
           {/* Drawer */}
-          <aside className="relative flex h-full w-72 max-w-[85vw] flex-col bg-[#0B1D3A] shadow-2xl animate-in slide-in-from-left duration-200">
+          <aside className="relative flex h-full w-72 max-w-[85vw] flex-col bg-[#3D4F63] shadow-2xl animate-in slide-in-from-left duration-200">
             <SidebarContent
               onClose={() => setMobileOpen(false)}
               isMobile
@@ -200,7 +200,7 @@ export default function Sidebar() {
       )}
 
       {/* Desktop sidebar — always visible ≥ md */}
-      <aside className="hidden h-screen w-64 flex-shrink-0 flex-col bg-[#0B1D3A] md:flex">
+      <aside className="hidden h-screen w-64 flex-shrink-0 flex-col bg-[#3D4F63] md:flex">
         <SidebarContent />
       </aside>
     </>

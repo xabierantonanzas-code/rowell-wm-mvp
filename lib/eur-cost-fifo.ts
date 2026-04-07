@@ -97,7 +97,7 @@ export function computeEurCostByIsin(
 
   // Reducir lotes restantes a info por ISIN
   const result = new Map<string, EurCostInfo>();
-  for (const [isin, lots] of lotsByIsin.entries()) {
+  for (const [isin, lots] of Array.from(lotsByIsin.entries())) {
     let unitsRemaining = 0;
     let eurCost = 0;
     for (const lot of lots) {

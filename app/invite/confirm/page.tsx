@@ -96,22 +96,22 @@ export default function InviteConfirmPage() {
 
   if (checking) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f5f3ee]">
-        <Loader2 className="h-8 w-8 animate-spin text-[#0B1D3A]" />
+      <div className="flex min-h-screen items-center justify-center bg-[#F5F5F5]">
+        <Loader2 className="h-8 w-8 animate-spin text-[#3D4F63]" />
       </div>
     );
   }
 
   if (!sessionReady) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f5f3ee] px-4">
+      <div className="flex min-h-screen items-center justify-center bg-[#F5F5F5] px-4">
         <div className="w-full max-w-md space-y-6 text-center">
           <div className="flex justify-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#0B1D3A]">
-              <TrendingUp className="h-6 w-6 text-[#C9A84C]" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#3D4F63]">
+              <TrendingUp className="h-6 w-6 text-[#B8965A]" />
             </div>
           </div>
-          <h1 className="font-display text-2xl font-bold text-[#0B1D3A]">
+          <h1 className="font-display text-2xl font-bold text-[#3D4F63]">
             Enlace invalido o expirado
           </h1>
           <p className="text-sm text-gray-500">
@@ -125,12 +125,12 @@ export default function InviteConfirmPage() {
 
   if (success) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f5f3ee] px-4">
+      <div className="flex min-h-screen items-center justify-center bg-[#F5F5F5] px-4">
         <div className="w-full max-w-md space-y-6 text-center">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
             <Check className="h-8 w-8 text-green-600" />
           </div>
-          <h1 className="font-display text-2xl font-bold text-[#0B1D3A]">
+          <h1 className="font-display text-2xl font-bold text-[#3D4F63]">
             Cuenta creada
           </h1>
           <p className="text-sm text-gray-500">
@@ -142,22 +142,22 @@ export default function InviteConfirmPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#f5f3ee] px-4">
+    <div className="flex min-h-screen items-center justify-center bg-[#F5F5F5] px-4">
       <div className="w-full max-w-md space-y-8">
         {/* Logo */}
         <div className="text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-[#0B1D3A]">
-            <TrendingUp className="h-7 w-7 text-[#C9A84C]" />
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-[#3D4F63]">
+            <TrendingUp className="h-7 w-7 text-[#B8965A]" />
           </div>
-          <h1 className="font-display text-3xl font-bold text-[#0B1D3A]">
+          <h1 className="font-display text-3xl font-bold text-[#3D4F63]">
             Rowell
           </h1>
-          <p className="mt-1 text-sm text-[#0B1D3A]/60">Patrimonios</p>
+          <p className="mt-1 text-sm text-[#3D4F63]/60">Patrimonios</p>
         </div>
 
         {/* Form */}
         <div className="rounded-xl border bg-white p-8 shadow-sm">
-          <h2 className="mb-2 text-xl font-semibold text-[#0B1D3A]">
+          <h2 className="mb-2 text-xl font-semibold text-[#3D4F63]">
             Bienvenido a Rowell
           </h2>
           <p className="mb-6 text-sm text-gray-500">
@@ -168,7 +168,7 @@ export default function InviteConfirmPage() {
             <div className="space-y-2">
               <label
                 htmlFor="password"
-                className="text-sm font-medium text-[#0B1D3A]"
+                className="text-sm font-medium text-[#3D4F63]"
               >
                 Contraseña
               </label>
@@ -180,14 +180,14 @@ export default function InviteConfirmPage() {
                 required
                 minLength={8}
                 placeholder="Minimo 8 caracteres"
-                className="w-full rounded-lg border border-gray-200 px-4 py-2.5 text-sm outline-none transition-colors focus:border-[#C9A84C] focus:ring-2 focus:ring-[#C9A84C]/20"
+                className="w-full rounded-lg border border-gray-200 px-4 py-2.5 text-sm outline-none transition-colors focus:border-[#B8965A] focus:ring-2 focus:ring-[#B8965A]/20"
               />
             </div>
 
             <div className="space-y-2">
               <label
                 htmlFor="confirm"
-                className="text-sm font-medium text-[#0B1D3A]"
+                className="text-sm font-medium text-[#3D4F63]"
               >
                 Confirmar contraseña
               </label>
@@ -199,7 +199,7 @@ export default function InviteConfirmPage() {
                 required
                 minLength={8}
                 placeholder="Repite la contraseña"
-                className="w-full rounded-lg border border-gray-200 px-4 py-2.5 text-sm outline-none transition-colors focus:border-[#C9A84C] focus:ring-2 focus:ring-[#C9A84C]/20"
+                className="w-full rounded-lg border border-gray-200 px-4 py-2.5 text-sm outline-none transition-colors focus:border-[#B8965A] focus:ring-2 focus:ring-[#B8965A]/20"
               />
             </div>
 
@@ -212,7 +212,7 @@ export default function InviteConfirmPage() {
             <button
               type="submit"
               disabled={loading}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#C9A84C] px-4 py-3 text-sm font-semibold text-[#0B1D3A] shadow-sm transition-colors hover:bg-[#b8993f] disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#B8965A] px-4 py-3 text-sm font-semibold text-[#3D4F63] shadow-sm transition-colors hover:bg-[#b8993f] disabled:opacity-50"
             >
               {loading ? (
                 <>

@@ -74,7 +74,7 @@ function MeetingCard({ meeting }: { meeting: Meeting }) {
 
   return (
     <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
-      <div className="border-l-4 border-[#C9A84C] p-4">
+      <div className="border-l-4 border-[#B8965A] p-4">
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-2">
@@ -82,7 +82,7 @@ function MeetingCard({ meeting }: { meeting: Meeting }) {
                 {formatDate(meeting.meeting_date)}
               </span>
             </div>
-            <h4 className="mt-1 font-semibold text-[#0B1D3A]">
+            <h4 className="mt-1 font-semibold text-[#3D4F63]">
               {meeting.title}
             </h4>
           </div>
@@ -92,7 +92,7 @@ function MeetingCard({ meeting }: { meeting: Meeting }) {
                 href={meeting.pdf_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1 rounded-md bg-[#0B1D3A] px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-[#0B1D3A]/80"
+                className="flex items-center gap-1 rounded-md bg-[#3D4F63] px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-[#3D4F63]/80"
               >
                 <Download className="h-3 w-3" />
                 PDF
@@ -128,7 +128,7 @@ function MeetingCard({ meeting }: { meeting: Meeting }) {
                       key={i}
                       className="flex items-start gap-2 text-sm text-gray-600"
                     >
-                      <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[#C9A84C]" />
+                      <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[#B8965A]" />
                       {point}
                     </li>
                   ))}
@@ -147,7 +147,7 @@ function MeetingCard({ meeting }: { meeting: Meeting }) {
                       key={i}
                       className="flex items-center gap-2 text-sm text-gray-600"
                     >
-                      <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-[#C9A84C]" />
+                      <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-[#B8965A]" />
                       {action}
                     </li>
                   ))}
@@ -157,7 +157,7 @@ function MeetingCard({ meeting }: { meeting: Meeting }) {
 
             {meeting.next_meeting_date && (
               <div className="flex items-center gap-2">
-                <span className="rounded-full bg-[#C9A84C]/10 px-3 py-1 text-xs font-medium text-[#C9A84C]">
+                <span className="rounded-full bg-[#B8965A]/10 px-3 py-1 text-xs font-medium text-[#B8965A]">
                   Proxima reunion: {formatDate(meeting.next_meeting_date)}
                 </span>
               </div>
@@ -234,9 +234,9 @@ function NewMeetingForm({
   };
 
   return (
-    <div className="rounded-lg border border-[#C9A84C]/30 bg-white p-5 shadow-sm">
+    <div className="rounded-lg border border-[#B8965A]/30 bg-white p-5 shadow-sm">
       <div className="mb-4 flex items-center justify-between">
-        <h4 className="font-semibold text-[#0B1D3A]">Nueva Reunion</h4>
+        <h4 className="font-semibold text-[#3D4F63]">Nueva Reunion</h4>
         <button
           onClick={onCancel}
           className="rounded-md p-1 text-gray-400 hover:bg-gray-100"
@@ -256,7 +256,7 @@ function NewMeetingForm({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Revision trimestral..."
-              className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm focus:border-[#C9A84C] focus:outline-none focus:ring-1 focus:ring-[#C9A84C]"
+              className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm focus:border-[#B8965A] focus:outline-none focus:ring-1 focus:ring-[#B8965A]"
             />
           </div>
           <div>
@@ -267,7 +267,7 @@ function NewMeetingForm({
               type="date"
               value={meetingDate}
               onChange={(e) => setMeetingDate(e.target.value)}
-              className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm focus:border-[#C9A84C] focus:outline-none focus:ring-1 focus:ring-[#C9A84C]"
+              className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm focus:border-[#B8965A] focus:outline-none focus:ring-1 focus:ring-[#B8965A]"
             />
           </div>
         </div>
@@ -281,7 +281,7 @@ function NewMeetingForm({
             onChange={(e) => setSummary(e.target.value)}
             rows={3}
             placeholder="Resumen de la reunion..."
-            className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm focus:border-[#C9A84C] focus:outline-none focus:ring-1 focus:ring-[#C9A84C]"
+            className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm focus:border-[#B8965A] focus:outline-none focus:ring-1 focus:ring-[#B8965A]"
           />
         </div>
 
@@ -295,7 +295,7 @@ function NewMeetingForm({
               key={i}
               className="mb-1 flex items-center gap-2 text-sm text-gray-600"
             >
-              <span className="h-1.5 w-1.5 rounded-full bg-[#C9A84C]" />
+              <span className="h-1.5 w-1.5 rounded-full bg-[#B8965A]" />
               {kp}
               <button
                 onClick={() =>
@@ -314,7 +314,7 @@ function NewMeetingForm({
               onChange={(e) => setNewKeyPoint(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && addKeyPoint()}
               placeholder="Añadir punto..."
-              className="flex-1 rounded-md border border-gray-200 px-3 py-1.5 text-sm focus:border-[#C9A84C] focus:outline-none"
+              className="flex-1 rounded-md border border-gray-200 px-3 py-1.5 text-sm focus:border-[#B8965A] focus:outline-none"
             />
             <button
               onClick={addKeyPoint}
@@ -335,7 +335,7 @@ function NewMeetingForm({
               key={i}
               className="mb-1 flex items-center gap-2 text-sm text-gray-600"
             >
-              <CheckCircle2 className="h-3.5 w-3.5 text-[#C9A84C]" />
+              <CheckCircle2 className="h-3.5 w-3.5 text-[#B8965A]" />
               {action}
               <button
                 onClick={() =>
@@ -354,7 +354,7 @@ function NewMeetingForm({
               onChange={(e) => setNewAction(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && addAction()}
               placeholder="Añadir accion..."
-              className="flex-1 rounded-md border border-gray-200 px-3 py-1.5 text-sm focus:border-[#C9A84C] focus:outline-none"
+              className="flex-1 rounded-md border border-gray-200 px-3 py-1.5 text-sm focus:border-[#B8965A] focus:outline-none"
             />
             <button
               onClick={addAction}
@@ -373,14 +373,14 @@ function NewMeetingForm({
             type="date"
             value={nextMeetingDate}
             onChange={(e) => setNextMeetingDate(e.target.value)}
-            className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm focus:border-[#C9A84C] focus:outline-none focus:ring-1 focus:ring-[#C9A84C]"
+            className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm focus:border-[#B8965A] focus:outline-none focus:ring-1 focus:ring-[#B8965A]"
           />
         </div>
 
         <button
           onClick={handleSave}
           disabled={saving || !title.trim()}
-          className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#0B1D3A] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#0B1D3A]/90 disabled:opacity-50"
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#3D4F63] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#3D4F63]/90 disabled:opacity-50"
         >
           {saving ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -490,7 +490,7 @@ function MessagesChat({
               <div
                 className={`max-w-[75%] rounded-xl px-4 py-2.5 ${
                   msg.is_from_advisor
-                    ? "bg-[#0B1D3A] text-white"
+                    ? "bg-[#3D4F63] text-white"
                     : "bg-gray-100 text-gray-800"
                 }`}
               >
@@ -502,7 +502,7 @@ function MessagesChat({
                 >
                   <span>{formatTime(msg.created_at)}</span>
                   {!msg.is_from_advisor && !msg.read_at && (
-                    <span className="rounded-full bg-[#C9A84C] px-1.5 py-0.5 text-[9px] font-bold text-white">
+                    <span className="rounded-full bg-[#B8965A] px-1.5 py-0.5 text-[9px] font-bold text-white">
                       Nuevo
                     </span>
                   )}
@@ -523,12 +523,12 @@ function MessagesChat({
             onChange={(e) => setNewMsg(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSend()}
             placeholder="Escribe un mensaje..."
-            className="flex-1 rounded-lg border border-gray-200 px-4 py-2.5 text-sm focus:border-[#C9A84C] focus:outline-none focus:ring-1 focus:ring-[#C9A84C]"
+            className="flex-1 rounded-lg border border-gray-200 px-4 py-2.5 text-sm focus:border-[#B8965A] focus:outline-none focus:ring-1 focus:ring-[#B8965A]"
           />
           <button
             onClick={handleSend}
             disabled={sending || !newMsg.trim()}
-            className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#C9A84C] text-white transition-colors hover:bg-[#b8993f] disabled:opacity-50"
+            className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#B8965A] text-white transition-colors hover:bg-[#b8993f] disabled:opacity-50"
           >
             {sending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -625,7 +625,7 @@ function DocumentsGrid({
       {isAdmin && !showUpload && (
         <button
           onClick={() => setShowUpload(true)}
-          className="flex items-center gap-2 rounded-lg bg-[#0B1D3A] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#0B1D3A]/90"
+          className="flex items-center gap-2 rounded-lg bg-[#3D4F63] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#3D4F63]/90"
         >
           <Upload className="h-4 w-4" />
           Subir documento
@@ -633,9 +633,9 @@ function DocumentsGrid({
       )}
 
       {showUpload && (
-        <div className="rounded-lg border border-[#C9A84C]/30 bg-white p-4 shadow-sm">
+        <div className="rounded-lg border border-[#B8965A]/30 bg-white p-4 shadow-sm">
           <div className="mb-3 flex items-center justify-between">
-            <h4 className="text-sm font-semibold text-[#0B1D3A]">
+            <h4 className="text-sm font-semibold text-[#3D4F63]">
               Subir documento
             </h4>
             <button
@@ -652,12 +652,12 @@ function DocumentsGrid({
                 value={uploadName}
                 onChange={(e) => setUploadName(e.target.value)}
                 placeholder="Nombre del documento"
-                className="rounded-md border border-gray-200 px-3 py-2 text-sm focus:border-[#C9A84C] focus:outline-none"
+                className="rounded-md border border-gray-200 px-3 py-2 text-sm focus:border-[#B8965A] focus:outline-none"
               />
               <select
                 value={uploadType}
                 onChange={(e) => setUploadType(e.target.value as DocType)}
-                className="rounded-md border border-gray-200 px-3 py-2 text-sm focus:border-[#C9A84C] focus:outline-none"
+                className="rounded-md border border-gray-200 px-3 py-2 text-sm focus:border-[#B8965A] focus:outline-none"
               >
                 <option value="informe">Informe</option>
                 <option value="contrato">Contrato</option>
@@ -667,7 +667,7 @@ function DocumentsGrid({
             </div>
             <div
               onClick={() => fileInputRef.current?.click()}
-              className="flex cursor-pointer items-center justify-center gap-2 rounded-md border-2 border-dashed border-gray-200 py-6 text-sm text-gray-400 transition-colors hover:border-[#C9A84C] hover:text-[#C9A84C]"
+              className="flex cursor-pointer items-center justify-center gap-2 rounded-md border-2 border-dashed border-gray-200 py-6 text-sm text-gray-400 transition-colors hover:border-[#B8965A] hover:text-[#B8965A]"
             >
               <Upload className="h-4 w-4" />
               {uploadFile ? uploadFile.name : "Haz clic para seleccionar archivo"}
@@ -681,7 +681,7 @@ function DocumentsGrid({
             <button
               onClick={handleUpload}
               disabled={uploading || !uploadFile || !uploadName.trim()}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#C9A84C] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#b8993f] disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#B8965A] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#b8993f] disabled:opacity-50"
             >
               {uploading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -706,15 +706,15 @@ function DocumentsGrid({
               className="group rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
             >
               <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-[#0B1D3A]/5">
-                  <FileText className="h-5 w-5 text-[#0B1D3A]" />
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-[#3D4F63]/5">
+                  <FileText className="h-5 w-5 text-[#3D4F63]" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-gray-800">
                     {doc.name}
                   </p>
                   <div className="mt-1 flex items-center gap-2 text-xs text-gray-400">
-                    <span className="rounded bg-[#C9A84C]/10 px-1.5 py-0.5 text-[10px] font-medium text-[#C9A84C]">
+                    <span className="rounded bg-[#B8965A]/10 px-1.5 py-0.5 text-[10px] font-medium text-[#B8965A]">
                       {DOC_TYPE_LABELS[doc.doc_type]}
                     </span>
                     <span>{formatFileSize(doc.file_size)}</span>
@@ -727,7 +727,7 @@ function DocumentsGrid({
               {doc.signed_url && (
                 <button
                   onClick={() => handleDownload(doc.signed_url!)}
-                  className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-md border border-gray-200 py-1.5 text-xs font-medium text-gray-500 transition-colors hover:border-[#C9A84C] hover:text-[#C9A84C]"
+                  className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-md border border-gray-200 py-1.5 text-xs font-medium text-gray-500 transition-colors hover:border-[#B8965A] hover:text-[#B8965A]"
                 >
                   <Download className="h-3 w-3" />
                   Descargar
@@ -790,7 +790,7 @@ export default function CommunicationPanel({
               onClick={() => setActiveTab(tab.key)}
               className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all ${
                 activeTab === tab.key
-                  ? "bg-white text-[#0B1D3A] shadow-sm"
+                  ? "bg-white text-[#3D4F63] shadow-sm"
                   : "text-gray-500 hover:text-gray-700"
               }`}
             >
@@ -807,7 +807,7 @@ export default function CommunicationPanel({
           {isAdmin && !showNewMeeting && (
             <button
               onClick={() => setShowNewMeeting(true)}
-              className="flex items-center gap-2 rounded-lg bg-[#0B1D3A] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#0B1D3A]/90"
+              className="flex items-center gap-2 rounded-lg bg-[#3D4F63] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#3D4F63]/90"
             >
               <Plus className="h-4 w-4" />
               Nueva reunion

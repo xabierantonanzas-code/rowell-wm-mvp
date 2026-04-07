@@ -15,8 +15,8 @@ interface DistributionChartProps {
 }
 
 const COLORS = [
-  "#1e3a5f", // rowell navy
-  "#c9a94e", // rowell gold
+  "#3D4F63", // rowell navy
+  "#B8965A", // rowell gold
   "#2563eb", // blue
   "#059669", // green
   "#d97706", // amber

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import Sidebar from "@/components/layout/Sidebar";
+import IdleLogoutWatcher from "@/components/auth/IdleLogoutWatcher";
 
 export default async function AuthenticatedLayout({
   children,
@@ -20,6 +21,7 @@ export default async function AuthenticatedLayout({
       <main className="flex-1 overflow-auto bg-rowell-light px-4 py-16 md:px-8 md:py-8">
         {children}
       </main>
+      <IdleLogoutWatcher />
     </div>
   );
 }

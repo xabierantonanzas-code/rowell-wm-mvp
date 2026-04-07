@@ -1,3 +1,32 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* MVP6 (Edgard): paleta global aplicada como CSS variables.
+ * - --color-primary  -> sidebar, headers, focus rings, botones primarios
+ * - --color-gold     -> acentos, hover, indicadores
+ * - --color-bg       -> fondo del body
+ * - --color-text     -> texto principal
+ *
+ * Variables expuestas para componentes que usen color: var(--color-*).
+ */
+:root {
+  --color-primary: #3D4F63;
+  --color-primary-dark: #293544;
+  --color-gold: #B8965A;
+  --color-gold-soft: #D5B774;
+  --color-bg: #F5F5F5;
+  --color-bg-card: #FFFFFF;
+  --color-text: #1A1A1A;
+  --color-text-muted: #4B5563;
+}
+
+html, body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Las clases legacy [#3D4F63] y [#B8965A] que aparecen hardcoded en
+ * componentes existentes se quedan por compatibilidad. Para nuevas
+ * UI usar primary-* / gold-* / bg-* / ink-*. */

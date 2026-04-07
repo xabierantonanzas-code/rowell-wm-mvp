@@ -198,8 +198,8 @@ export default function OperationalDashboard({ isOwner = false }: { isOwner?: bo
         {/* Recent Logins */}
         <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
           <div className="flex items-center gap-2 border-b border-gray-100 px-4 py-3">
-            <Activity className="h-4 w-4 text-[#C9A84C]" />
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-[#0B1D3A]">
+            <Activity className="h-4 w-4 text-[#B8965A]" />
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-[#3D4F63]">
               Ultimos accesos
             </h3>
           </div>
@@ -249,8 +249,8 @@ export default function OperationalDashboard({ isOwner = false }: { isOwner?: bo
         {/* Invitations */}
         <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
           <div className="flex items-center gap-2 border-b border-gray-100 px-4 py-3">
-            <Mail className="h-4 w-4 text-[#C9A84C]" />
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-[#0B1D3A]">
+            <Mail className="h-4 w-4 text-[#B8965A]" />
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-[#3D4F63]">
               Invitaciones
             </h3>
           </div>
@@ -324,12 +324,12 @@ function KpiCard({
       }`}
     >
       <div className="flex items-center gap-2">
-        <Icon className={`h-4 w-4 ${alert ? "text-red-500" : "text-[#C9A84C]"}`} />
+        <Icon className={`h-4 w-4 ${alert ? "text-red-500" : "text-[#B8965A]"}`} />
         <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400">
           {label}
         </p>
       </div>
-      <p className={`mt-1 text-xl font-bold ${alert ? "text-red-600" : "text-[#0B1D3A]"}`}>
+      <p className={`mt-1 text-xl font-bold ${alert ? "text-red-600" : "text-[#3D4F63]"}`}>
         {value}
       </p>
       <p className="text-[10px] text-gray-400">{sub}</p>

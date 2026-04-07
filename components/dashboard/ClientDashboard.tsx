@@ -36,6 +36,7 @@ import {
   isMinus,
 } from "@/lib/operations-taxonomy";
 import { computeEurCostByIsin } from "@/lib/eur-cost-fifo";
+import { classifyProduct } from "@/lib/product-type";
 
 // ===========================================================================
 // Types
@@ -90,12 +91,12 @@ interface ClientDashboardProps {
 // Constants
 // ===========================================================================
 
-const NAVY = "#1e3a5f";
-const GOLD = "#c9a94e";
-const LIGHT_BG = "#f5f3ee";
+const NAVY = "#3D4F63";
+const GOLD = "#B8965A";
+const LIGHT_BG = "#F5F5F5";
 
 const PIE_COLORS = [
-  "#1e3a5f", "#c9a94e", "#2563eb", "#059669", "#d97706",
+  "#3D4F63", "#B8965A", "#2563eb", "#059669", "#d97706",
   "#7c3aed", "#dc2626", "#0891b2", "#4f46e5", "#db2777",
 ];
 
@@ -212,8 +213,8 @@ function DateRangeBar({
             onClick={() => onChange(p.from, p.to)}
             className={`rounded-md border px-2 py-1 text-[10px] font-semibold uppercase tracking-wider transition-colors ${
               activeLabel === p.label
-                ? "border-[#c9a94e] bg-[#c9a94e] text-[#0B1D3A]"
-                : "border-white/20 bg-white/10 text-white/80 hover:border-[#c9a94e] hover:text-white"
+                ? "border-[#B8965A] bg-[#B8965A] text-[#3D4F63]"
+                : "border-white/20 bg-white/10 text-white/80 hover:border-[#B8965A] hover:text-white"
             }`}
           >
             {p.label}
@@ -231,8 +232,8 @@ function DateRangeBar({
             max={dateTo || maxDate}
             onChange={(e) => onChange(e.target.value || undefined, dateTo)}
             onClick={() => openPicker(fromRef)}
-            style={{ WebkitAppearance: "auto", appearance: "auto" }}
-            className="min-w-[125px] cursor-pointer rounded-lg border border-white/20 bg-white/10 px-2 py-2 text-xs font-medium text-white backdrop-blur-sm focus:border-[#c9a94e] focus:outline-none [color-scheme:dark] sm:py-1.5"
+            style={{ WebkitAppearance: "auto" as any, appearance: "auto" as any }}
+            className="min-w-[125px] cursor-pointer rounded-lg border border-white/20 bg-white/10 px-2 py-2 text-xs font-medium text-white backdrop-blur-sm focus:border-[#B8965A] focus:outline-none [color-scheme:dark] sm:py-1.5"
             aria-label="Fecha desde"
           />
           {!dateFrom && (
@@ -251,8 +252,8 @@ function DateRangeBar({
             max={maxDate}
             onChange={(e) => onChange(dateFrom, e.target.value || undefined)}
             onClick={() => openPicker(toRef)}
-            style={{ WebkitAppearance: "auto", appearance: "auto" }}
-            className="min-w-[125px] cursor-pointer rounded-lg border border-white/20 bg-white/10 px-2 py-2 text-xs font-medium text-white backdrop-blur-sm focus:border-[#c9a94e] focus:outline-none [color-scheme:dark] sm:py-1.5"
+            style={{ WebkitAppearance: "auto" as any, appearance: "auto" as any }}
+            className="min-w-[125px] cursor-pointer rounded-lg border border-white/20 bg-white/10 px-2 py-2 text-xs font-medium text-white backdrop-blur-sm focus:border-[#B8965A] focus:outline-none [color-scheme:dark] sm:py-1.5"
             aria-label="Fecha hasta"
           />
           {!dateTo && (
@@ -304,7 +305,7 @@ function SectionHeader({
 }) {
   return (
     <div className="relative mb-4 mt-2 sm:mb-6">
-      <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-[#1e3a5f] to-[#2a5080] opacity-90" />
+      <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-[#3D4F63] to-[#2a5080] opacity-90" />
       <h2 className="relative px-4 py-2.5 font-display text-sm font-bold text-white sm:px-6 sm:py-3 sm:text-lg">
         {number}. {title}
       </h2>
@@ -313,7 +314,7 @@ function SectionHeader({
 }
 
 function SectionDivider() {
-  return <div className="my-5 h-px bg-gradient-to-r from-transparent via-[#c9a94e]/40 to-transparent sm:my-8" />;
+  return <div className="my-5 h-px bg-gradient-to-r from-transparent via-[#B8965A]/40 to-transparent sm:my-8" />;
 }
 
 // ===========================================================================
@@ -402,7 +403,7 @@ function InvestorProfileCard({
           className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md sm:p-5"
           style={{ animationDelay: `${i * 80}ms` }}
         >
-          <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#C9A84C] to-[#E8C870] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+          <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#B8965A] to-[#E8C870] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
           <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-gray-400 sm:mb-2 sm:text-xs">
             {kpi.label}
           </p>
@@ -412,7 +413,7 @@ function InvestorProfileCard({
                 ? kpi.positive
                   ? "text-green-600"
                   : "text-red-600"
-                : "text-[#0B1D3A]"
+                : "text-[#3D4F63]"
             }`}
           >
             {kpi.value}
@@ -439,15 +440,15 @@ function TopHoldings({ positions }: { positions: Position[] }) {
   return (
     <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
       <div className="border-b border-gray-100 px-6 py-4">
-        <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-[#0B1D3A]">
-          <Target className="h-4 w-4 text-[#C9A84C]" />
+        <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-[#3D4F63]">
+          <Target className="h-4 w-4 text-[#B8965A]" />
           Top 10 Posiciones
         </h3>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead>
-            <tr className="bg-[#0B1D3A] text-xs uppercase text-white">
+            <tr className="bg-[#3D4F63] text-xs uppercase text-white">
               <th className="px-4 py-2.5 font-medium">Producto</th>
               <th className="px-4 py-2.5 font-medium">Gestora</th>
               <th className="px-4 py-2.5 text-right font-medium">Valor</th>
@@ -467,17 +468,17 @@ function TopHoldings({ positions }: { positions: Position[] }) {
               return (
                 <tr
                   key={pos.id}
-                  className={`border-b border-gray-100 last:border-0 transition-colors hover:bg-[#F5F3EE] ${
+                  className={`border-b border-gray-100 last:border-0 transition-colors hover:bg-[#F5F5F5] ${
                     idx % 2 === 0 ? "bg-white" : "bg-gray-50/40"
                   }`}
                 >
-                  <td className="max-w-[200px] truncate px-4 py-2.5 text-xs font-semibold text-[#0B1D3A]">
+                  <td className="max-w-[200px] truncate px-4 py-2.5 text-xs font-semibold text-[#3D4F63]">
                     {pos.product_name}
                   </td>
                   <td className="max-w-[120px] truncate px-4 py-2.5 text-xs text-gray-500">
                     {pos.manager ?? "—"}
                   </td>
-                  <td className="px-4 py-2.5 text-right text-xs font-bold text-[#0B1D3A]">
+                  <td className="px-4 py-2.5 text-right text-xs font-bold text-[#3D4F63]">
                     {formatEur(pos.position_value ?? 0)}
                   </td>
                   <td className="px-4 py-2.5">
@@ -487,7 +488,7 @@ function TopHoldings({ positions }: { positions: Position[] }) {
                       </span>
                       <div className="h-1.5 w-12 overflow-hidden rounded-full bg-gray-100">
                         <div
-                          className="h-full rounded-full bg-[#C9A84C] transition-all duration-500"
+                          className="h-full rounded-full bg-[#B8965A] transition-all duration-500"
                           style={{ width: `${Math.min(weight, 100)}%` }}
                         />
                       </div>
@@ -546,8 +547,8 @@ function AssetDistribution({ positions }: { positions: Position[] }) {
     <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
       {/* Por Gestora - estilo informe con tabla + donut */}
       <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
-        <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#1e3a5f] sm:mb-4 sm:text-sm">
-          <PieChartIcon className="h-4 w-4 text-[#c9a94e]" />
+        <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#3D4F63] sm:mb-4 sm:text-sm">
+          <PieChartIcon className="h-4 w-4 text-[#B8965A]" />
           Distribucion por Gestora
         </h3>
         <div className="flex items-center gap-4">
@@ -593,8 +594,8 @@ function AssetDistribution({ positions }: { positions: Position[] }) {
 
       {/* Por Moneda */}
       <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
-        <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#1e3a5f] sm:mb-4 sm:text-sm">
-          <Target className="h-4 w-4 text-[#c9a94e]" />
+        <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#3D4F63] sm:mb-4 sm:text-sm">
+          <Target className="h-4 w-4 text-[#B8965A]" />
           Distribucion por Moneda
         </h3>
         <div className="flex items-center gap-4">
@@ -657,7 +658,7 @@ function PortfolioTable({ positions }: { positions: Position[] }) {
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead>
-            <tr className="bg-[#1e3a5f] text-xs uppercase text-white">
+            <tr className="bg-[#3D4F63] text-xs uppercase text-white">
               <th className="px-3 py-2.5 font-medium">Producto</th>
               <th className="px-3 py-2.5 font-medium">ISIN</th>
               <th className="px-3 py-2.5 font-medium">Gestora</th>
@@ -681,7 +682,7 @@ function PortfolioTable({ positions }: { positions: Position[] }) {
                   key={pos.id}
                   className={`border-b border-gray-100 last:border-0 ${
                     idx % 2 === 0 ? "bg-white" : "bg-gray-50/50"
-                  } hover:bg-[#f5f3ee]`}
+                  } hover:bg-[#F5F5F5]`}
                 >
                   <td className="max-w-[180px] truncate px-3 py-2 text-xs font-medium text-gray-800">
                     {pos.product_name}
@@ -706,7 +707,7 @@ function PortfolioTable({ positions }: { positions: Position[] }) {
                   }`}>
                     {pnl >= 0 ? "+" : ""}{pnlPct.toFixed(2)}%
                   </td>
-                  <td className="px-3 py-2 text-right text-xs font-semibold text-[#1e3a5f]">
+                  <td className="px-3 py-2 text-right text-xs font-semibold text-[#3D4F63]">
                     {formatEur(pos.position_value ?? 0)}
                   </td>
                   <td className="px-3 py-2 text-right text-xs text-gray-500">
@@ -717,8 +718,8 @@ function PortfolioTable({ positions }: { positions: Position[] }) {
             })}
           </tbody>
           <tfoot>
-            <tr className="border-t-2 border-[#c9a94e] bg-[#f5f3ee]">
-              <td colSpan={6} className="px-3 py-2.5 text-right text-xs font-bold uppercase text-[#1e3a5f]">
+            <tr className="border-t-2 border-[#B8965A] bg-[#F5F5F5]">
+              <td colSpan={6} className="px-3 py-2.5 text-right text-xs font-bold uppercase text-[#3D4F63]">
                 Total
               </td>
               <td className={`px-3 py-2.5 text-right text-xs font-bold ${
@@ -728,7 +729,7 @@ function PortfolioTable({ positions }: { positions: Position[] }) {
                   ? `${totalValue - totalCost >= 0 ? "+" : ""}${(((totalValue - totalCost) / totalCost) * 100).toFixed(2)}%`
                   : "\u2014"}
               </td>
-              <td className="px-3 py-2.5 text-right text-xs font-bold text-[#1e3a5f]">
+              <td className="px-3 py-2.5 text-right text-xs font-bold text-[#3D4F63]">
                 {formatEur(totalValue)}
               </td>
               <td className="px-3 py-2.5 text-right text-xs font-bold text-gray-500">
@@ -841,6 +842,18 @@ export default function ClientDashboard({
     () => computeEurCostByIsin(data.operations.operations),
     [data.operations.operations]
   );
+
+  // Fecha de la 1a operacion registrada para esta CV (Edgard MVP6 #4:
+  // boton "Desde origen" = primera operacion de la cuenta).
+  const originDate = useMemo(() => {
+    let earliest: string | null = null;
+    for (const op of data.operations.operations) {
+      const d = op.operation_date;
+      if (!d) continue;
+      if (!earliest || d < earliest) earliest = d;
+    }
+    return earliest;
+  }, [data.operations.operations]);
 
   // Aportaciones netas y comisiones (taxonomia oficial Edgard MVP6)
   // PLUS  = CONTRAVALOR EFECTIVO NETO (eur_amount)
@@ -995,79 +1008,106 @@ export default function ClientDashboard({
     }));
   }, [data.historyByAccount, accounts]);
 
-  // Combined chart data: NAV + Rentabilidad % + Flujos por mes
-  // Depends on returnMethod so the chart line reflects TWR or MWR.
-  // Solo considera flujos PLUS/MINUS reales (taxonomia oficial Edgard MVP6).
+  // Combined chart data: NAV apilado + Rentabilidad % + Aportaciones netas
+  // acumuladas + eventos PLUS/MINUS (Edgard MVP6 puntos 2a-d).
+  //
+  // - NAV apilado en cash / iic / rv. Como solo tenemos el snapshot actual
+  //   de positions, calculamos el RATIO cash:iic:rv del snapshot actual y
+  //   lo aplicamos a cada NAV historico (aproximacion - asume distribucion
+  //   estable). Cuando tengamos historial de positions por fecha lo
+  //   reemplazaremos por el desglose real.
+  // - Aportaciones netas acumuladas: running total de PLUS - MINUS sobre
+  //   las operaciones ordenadas por fecha de contratacion.
+  // - Eventos: cada operacion PLUS o MINUS individual.
+  // - Label X: incluye dia ("18 mar 26").
   const combinedChartData = useMemo(() => {
-    if (data.history.length === 0) return { chartData: [], kpis: null };
+    if (data.history.length === 0) return { chartData: [], flowEvents: [], kpis: null };
 
-    // Group history by month (use last snapshot of each month as NAV)
-    const navByMonth = new Map<string, { nav: number; date: string }>();
-    for (const h of data.history) {
-      const d = new Date(h.date);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      navByMonth.set(key, { nav: h.totalValue, date: h.date });
+    // 1) Ratio cash : iic : rv del snapshot actual
+    let rvValue = 0;
+    let iicValue = 0;
+    for (const p of data.positions) {
+      const t = classifyProduct(p.isin, p.product_name);
+      if (t === "rv") rvValue += p.position_value ?? 0;
+      else iicValue += p.position_value ?? 0;
     }
+    const cashCurrent = data.cashBalance ?? 0;
+    const totalCurrent = rvValue + iicValue + cashCurrent;
+    const rIic = totalCurrent > 0 ? iicValue / totalCurrent : 0;
+    const rRv = totalCurrent > 0 ? rvValue / totalCurrent : 0;
+    const rCash = totalCurrent > 0 ? cashCurrent / totalCurrent : 0;
 
-    // Group flows by month from operations
-    const flowsByMonthMap = new Map<string, number>();
-    // For MWR: daily flows within each month for weighting
-    const dailyFlowsByMonth = new Map<string, { date: string; amount: number }[]>();
+    // 2) Snapshots ordenados por fecha (data.history ya viene ordenado asc)
+    const snapshots = [...data.history].sort((a, b) => a.date.localeCompare(b.date));
 
-    for (const op of data.operations.operations) {
-      if (!op.operation_date || !op.operation_type) continue;
-
+    // 3) Eventos ordenados de PLUS/MINUS (taxonomia oficial)
+    const allOps = [...data.operations.operations]
+      .filter((op) => op.operation_date)
+      .sort((a, b) => (a.operation_date ?? "").localeCompare(b.operation_date ?? ""));
+    const flowEvents: { date: string; amount: number; netAfter: number }[] = [];
+    let runningNet = 0;
+    for (const op of allOps) {
       const signed = flowAmountEur(op);
-      if (signed === 0) continue; // NEUTRO
-
-      const d = new Date(op.operation_date);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-
-      flowsByMonthMap.set(key, (flowsByMonthMap.get(key) ?? 0) + signed);
-      if (!dailyFlowsByMonth.has(key)) dailyFlowsByMonth.set(key, []);
-      dailyFlowsByMonth.get(key)!.push({ date: op.operation_date, amount: signed });
+      if (signed === 0) continue;
+      runningNet += signed;
+      flowEvents.push({
+        date: op.operation_date!,
+        amount: signed,
+        netAfter: runningNet,
+      });
     }
 
-    // Build chart data sorted by month
-    const months = Array.from(navByMonth.keys()).sort();
+    // Helper: aportacion neta acumulada hasta una fecha
+    const netContribUntil = (date: string) => {
+      let sum = 0;
+      for (const e of flowEvents) {
+        if (e.date <= date) sum = e.netAfter;
+        else break;
+      }
+      return sum;
+    };
 
-    const chartData = months.map((m, i) => {
-      const nav = navByMonth.get(m)!.nav;
-      const prevNav = i > 0 ? (navByMonth.get(months[i - 1])?.nav ?? nav) : nav;
-      const flows = flowsByMonthMap.get(m) ?? 0;
+    // 4) Construir puntos del grafico
+    const chartData = snapshots.map((s, i) => {
+      const prev = i > 0 ? snapshots[i - 1] : null;
+      const nav = s.totalValue;
+      const flowsBetween = prev
+        ? netContribUntil(s.date) - netContribUntil(prev.date)
+        : 0;
 
-      let returnPct: number;
-
-      if (returnMethod === "mwr" && prevNav > 0) {
-        // Modified Dietz: R = (V_end - V_start - CF) / (V_start + sum(CF_i * W_i))
-        const startDate = navByMonth.get(months[i > 0 ? i - 1 : 0])?.date ?? m + "-01";
-        const endDate = navByMonth.get(m)?.date ?? m + "-28";
-        const totalDays = Math.max(1, (new Date(endDate).getTime() - new Date(startDate).getTime()) / 86400000);
-
-        const monthFlows = dailyFlowsByMonth.get(m) ?? [];
-        let weightedCF = 0;
-        for (const cf of monthFlows) {
-          const daysSinceStart = Math.max(0, (new Date(cf.date).getTime() - new Date(startDate).getTime()) / 86400000);
-          const weight = (totalDays - daysSinceStart) / totalDays;
-          weightedCF += cf.amount * weight;
+      let returnPct = 0;
+      if (prev && prev.totalValue > 0) {
+        if (returnMethod === "mwr") {
+          // Modified Dietz simplificado: peso medio = 0.5 (aproximacion
+          // razonable cuando los flujos se distribuyen uniformemente)
+          const avgCap = prev.totalValue + 0.5 * flowsBetween;
+          returnPct = avgCap > 0
+            ? ((nav - prev.totalValue - flowsBetween) / avgCap) * 100
+            : 0;
+        } else {
+          returnPct = ((nav - prev.totalValue - flowsBetween) / prev.totalValue) * 100;
         }
-
-        const avgCapital = prevNav + weightedCF;
-        returnPct = avgCapital > 0 ? ((nav - prevNav - flows) / avgCapital) * 100 : 0;
-      } else {
-        // TWR: simple return
-        returnPct = prevNav > 0 ? ((nav - prevNav - flows) / prevNav) * 100 : 0;
       }
 
-      const label = new Date(m + "-15").toLocaleDateString("es-ES", {
+      const label = new Date(s.date).toLocaleDateString("es-ES", {
+        day: "2-digit",
         month: "short",
         year: "2-digit",
       });
 
-      return { month: label, rawMonth: m, nav, returnPct, flows };
+      return {
+        date: s.date,
+        label,
+        cash: nav * rCash,
+        iic: nav * rIic,
+        rv: nav * rRv,
+        nav,
+        returnPct,
+        netContrib: netContribUntil(s.date),
+      };
     });
 
-    if (chartData.length === 0) return { chartData: [], kpis: null };
+    if (chartData.length === 0) return { chartData: [], flowEvents: [], kpis: null };
 
     // KPIs
     const firstNav = chartData[0].nav;
@@ -1075,29 +1115,28 @@ export default function ClientDashboard({
     const variacion = lastNav - firstNav;
     const variacionPct = firstNav > 0 ? (variacion / firstNav) * 100 : 0;
 
-    // Best/worst month
     let mejorMes: { month: string; pct: number } | null = null;
     let peorMes: { month: string; pct: number } | null = null;
     for (const pt of chartData) {
       if (!mejorMes || pt.returnPct > mejorMes.pct) {
-        mejorMes = { month: pt.month, pct: pt.returnPct };
+        mejorMes = { month: pt.label, pct: pt.returnPct };
       }
       if (!peorMes || pt.returnPct < peorMes.pct) {
-        peorMes = { month: pt.month, pct: pt.returnPct };
+        peorMes = { month: pt.label, pct: pt.returnPct };
       }
     }
 
-    // Period return (chained)
     let cumReturn = 1;
-    for (const pt of chartData) {
-      cumReturn *= 1 + pt.returnPct / 100;
-    }
+    for (const pt of chartData) cumReturn *= 1 + pt.returnPct / 100;
     const rentabilidadPeriodo = (cumReturn - 1) * 100;
 
-    const aportacionesNetas = chartData.reduce((s, pt) => s + pt.flows, 0);
+    const aportacionesNetas = flowEvents.length
+      ? flowEvents[flowEvents.length - 1].netAfter
+      : 0;
 
     return {
       chartData,
+      flowEvents,
       kpis: {
         valorInicio: firstNav,
         valorFin: lastNav,
@@ -1109,17 +1148,17 @@ export default function ClientDashboard({
         aportacionesNetas,
       },
     };
-  }, [data.history, data.operations.operations, returnMethod]);
+  }, [data.history, data.positions, data.cashBalance, data.operations.operations, returnMethod]);
 
   return (
     <div className={`space-y-1 ${loading ? "opacity-50 pointer-events-none" : ""}`}>
       {/* ================================================================= */}
       {/* PORTADA / HEADER - estilo informe Rowell                          */}
       {/* ================================================================= */}
-      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[#1e3a5f] to-[#0f1f33] px-4 py-5 text-white shadow-lg sm:px-8 sm:py-8">
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[#3D4F63] to-[#293544] px-4 py-5 text-white shadow-lg sm:px-8 sm:py-8">
         {/* Decorative elements */}
-        <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-[#c9a94e]/10" />
-        <div className="absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-[#c9a94e]/5" />
+        <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-[#B8965A]/10" />
+        <div className="absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-[#B8965A]/5" />
 
         <div className="relative">
           {/* Title row */}
@@ -1130,11 +1169,11 @@ export default function ClientDashboard({
               </a>
             )}
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#c9a94e]/20 sm:h-12 sm:w-12">
-                <User className="h-5 w-5 text-[#c9a94e] sm:h-6 sm:w-6" />
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#B8965A]/20 sm:h-12 sm:w-12">
+                <User className="h-5 w-5 text-[#B8965A] sm:h-6 sm:w-6" />
               </div>
               <div className="min-w-0">
-                <p className="text-[10px] font-medium uppercase tracking-widest text-[#c9a94e] sm:text-xs">
+                <p className="text-[10px] font-medium uppercase tracking-widest text-[#B8965A] sm:text-xs">
                   Informe de Cartera
                 </p>
                 <h1 className="truncate font-display text-xl font-bold sm:text-3xl">{clientName}</h1>
@@ -1155,7 +1194,7 @@ export default function ClientDashboard({
                 <select
                   value={selectedAccountId}
                   onChange={(e) => handleAccountChange(e.target.value)}
-                  className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-xs font-medium text-white backdrop-blur-sm focus:border-[#c9a94e] focus:outline-none sm:w-auto sm:py-1.5"
+                  className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-xs font-medium text-white backdrop-blur-sm focus:border-[#B8965A] focus:outline-none sm:w-auto sm:py-1.5"
                 >
                   <option value="all" className="text-gray-800">Todas las carteras</option>
                   {accounts.map((acc) => (
@@ -1175,6 +1214,37 @@ export default function ClientDashboard({
               maxDate={availableDateRange?.maxDate}
               originDate={originDate}
             />
+            {/* TWR / MWR toggle (Edgard MVP6 #11: todos los selectores
+                en la barra inicial) */}
+            <div className="flex items-center gap-1.5">
+              <TrendingUp className="h-4 w-4 flex-shrink-0 text-white/40" />
+              <div className="flex overflow-hidden rounded-lg border border-white/20">
+                <button
+                  type="button"
+                  onClick={() => setReturnMethod("twr")}
+                  className={`px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider transition-colors ${
+                    returnMethod === "twr"
+                      ? "bg-[#B8965A] text-[#3D4F63]"
+                      : "bg-white/10 text-white/70 hover:bg-white/20"
+                  }`}
+                  title="Time Weighted Return - independiente de aportaciones"
+                >
+                  TWR
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setReturnMethod("mwr")}
+                  className={`px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider transition-colors ${
+                    returnMethod === "mwr"
+                      ? "bg-[#B8965A] text-[#3D4F63]"
+                      : "bg-white/10 text-white/70 hover:bg-white/20"
+                  }`}
+                  title="Money Weighted Return - ponderada por capital"
+                >
+                  MWR
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1201,40 +1271,7 @@ export default function ClientDashboard({
         positions={data.positions}
       />
 
-      {/* TWR / MWR toggle — inline in the section it affects */}
-      {(rentabilidadPeriods.length > 0 || data.history.length > 0) && (
-        <div className="mt-3 flex items-center gap-2 sm:mt-4">
-          <TrendingUp className="h-4 w-4 text-gray-400" />
-          <span className="text-xs font-medium text-gray-500">Metodo de rentabilidad:</span>
-          <div className="flex">
-            <button
-              onClick={() => setReturnMethod("twr")}
-              className={`rounded-l-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-                returnMethod === "twr"
-                  ? "bg-[#0B1D3A] text-white shadow-sm"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              }`}
-              title="Time Weighted Return — rentabilidad independiente de aportaciones"
-            >
-              TWR
-            </button>
-            <button
-              onClick={() => setReturnMethod("mwr")}
-              className={`rounded-r-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-                returnMethod === "mwr"
-                  ? "bg-[#0B1D3A] text-white shadow-sm"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              }`}
-              title="Money Weighted Return — rentabilidad ponderada por capital invertido"
-            >
-              MWR
-            </button>
-          </div>
-          <span className="text-[10px] text-gray-400">
-            {returnMethod === "twr" ? "Independiente de aportaciones" : "Ponderada por capital"}
-          </span>
-        </div>
-      )}
+      {/* TWR/MWR toggle movido a la barra superior (MVP6 #11) */}
 
       {/* Row 3: Rentabilidad + Costes + Concentración */}
       {(rentabilidadPeriods.length > 0 || totalCommissions > 0 || data.positions.length > 0) && (
@@ -1245,7 +1282,7 @@ export default function ClientDashboard({
               key={r.period}
               className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md sm:p-4"
             >
-              <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#C9A84C] to-[#E8C870] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+              <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#B8965A] to-[#E8C870] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
               <p className="text-[9px] font-medium uppercase tracking-wider text-gray-400 sm:text-[10px]">
                 {returnMethod === "twr" ? "TWR" : "MWR"} {r.period}
               </p>
@@ -1259,7 +1296,7 @@ export default function ClientDashboard({
           ))}
           {/* Plusvalía total económica */}
           <div className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md sm:p-4">
-            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#C9A84C] to-[#E8C870] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#B8965A] to-[#E8C870] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
             <p className="text-[9px] font-medium uppercase tracking-wider text-gray-400 sm:text-[10px]">Plusvalia total economica</p>
             <p className={`mt-0.5 text-base font-bold sm:mt-1 sm:text-lg ${plusvaliaTotalEco >= 0 ? "text-green-600" : "text-red-600"}`}>
               {plusvaliaTotalEco >= 0 ? "+" : ""}{formatEur(plusvaliaTotalEco)}
@@ -1268,16 +1305,16 @@ export default function ClientDashboard({
           </div>
           {/* Concentración */}
           <div className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md sm:p-4">
-            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#C9A84C] to-[#E8C870] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#B8965A] to-[#E8C870] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
             <p className="text-[9px] font-medium uppercase tracking-wider text-gray-400 sm:text-[10px]">Concentracion</p>
-            <p className="mt-0.5 text-base font-bold text-[#0B1D3A] sm:mt-1 sm:text-lg">Top 5: {concTop5.toFixed(1)}%</p>
+            <p className="mt-0.5 text-base font-bold text-[#3D4F63] sm:mt-1 sm:text-lg">Top 5: {concTop5.toFixed(1)}%</p>
             <p className="text-[9px] text-gray-400 sm:text-[10px]">Top 10: {concTop10.toFixed(1)}%</p>
           </div>
           {/* Comisiones + Retenciones */}
           <div className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md sm:p-4">
-            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#C9A84C] to-[#E8C870] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#B8965A] to-[#E8C870] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
             <p className="text-[9px] font-medium uppercase tracking-wider text-gray-400 sm:text-[10px]">Costes acumulados</p>
-            <p className="mt-0.5 text-base font-bold text-[#0B1D3A] sm:mt-1 sm:text-lg">{formatEur(totalCommissions + totalRetentions)}</p>
+            <p className="mt-0.5 text-base font-bold text-[#3D4F63] sm:mt-1 sm:text-lg">{formatEur(totalCommissions + totalRetentions)}</p>
             <p className="text-[9px] text-gray-400 sm:text-[10px]">
               Com: {formatEur(totalCommissions)} · Ret: {formatEur(totalRetentions)}
             </p>
@@ -1307,6 +1344,7 @@ export default function ClientDashboard({
       {combinedChartData.kpis ? (
         <CombinedChart
           data={combinedChartData.chartData}
+          flowEvents={combinedChartData.flowEvents}
           kpis={combinedChartData.kpis}
         />
       ) : (
@@ -1335,7 +1373,7 @@ export default function ClientDashboard({
           onClick={() => setActiveTab("cartera")}
           className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all ${
             activeTab === "cartera"
-              ? "bg-white text-[#1e3a5f] shadow-sm"
+              ? "bg-white text-[#3D4F63] shadow-sm"
               : "text-gray-500 hover:text-gray-700"
           }`}
         >
@@ -1346,7 +1384,7 @@ export default function ClientDashboard({
           onClick={() => setActiveTab("operaciones")}
           className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all ${
             activeTab === "operaciones"
-              ? "bg-white text-[#1e3a5f] shadow-sm"
+              ? "bg-white text-[#3D4F63] shadow-sm"
               : "text-gray-500 hover:text-gray-700"
           }`}
         >
@@ -1368,7 +1406,7 @@ export default function ClientDashboard({
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead>
-                    <tr className="bg-[#1e3a5f] text-xs uppercase text-white">
+                    <tr className="bg-[#3D4F63] text-xs uppercase text-white">
                       <th className="w-8 px-3 py-2.5"></th>
                       <th className="px-3 py-2.5 font-medium">Fecha</th>
                       <th className="px-3 py-2.5 font-medium">Tipo</th>
@@ -1383,7 +1421,7 @@ export default function ClientDashboard({
                         key={op.id}
                         className={`border-b border-gray-100 last:border-0 ${
                           idx % 2 === 0 ? "bg-white" : "bg-gray-50/50"
-                        } hover:bg-[#f5f3ee]`}
+                        } hover:bg-[#F5F5F5]`}
                       >
                         <td className="px-3 py-2">{getOpIcon(op.operation_type)}</td>
                         <td className="px-3 py-2 font-mono text-xs">{formatDate(op.operation_date)}</td>
@@ -1448,9 +1486,9 @@ export default function ClientDashboard({
       {/* Footer branding                                                    */}
       {/* ================================================================= */}
       <div className="mt-8 flex items-center justify-center gap-2 pb-4 text-xs text-gray-400">
-        <div className="h-px w-12 bg-[#c9a94e]/30" />
-        <span className="font-display font-semibold text-[#c9a94e]/60">Rowell Patrimonios</span>
-        <div className="h-px w-12 bg-[#c9a94e]/30" />
+        <div className="h-px w-12 bg-[#B8965A]/30" />
+        <span className="font-display font-semibold text-[#B8965A]/60">Rowell Patrimonios</span>
+        <div className="h-px w-12 bg-[#B8965A]/30" />
       </div>
     </div>
   );

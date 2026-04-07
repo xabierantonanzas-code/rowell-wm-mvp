@@ -87,10 +87,10 @@ export default function EvolutionChart({ data }: EvolutionChartProps) {
         <Line
           type="monotone"
           dataKey="totalValue"
-          stroke="#1e3a5f"
+          stroke="#3D4F63"
           strokeWidth={2.5}
-          dot={{ fill: "#c9a94e", r: 4, strokeWidth: 0 }}
-          activeDot={{ fill: "#c9a94e", r: 6, strokeWidth: 2, stroke: "#1e3a5f" }}
+          dot={{ fill: "#B8965A", r: 4, strokeWidth: 0 }}
+          activeDot={{ fill: "#B8965A", r: 6, strokeWidth: 2, stroke: "#3D4F63" }}
         />
       </LineChart>
     </ResponsiveContainer>

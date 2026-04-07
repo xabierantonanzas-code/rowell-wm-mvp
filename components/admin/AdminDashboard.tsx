@@ -217,14 +217,14 @@ function ClientDropdown({
       {/* Trigger button */}
       <button
         onClick={() => { setOpen(!open); setSearchQuery(""); }}
-        className="flex w-full items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm transition-all hover:border-[#C9A84C]/50 hover:shadow-md"
+        className="flex w-full items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm transition-all hover:border-[#B8965A]/50 hover:shadow-md"
       >
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#0B1D3A]/5">
-            <Users className="h-4 w-4 text-[#0B1D3A]" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#3D4F63]/5">
+            <Users className="h-4 w-4 text-[#3D4F63]" />
           </div>
           <div className="text-left">
-            <p className="text-sm font-semibold text-[#0B1D3A]">{selectedName}</p>
+            <p className="text-sm font-semibold text-[#3D4F63]">{selectedName}</p>
             <p className="text-xs text-gray-400">
               {selectedAccounts} cartera{selectedAccounts !== 1 ? "s" : ""} · {clients.length} clientes total
             </p>
@@ -251,7 +251,7 @@ function ClientDropdown({
                 placeholder="Buscar por nombre, alias o cuenta..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-10 pr-3 text-sm text-gray-700 placeholder:text-gray-400 focus:border-[#C9A84C] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#C9A84C]"
+                className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-10 pr-3 text-sm text-gray-700 placeholder:text-gray-400 focus:border-[#B8965A] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#B8965A]"
               />
             </div>
           </div>
@@ -261,19 +261,19 @@ function ClientDropdown({
             {/* "Todos" option */}
             <button
               onClick={() => { onSelect(null); setOpen(false); }}
-              className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-[#F5F3EE] ${
-                !selectedClient ? "bg-[#0B1D3A]/5" : ""
+              className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-[#F5F5F5] ${
+                !selectedClient ? "bg-[#3D4F63]/5" : ""
               }`}
             >
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#C9A84C]/10">
-                <Users className="h-4 w-4 text-[#C9A84C]" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#B8965A]/10">
+                <Users className="h-4 w-4 text-[#B8965A]" />
               </div>
               <div className="flex-1">
-                <p className="text-sm font-medium text-[#0B1D3A]">Todos los clientes</p>
+                <p className="text-sm font-medium text-[#3D4F63]">Todos los clientes</p>
                 <p className="text-xs text-gray-400">{totalAccounts} cuentas</p>
               </div>
               {!selectedClient && (
-                <div className="h-2 w-2 rounded-full bg-[#C9A84C]" />
+                <div className="h-2 w-2 rounded-full bg-[#B8965A]" />
               )}
             </button>
 
@@ -288,11 +288,11 @@ function ClientDropdown({
                 <button
                   key={client.id}
                   onClick={() => { onSelect(client.id); setOpen(false); }}
-                  className={`flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-[#F5F3EE] ${
-                    selectedClient === client.id ? "bg-[#0B1D3A]/5" : ""
+                  className={`flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-[#F5F5F5] ${
+                    selectedClient === client.id ? "bg-[#3D4F63]/5" : ""
                   }`}
                 >
-                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#0B1D3A]/5 text-xs font-semibold text-[#0B1D3A]">
+                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#3D4F63]/5 text-xs font-semibold text-[#3D4F63]">
                     {client.name.slice(0, 2).toUpperCase()}
                   </div>
                   <div className="min-w-0 flex-1">
@@ -305,7 +305,7 @@ function ClientDropdown({
                     </p>
                   </div>
                   {selectedClient === client.id && (
-                    <div className="h-2 w-2 flex-shrink-0 rounded-full bg-[#C9A84C]" />
+                    <div className="h-2 w-2 flex-shrink-0 rounded-full bg-[#B8965A]" />
                   )}
                 </button>
               ))
@@ -772,9 +772,9 @@ export default function AdminDashboard({
         </div>
         <button
           onClick={() => setInviteModalOpen(true)}
-          className="flex flex-shrink-0 items-center gap-2 rounded-xl border border-[#C9A84C]/30 bg-[#C9A84C]/10 px-4 py-3 text-sm font-medium text-[#0B1D3A] transition-colors hover:bg-[#C9A84C]/20"
+          className="flex flex-shrink-0 items-center gap-2 rounded-xl border border-[#B8965A]/30 bg-[#B8965A]/10 px-4 py-3 text-sm font-medium text-[#3D4F63] transition-colors hover:bg-[#B8965A]/20"
         >
-          <Mail className="h-4 w-4 text-[#C9A84C]" />
+          <Mail className="h-4 w-4 text-[#B8965A]" />
           <span className="hidden sm:inline">Invitar cliente</span>
         </button>
       </div>
@@ -803,7 +803,7 @@ export default function AdminDashboard({
             onClick={() => handleAccountChange("all")}
             className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
               selectedAccountId === "all"
-                ? "bg-[#0B1D3A] text-white shadow-sm"
+                ? "bg-[#3D4F63] text-white shadow-sm"
                 : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}
           >
@@ -815,7 +815,7 @@ export default function AdminDashboard({
               onClick={() => handleAccountChange(acc.id)}
               className={`rounded-lg px-3 py-1.5 text-left text-xs font-medium transition-all ${
                 selectedAccountId === acc.id
-                  ? "bg-[#0B1D3A] text-white shadow-sm"
+                  ? "bg-[#3D4F63] text-white shadow-sm"
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
             >
@@ -847,7 +847,7 @@ export default function AdminDashboard({
             className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
             style={{ animationDelay: `${i * 80}ms` }}
           >
-            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#C9A84C] to-[#E8C870] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#B8965A] to-[#E8C870] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
             <p className="mb-2 text-xs font-medium uppercase tracking-wider text-gray-400">
               {kpi.label}
             </p>
@@ -857,7 +857,7 @@ export default function AdminDashboard({
                   ? kpi.positive
                     ? "text-green-600"
                     : "text-red-600"
-                  : "text-[#0B1D3A]"
+                  : "text-[#3D4F63]"
               }`}
             >
               {kpi.value}
@@ -874,7 +874,7 @@ export default function AdminDashboard({
         <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           {rentabilidadPeriods.map((r) => (
             <div key={r.period} className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
-              <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#C9A84C] to-[#E8C870] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+              <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#B8965A] to-[#E8C870] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
               <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400">Rent. {r.period}</p>
               <p className={`mt-1 text-lg font-bold ${r.returnPct >= 0 ? "text-green-600" : "text-red-600"}`}>
                 {r.returnPct >= 0 ? "+" : ""}{r.returnPct.toFixed(2)}%
@@ -883,7 +883,7 @@ export default function AdminDashboard({
             </div>
           ))}
           <div className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
-            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#C9A84C] to-[#E8C870] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#B8965A] to-[#E8C870] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
             <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400">Plusvalia total economica</p>
             <p className={`mt-1 text-lg font-bold ${plusvaliaTotalEco >= 0 ? "text-green-600" : "text-red-600"}`}>
               {plusvaliaTotalEco >= 0 ? "+" : ""}{formatEur(plusvaliaTotalEco)}
@@ -891,15 +891,15 @@ export default function AdminDashboard({
             <p className="text-[10px] text-gray-400">Patrimonio - aportaciones netas</p>
           </div>
           <div className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
-            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#C9A84C] to-[#E8C870] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#B8965A] to-[#E8C870] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
             <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400">Concentracion</p>
-            <p className="mt-1 text-lg font-bold text-[#0B1D3A]">Top 5: {concTop5.toFixed(1)}%</p>
+            <p className="mt-1 text-lg font-bold text-[#3D4F63]">Top 5: {concTop5.toFixed(1)}%</p>
             <p className="text-[10px] text-gray-400">Top 10: {concTop10.toFixed(1)}%</p>
           </div>
           <div className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
-            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#C9A84C] to-[#E8C870] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#B8965A] to-[#E8C870] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
             <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400">Costes acumulados</p>
-            <p className="mt-1 text-lg font-bold text-[#0B1D3A]">{formatEur(totalCommissions + totalRetentions)}</p>
+            <p className="mt-1 text-lg font-bold text-[#3D4F63]">{formatEur(totalCommissions + totalRetentions)}</p>
             <p className="text-[10px] text-gray-400">Com: {formatEur(totalCommissions)} · Ret: {formatEur(totalRetentions)}</p>
           </div>
         </section>
@@ -927,7 +927,7 @@ export default function AdminDashboard({
                     <Tooltip formatter={(value: number, name: string) => [formatEur(value), name]} contentStyle={{ borderRadius: "8px", border: "1px solid #e5e7eb", fontSize: "12px" }} />
                     <Legend wrapperStyle={{ fontSize: "11px" }} />
                     <Area type="monotone" dataKey="Aportaciones netas" fill="#059669" fillOpacity={0.15} stroke="#059669" strokeWidth={1.5} />
-                    <Area type="monotone" dataKey="Patrimonio" fill="#0B1D3A" fillOpacity={0.08} stroke="#0B1D3A" strokeWidth={2} />
+                    <Area type="monotone" dataKey="Patrimonio" fill="#3D4F63" fillOpacity={0.08} stroke="#3D4F63" strokeWidth={2} />
                   </AreaChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -959,12 +959,12 @@ export default function AdminDashboard({
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                     <XAxis dataKey="month" tick={{ fontSize: 10, fill: "#9ca3af" }} />
                     <YAxis yAxisId="bars" tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)} tick={{ fontSize: 10, fill: "#9ca3af" }} width={55} />
-                    <YAxis yAxisId="line" orientation="right" tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)} tick={{ fontSize: 10, fill: "#C9A84C" }} width={55} />
+                    <YAxis yAxisId="line" orientation="right" tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)} tick={{ fontSize: 10, fill: "#B8965A" }} width={55} />
                     <Tooltip formatter={(value: number, name: string) => [formatEur(value), name]} contentStyle={{ borderRadius: "8px", border: "1px solid #e5e7eb", fontSize: "12px" }} />
                     <Legend wrapperStyle={{ fontSize: "11px" }} />
                     <Bar yAxisId="bars" dataKey="Compras" fill="#059669" radius={[2, 2, 0, 0]} />
                     <Bar yAxisId="bars" dataKey="Ventas" fill="#dc2626" radius={[2, 2, 0, 0]} />
-                    <Line yAxisId="line" type="monotone" dataKey="Neto acum." stroke="#C9A84C" strokeWidth={2} dot={false} />
+                    <Line yAxisId="line" type="monotone" dataKey="Neto acum." stroke="#B8965A" strokeWidth={2} dot={false} />
                   </ComposedChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -1144,7 +1144,7 @@ export default function AdminDashboard({
       {selectedClient && (
         <div className="space-y-4">
           <div className="relative mb-2 mt-2">
-            <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-[#0B1D3A] to-[#1a3a5c] opacity-90" />
+            <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-[#3D4F63] to-[#1a3a5c] opacity-90" />
             <h2 className="relative px-6 py-3 font-display text-lg font-bold text-white">
               5. Espacio Personal
             </h2>
