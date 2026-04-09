@@ -12,9 +12,9 @@ import {
 import type { DateRange } from "@/lib/queries/positions";
 import {
   getOperations,
-  getNetContributionsAll,
   getAllOperationsForAccounts,
 } from "@/lib/queries/operations";
+import { getGlobalAdminKpis } from "@/lib/queries/admin-summary";
 import { getCashBalances } from "@/lib/queries/balances";
 import AdminDashboard from "@/components/admin/AdminDashboard";
 import ClientDashboard from "@/components/dashboard/ClientDashboard";
@@ -234,13 +234,15 @@ export default async function AdminPage({
   // =========================================================================
   // ALL CLIENTS → aggregated admin view
   // =========================================================================
-  const [positions, history, availDateRange, netContribGlobal] = await Promise.all([
+  // MVP6 P2: los KPIs globales (AUM, invertido, rentabilidad) vienen de
+  // la vista materializada global_kpis via getGlobalAdminKpis(). Con la
+  // migracion 007 aplicada, esto es O(1). Sin migracion, cae al fallback
+  // SQL que sigue siendo mas rapido que iterar 10k ops en JS.
+  const [positions, history, availDateRange, globalKpis] = await Promise.all([
     getAllLatestPositions(dateRange),
     getAllPositionHistory(dateRange),
     getAvailableDateRange([]),
-    // MVP6 #6: agregado global de aportaciones netas para que el tile
-    // "Patrimonio invertido" no muestre 0€ en vista global.
-    getNetContributionsAll(),
+    getGlobalAdminKpis(),
   ]);
 
   return (
@@ -255,7 +257,7 @@ export default async function AdminPage({
       initialPositions={positions}
       initialHistory={history}
       initialOperations={{ operations: [], total: 0, page: 1, totalPages: 0 }}
-      initialNetContributionsGlobal={netContribGlobal.netContributions}
+      initialNetContributionsGlobal={globalKpis.patrimonioInvertido}
       activeClientName="Todos los Clientes"
       totalAccounts={accounts.length}
       invitations={invitations}
