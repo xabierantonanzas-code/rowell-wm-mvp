@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { useTheme } from "@/components/theme/ThemeContext";
 import {
   AreaChart,
   Area,
@@ -108,7 +109,7 @@ function CustomTooltip({ active, payload, label }: any) {
             <span className="font-medium text-gray-800">{formatEur(entry.value)}</span>
           </div>
         ))}
-      <div className="mt-1.5 border-t border-gray-100 pt-1.5 text-xs font-semibold text-[#3D4F63]">
+      <div className="mt-1.5 border-t border-gray-100 pt-1.5 text-xs font-semibold text-[var(--color-primary)]">
         Total: {formatEur(total)}
       </div>
     </div>
@@ -120,6 +121,7 @@ function CustomTooltip({ active, payload, label }: any) {
 // ===========================================================================
 
 export default function StrategyChart({ series }: StrategyChartProps) {
+  const { colors } = useTheme();
   // Sort series: conservadora → moderada → agresiva → otras (bottom to top)
   const sortedSeries = useMemo(
     () =>
@@ -174,7 +176,7 @@ export default function StrategyChart({ series }: StrategyChartProps) {
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm sm:p-6">
-      <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#3D4F63] sm:mb-4 sm:text-sm">
+      <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-primary)] sm:mb-4 sm:text-sm">
         Evolucion por Estrategia
       </h3>
       <div className="overflow-x-auto">
@@ -200,9 +202,9 @@ export default function StrategyChart({ series }: StrategyChartProps) {
               type="monotone"
               dataKey={s.label}
               stackId="1"
-              fill={AREA_COLORS[i % AREA_COLORS.length]}
+              fill={colors.chartColors[i % colors.chartColors.length]}
               fillOpacity={0.7}
-              stroke={AREA_COLORS[i % AREA_COLORS.length]}
+              stroke={colors.chartColors[i % colors.chartColors.length]}
               strokeWidth={1.5}
             />
           ))}

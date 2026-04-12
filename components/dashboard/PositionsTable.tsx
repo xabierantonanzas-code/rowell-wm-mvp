@@ -80,18 +80,18 @@ function PositionsSection({
 
   return (
     <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">
-      <div className="flex items-baseline justify-between border-b border-gray-100 bg-[#F5F5F5] px-4 py-2">
+      <div className="flex items-baseline justify-between border-b border-gray-100 bg-[var(--color-bg)] px-4 py-2">
         <div>
-          <h4 className="text-xs font-bold uppercase tracking-wider text-[#3D4F63]">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--color-primary)]">
             {title}
           </h4>
           <p className="text-[10px] text-gray-500">{subtitle}</p>
         </div>
-        <p className="text-xs font-bold text-[#3D4F63]">{formatEur(sectionTotal)}</p>
+        <p className="text-xs font-bold text-[var(--color-primary)]">{formatEur(sectionTotal)}</p>
       </div>
       <table className="w-full text-left text-sm">
         <thead>
-          <tr className="bg-[#3D4F63] text-[10px] uppercase text-white">
+          <tr className="bg-[var(--color-primary)] text-[10px] uppercase text-white">
             <th className="px-3 py-2 font-medium">Producto</th>
             <th className="px-3 py-2 font-medium">ISIN</th>
             <th className="px-3 py-2 text-right font-medium">Títulos</th>
@@ -133,12 +133,12 @@ function PositionsSection({
             return (
               <tr
                 key={pos.id}
-                className={`border-b border-gray-100 last:border-0 transition-colors duration-100 hover:bg-[#F5F5F5] ${
+                className={`border-b border-gray-100 last:border-0 transition-colors duration-100 hover:bg-[var(--color-bg)] ${
                   idx % 2 === 0 ? "bg-white" : "bg-gray-50/40"
                 }`}
               >
                 <td className="max-w-[200px] px-3 py-2">
-                  <p className="truncate text-xs font-semibold text-[#3D4F63]">
+                  <p className="truncate text-xs font-semibold text-[var(--color-primary)]">
                     {pos.product_name}
                   </p>
                 </td>
@@ -170,7 +170,7 @@ function PositionsSection({
                   {pnlEurApprox >= 0 ? "+" : ""}
                   {formatEur(pnlEurApprox)}
                 </td>
-                <td className="px-3 py-2 text-right text-xs font-bold text-[#3D4F63] tabular-nums">
+                <td className="px-3 py-2 text-right text-xs font-bold text-[var(--color-primary)] tabular-nums">
                   {formatEur(valueEur)}
                 </td>
                 <td className="px-3 py-2">
@@ -180,7 +180,7 @@ function PositionsSection({
                     </span>
                     <div className="h-1.5 w-12 overflow-hidden rounded-full bg-gray-100">
                       <div
-                        className="h-full rounded-full bg-[#B8965A] transition-all duration-500"
+                        className="h-full rounded-full bg-[var(--color-gold)] transition-all duration-500"
                         style={{ width: `${Math.min(weight, 100)}%` }}
                       />
                     </div>
@@ -191,8 +191,8 @@ function PositionsSection({
           })}
         </tbody>
         <tfoot>
-          <tr className="border-t-2 border-[#B8965A] bg-[#F5F5F5]">
-            <td colSpan={5} className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-[#3D4F63]">
+          <tr className="border-t-2 border-[var(--color-gold)] bg-[var(--color-bg)]">
+            <td colSpan={5} className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-[var(--color-primary)]">
               Subtotal {title}
             </td>
             <td
@@ -215,7 +215,7 @@ function PositionsSection({
               {sectionTotal - sectionCostEurApprox >= 0 ? "+" : ""}
               {formatEur(sectionTotal - sectionCostEurApprox)}
             </td>
-            <td className="px-3 py-2 text-right text-xs font-bold text-[#3D4F63] tabular-nums">
+            <td className="px-3 py-2 text-right text-xs font-bold text-[var(--color-primary)] tabular-nums">
               {formatEur(sectionTotal)}
             </td>
             <td className="px-3 py-2 text-right text-[10px] font-bold text-gray-500 tabular-nums">

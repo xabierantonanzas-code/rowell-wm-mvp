@@ -27,6 +27,14 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es" className={`${inter.variable} ${playfair.variable}`}>
+      <head>
+        {/* Anti-FOUC: apply theme class before first paint */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('rowell-theme');if(t==='modern')document.documentElement.classList.add('theme-modern');}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body className="min-h-screen bg-rowell-light font-sans antialiased">
         {children}
       </body>

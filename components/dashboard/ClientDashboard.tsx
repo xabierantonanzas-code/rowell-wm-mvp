@@ -38,6 +38,9 @@ import {
 import { computeEurCostByIsin } from "@/lib/eur-cost-fifo";
 import { classifyProduct } from "@/lib/product-type";
 import { buildProductTypeMap, resolveProductType } from "@/lib/product-type-from-ops";
+import { useTheme } from "@/components/theme/ThemeContext";
+import { AnimatedValue } from "@/components/ui/AnimatedValue";
+import { cn } from "@/lib/utils";
 
 // ===========================================================================
 // Types
@@ -160,6 +163,8 @@ function DateRangeBar({
   maxDate,
   originDate,
 }: DateRangeBarProps) {
+  const { themeName } = useTheme();
+  const isModern = themeName === "modern";
   const fromRef = useRef<HTMLInputElement>(null);
   const toRef = useRef<HTMLInputElement>(null);
 
@@ -204,7 +209,7 @@ function DateRangeBar({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Calendar className="h-4 w-4 flex-shrink-0 text-white/40" />
+      <Calendar className={cn("h-4 w-4 flex-shrink-0", isModern ? "text-gray-400" : "text-white/40")} />
       {/* Botones de periodo */}
       <div className="flex flex-wrap items-center gap-1">
         {periods.map((p) => (
@@ -212,11 +217,16 @@ function DateRangeBar({
             key={p.label}
             type="button"
             onClick={() => onChange(p.from, p.to)}
-            className={`rounded-md border px-2 py-1 text-[10px] font-semibold uppercase tracking-wider transition-colors ${
+            className={cn(
+              "rounded-md border px-2 py-1 text-[10px] font-semibold uppercase tracking-wider transition-colors",
               activeLabel === p.label
-                ? "border-[#B8965A] bg-[#B8965A] text-[#3D4F63]"
-                : "border-white/20 bg-white/10 text-white/80 hover:border-[#B8965A] hover:text-white"
-            }`}
+                ? isModern
+                  ? "border-[var(--color-gold)] bg-[var(--color-gold)] text-white"
+                  : "border-[var(--color-gold)] bg-[var(--color-gold)] text-[var(--color-primary)]"
+                : isModern
+                  ? "border-gray-300 bg-gray-100 text-gray-600 hover:border-[var(--color-gold)] hover:text-gray-900"
+                  : "border-white/20 bg-white/10 text-white/80 hover:border-[var(--color-gold)] hover:text-white"
+            )}
           >
             {p.label}
           </button>
@@ -225,6 +235,12 @@ function DateRangeBar({
       {/* Inputs nativos */}
       <div className="relative flex flex-wrap items-center gap-1.5">
         <div className="relative">
+          <span className={cn(
+            "pointer-events-none absolute -top-2 left-2 z-10 rounded px-1 text-[9px] font-medium",
+            isModern ? "bg-white text-gray-400" : "bg-[var(--color-primary)] text-white/60"
+          )}>
+            Desde
+          </span>
           <input
             ref={fromRef}
             type="date"
@@ -233,18 +249,23 @@ function DateRangeBar({
             max={dateTo || maxDate}
             onChange={(e) => onChange(e.target.value || undefined, dateTo)}
             onClick={() => openPicker(fromRef)}
-            style={{ WebkitAppearance: "auto" as any, appearance: "auto" as any }}
-            className="min-w-[125px] cursor-pointer rounded-lg border border-white/20 bg-white/10 px-2 py-2 text-xs font-medium text-white backdrop-blur-sm focus:border-[#B8965A] focus:outline-none [color-scheme:dark] sm:py-1.5"
+            className={cn(
+              "min-w-[140px] cursor-pointer rounded-lg border px-3 py-2 text-xs font-medium focus:border-[var(--color-gold)] focus:outline-none sm:py-1.5",
+              isModern
+                ? "border-gray-300 bg-white text-gray-800"
+                : "border-white/20 bg-white/10 text-white backdrop-blur-sm [color-scheme:dark]"
+            )}
             aria-label="Fecha desde"
           />
-          {!dateFrom && (
-            <span className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-xs text-white/40">
-              Desde
-            </span>
-          )}
         </div>
-        <span className="text-xs text-white/40">—</span>
+        <span className={cn("text-xs", isModern ? "text-gray-400" : "text-white/40")}>—</span>
         <div className="relative">
+          <span className={cn(
+            "pointer-events-none absolute -top-2 left-2 z-10 rounded px-1 text-[9px] font-medium",
+            isModern ? "bg-white text-gray-400" : "bg-[var(--color-primary)] text-white/60"
+          )}>
+            Hasta
+          </span>
           <input
             ref={toRef}
             type="date"
@@ -253,21 +274,25 @@ function DateRangeBar({
             max={maxDate}
             onChange={(e) => onChange(dateFrom, e.target.value || undefined)}
             onClick={() => openPicker(toRef)}
-            style={{ WebkitAppearance: "auto" as any, appearance: "auto" as any }}
-            className="min-w-[125px] cursor-pointer rounded-lg border border-white/20 bg-white/10 px-2 py-2 text-xs font-medium text-white backdrop-blur-sm focus:border-[#B8965A] focus:outline-none [color-scheme:dark] sm:py-1.5"
+            className={cn(
+              "min-w-[140px] cursor-pointer rounded-lg border px-3 py-2 text-xs font-medium focus:border-[var(--color-gold)] focus:outline-none sm:py-1.5",
+              isModern
+                ? "border-gray-300 bg-white text-gray-800"
+                : "border-white/20 bg-white/10 text-white backdrop-blur-sm [color-scheme:dark]"
+            )}
             aria-label="Fecha hasta"
           />
-          {!dateTo && (
-            <span className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-xs text-white/40">
-              Hasta
-            </span>
-          )}
         </div>
         {(dateFrom || dateTo) && (
           <button
             type="button"
             onClick={() => onChange(undefined, undefined)}
-            className="rounded-lg bg-white/10 px-2 py-2 text-xs font-medium text-white/70 transition-colors hover:bg-white/20 sm:py-1.5"
+            className={cn(
+              "rounded-lg px-2 py-2 text-xs font-medium transition-colors sm:py-1.5",
+              isModern
+                ? "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                : "bg-white/10 text-white/70 hover:bg-white/20"
+            )}
           >
             Limpiar
           </button>
@@ -297,25 +322,29 @@ function getOpColor(type: string | null): string {
 // Sub-components: Section header (replica del estilo del informe)
 // ===========================================================================
 
-function SectionHeader({
-  number,
-  title,
-}: {
-  number: string;
-  title: string;
-}) {
+function SectionHeader({ number, title }: { number: string; title: string }) {
+  const { themeName } = useTheme();
+  const isModern = themeName === "modern";
   return (
     <div className="relative mb-4 mt-2 sm:mb-6">
-      <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-[#3D4F63] to-[#2a5080] opacity-90" />
-      <h2 className="relative px-4 py-2.5 font-display text-sm font-bold text-white sm:px-6 sm:py-3 sm:text-lg">
-        {number}. {title}
-      </h2>
+      {isModern ? (
+        <h2 className="border-l-4 border-[var(--color-gold)] px-4 py-2.5 text-sm font-bold text-gray-900 sm:px-6 sm:py-3 sm:text-lg">
+          {number}. {title}
+        </h2>
+      ) : (
+        <>
+          <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] opacity-90" />
+          <h2 className="relative px-4 py-2.5 font-display text-sm font-bold text-white sm:px-6 sm:py-3 sm:text-lg">
+            {number}. {title}
+          </h2>
+        </>
+      )}
     </div>
   );
 }
 
 function SectionDivider() {
-  return <div className="my-5 h-px bg-gradient-to-r from-transparent via-[#B8965A]/40 to-transparent sm:my-8" />;
+  return <div className="my-5 h-px bg-gradient-to-r from-transparent via-[var(--color-gold-40)] to-transparent sm:my-8" />;
 }
 
 // ===========================================================================
@@ -362,53 +391,70 @@ function InvestorProfileCard({
   const rentabPositive = rentabilidadAcumEur >= 0;
   const isinCount = new Set(positions.map((p) => p.isin).filter(Boolean)).size;
 
-  const kpis = [
+  const kpis: {
+    label: string;
+    rawValue: number;
+    format: (v: number) => string;
+    prefix?: string;
+    sub: string;
+    accent: boolean;
+    positive?: boolean;
+  }[] = [
     {
       label: "Patrimonio total",
-      value: formatEur(patrimonioTotal),
+      rawValue: patrimonioTotal,
+      format: formatEur,
       sub: `Cartera + efectivo`,
       accent: false,
     },
     {
       label: "Valor cartera",
-      value: formatEur(totalValue),
+      rawValue: totalValue,
+      format: formatEur,
       sub: `${fundCount} posiciones`,
       accent: false,
     },
     {
       label: "Efectivo disponible",
-      value: formatEur(cashBalance),
+      rawValue: cashBalance,
+      format: formatEur,
       sub: "Liquidez",
       accent: false,
     },
     {
       label: "% Efectivo",
-      value: `${cashPct.toFixed(1)}%`,
+      rawValue: cashPct,
+      format: (v) => `${v.toFixed(1)}%`,
       sub: "Sobre patrimonio total",
       accent: false,
     },
     {
       label: "Patrimonio invertido",
-      value: formatEur(netContributions),
+      rawValue: netContributions,
+      format: formatEur,
       sub: "Aportaciones netas reales",
       accent: false,
     },
     {
       label: "Rentabilidad acumulada",
-      value: `${rentabPositive ? "+" : ""}${formatEur(rentabilidadAcumEur)}`,
+      rawValue: rentabilidadAcumEur,
+      format: formatEur,
+      prefix: rentabPositive ? "+" : "",
       sub: `${rentabPositive ? "+" : ""}${rentabilidadAcumPct.toFixed(2)}% sobre invertido`,
       accent: true,
       positive: rentabPositive,
     },
     {
       label: "N° fondos",
-      value: String(fundCount),
+      rawValue: fundCount,
+      format: (v) => String(Math.round(v)),
       sub: latestDate,
       accent: false,
     },
     {
       label: "N° ISINs",
-      value: String(isinCount),
+      rawValue: isinCount,
+      format: (v) => String(Math.round(v)),
       sub: `${isinCount} instrumentos unicos`,
       accent: false,
     },
@@ -422,7 +468,7 @@ function InvestorProfileCard({
           className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md sm:p-5"
           style={{ animationDelay: `${i * 80}ms` }}
         >
-          <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#B8965A] to-[#E8C870] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+          <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[var(--color-gold)] to-[var(--color-gold-soft)] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
           <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-gray-400 sm:mb-2 sm:text-xs">
             {kpi.label}
           </p>
@@ -432,10 +478,14 @@ function InvestorProfileCard({
                 ? kpi.positive
                   ? "text-green-600"
                   : "text-red-600"
-                : "text-[#3D4F63]"
+                : "text-[var(--color-primary)]"
             }`}
           >
-            {kpi.value}
+            <AnimatedValue
+              value={kpi.rawValue}
+              format={kpi.format}
+              prefix={kpi.prefix}
+            />
           </p>
           <p className="mt-0.5 text-[10px] text-gray-400 sm:mt-1 sm:text-xs">{kpi.sub}</p>
         </div>
@@ -459,15 +509,15 @@ function TopHoldings({ positions }: { positions: Position[] }) {
   return (
     <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
       <div className="border-b border-gray-100 px-6 py-4">
-        <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-[#3D4F63]">
-          <Target className="h-4 w-4 text-[#B8965A]" />
+        <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-[var(--color-primary)]">
+          <Target className="h-4 w-4 text-[var(--color-gold)]" />
           Top 10 Posiciones
         </h3>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead>
-            <tr className="bg-[#3D4F63] text-xs uppercase text-white">
+            <tr className="bg-[var(--color-table-header-bg)] text-xs uppercase text-[var(--color-table-header-text)]">
               <th className="px-4 py-2.5 font-medium">Producto</th>
               <th className="px-4 py-2.5 font-medium">Gestora</th>
               <th className="px-4 py-2.5 text-right font-medium">Valor</th>
@@ -487,17 +537,17 @@ function TopHoldings({ positions }: { positions: Position[] }) {
               return (
                 <tr
                   key={pos.id}
-                  className={`border-b border-gray-100 last:border-0 transition-colors hover:bg-[#F5F5F5] ${
+                  className={`border-b border-gray-100 last:border-0 transition-colors hover:bg-[var(--color-bg)] ${
                     idx % 2 === 0 ? "bg-white" : "bg-gray-50/40"
                   }`}
                 >
-                  <td className="max-w-[200px] truncate px-4 py-2.5 text-xs font-semibold text-[#3D4F63]">
+                  <td className="max-w-[200px] truncate px-4 py-2.5 text-xs font-semibold text-[var(--color-primary)]">
                     {pos.product_name}
                   </td>
                   <td className="max-w-[120px] truncate px-4 py-2.5 text-xs text-gray-500">
                     {pos.manager ?? "—"}
                   </td>
-                  <td className="px-4 py-2.5 text-right text-xs font-bold text-[#3D4F63]">
+                  <td className="px-4 py-2.5 text-right text-xs font-bold text-[var(--color-primary)]">
                     {formatEur(pos.position_value ?? 0)}
                   </td>
                   <td className="px-4 py-2.5">
@@ -507,7 +557,7 @@ function TopHoldings({ positions }: { positions: Position[] }) {
                       </span>
                       <div className="h-1.5 w-12 overflow-hidden rounded-full bg-gray-100">
                         <div
-                          className="h-full rounded-full bg-[#B8965A] transition-all duration-500"
+                          className="h-full rounded-full bg-[var(--color-gold)] transition-all duration-500"
                           style={{ width: `${Math.min(weight, 100)}%` }}
                         />
                       </div>
@@ -566,8 +616,8 @@ function AssetDistribution({ positions }: { positions: Position[] }) {
     <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
       {/* Por Gestora - estilo informe con tabla + donut */}
       <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
-        <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#3D4F63] sm:mb-4 sm:text-sm">
-          <PieChartIcon className="h-4 w-4 text-[#B8965A]" />
+        <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-primary)] sm:mb-4 sm:text-sm">
+          <PieChartIcon className="h-4 w-4 text-[var(--color-gold)]" />
           Distribucion por Gestora
         </h3>
         <div className="flex items-center gap-4">
@@ -613,8 +663,8 @@ function AssetDistribution({ positions }: { positions: Position[] }) {
 
       {/* Por Moneda */}
       <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
-        <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#3D4F63] sm:mb-4 sm:text-sm">
-          <Target className="h-4 w-4 text-[#B8965A]" />
+        <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-primary)] sm:mb-4 sm:text-sm">
+          <Target className="h-4 w-4 text-[var(--color-gold)]" />
           Distribucion por Moneda
         </h3>
         <div className="flex items-center gap-4">
@@ -677,7 +727,7 @@ function PortfolioTable({ positions }: { positions: Position[] }) {
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead>
-            <tr className="bg-[#3D4F63] text-xs uppercase text-white">
+            <tr className="bg-[var(--color-table-header-bg)] text-xs uppercase text-[var(--color-table-header-text)]">
               <th className="px-3 py-2.5 font-medium">Producto</th>
               <th className="px-3 py-2.5 font-medium">ISIN</th>
               <th className="px-3 py-2.5 font-medium">Gestora</th>
@@ -701,7 +751,7 @@ function PortfolioTable({ positions }: { positions: Position[] }) {
                   key={pos.id}
                   className={`border-b border-gray-100 last:border-0 ${
                     idx % 2 === 0 ? "bg-white" : "bg-gray-50/50"
-                  } hover:bg-[#F5F5F5]`}
+                  } hover:bg-[var(--color-bg)]`}
                 >
                   <td className="max-w-[180px] truncate px-3 py-2 text-xs font-medium text-gray-800">
                     {pos.product_name}
@@ -726,7 +776,7 @@ function PortfolioTable({ positions }: { positions: Position[] }) {
                   }`}>
                     {pnl >= 0 ? "+" : ""}{pnlPct.toFixed(2)}%
                   </td>
-                  <td className="px-3 py-2 text-right text-xs font-semibold text-[#3D4F63]">
+                  <td className="px-3 py-2 text-right text-xs font-semibold text-[var(--color-primary)]">
                     {formatEur(pos.position_value ?? 0)}
                   </td>
                   <td className="px-3 py-2 text-right text-xs text-gray-500">
@@ -737,8 +787,8 @@ function PortfolioTable({ positions }: { positions: Position[] }) {
             })}
           </tbody>
           <tfoot>
-            <tr className="border-t-2 border-[#B8965A] bg-[#F5F5F5]">
-              <td colSpan={6} className="px-3 py-2.5 text-right text-xs font-bold uppercase text-[#3D4F63]">
+            <tr className="border-t-2 border-[var(--color-gold)] bg-[var(--color-bg)]">
+              <td colSpan={6} className="px-3 py-2.5 text-right text-xs font-bold uppercase text-[var(--color-primary)]">
                 Total
               </td>
               <td className={`px-3 py-2.5 text-right text-xs font-bold ${
@@ -748,7 +798,7 @@ function PortfolioTable({ positions }: { positions: Position[] }) {
                   ? `${totalValue - totalCost >= 0 ? "+" : ""}${(((totalValue - totalCost) / totalCost) * 100).toFixed(2)}%`
                   : "\u2014"}
               </td>
-              <td className="px-3 py-2.5 text-right text-xs font-bold text-[#3D4F63]">
+              <td className="px-3 py-2.5 text-right text-xs font-bold text-[var(--color-primary)]">
                 {formatEur(totalValue)}
               </td>
               <td className="px-3 py-2.5 text-right text-xs font-bold text-gray-500">
@@ -777,6 +827,8 @@ export default function ClientDashboard({
   backHref,
   isAdmin = false,
 }: ClientDashboardProps) {
+  const { themeName, colors } = useTheme();
+  const isModern = themeName === "modern";
   const [selectedAccountId, setSelectedAccountId] = useState<string | "all">(
     accounts.length === 1 ? accounts[0].id : "all"
   );
@@ -1182,32 +1234,36 @@ export default function ClientDashboard({
       {/* ================================================================= */}
       {/* PORTADA / HEADER - estilo informe Rowell                          */}
       {/* ================================================================= */}
-      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[#3D4F63] to-[#293544] px-4 py-5 text-white shadow-lg sm:px-8 sm:py-8">
+      <div className={cn("relative overflow-hidden rounded-xl px-4 py-5 shadow-lg sm:px-8 sm:py-8", isModern ? "border border-gray-200 bg-white text-gray-900 shadow-sm" : "bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary-dark)] text-white")}>
         {/* Decorative elements */}
-        <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-[#B8965A]/10" />
-        <div className="absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-[#B8965A]/5" />
+        {!isModern && (
+          <>
+            <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-[var(--color-gold-10)]" />
+            <div className="absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-[var(--color-gold-10)]" />
+          </>
+        )}
 
         <div className="relative">
           {/* Title row */}
           <div>
             {showBackLink && backHref && (
-              <a href={backHref} className="mb-3 flex items-center gap-1 text-sm text-white/50 hover:text-white/80">
+              <a href={backHref} className={cn("mb-3 flex items-center gap-1 text-sm", isModern ? "text-gray-400 hover:text-gray-600" : "text-white/50 hover:text-white/80")}>
                 <ChevronLeft className="h-4 w-4" /> Volver
               </a>
             )}
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#B8965A]/20 sm:h-12 sm:w-12">
-                <User className="h-5 w-5 text-[#B8965A] sm:h-6 sm:w-6" />
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[var(--color-gold-20)] sm:h-12 sm:w-12">
+                <User className="h-5 w-5 text-[var(--color-gold)] sm:h-6 sm:w-6" />
               </div>
               <div className="min-w-0">
-                <p className="text-[10px] font-medium uppercase tracking-widest text-[#B8965A] sm:text-xs">
+                <p className="text-[10px] font-medium uppercase tracking-widest text-[var(--color-gold)] sm:text-xs">
                   Informe de Cartera
                 </p>
                 <h1 className="truncate font-display text-xl font-bold sm:text-3xl">{clientName}</h1>
               </div>
             </div>
             {selectedAccountId !== "all" && (
-              <p className="mt-1 font-mono text-[10px] text-white/40 sm:mt-2 sm:text-xs">
+              <p className={cn("mt-1 font-mono text-[10px] sm:mt-2 sm:text-xs", isModern ? "text-gray-400" : "text-white/40")}>
                 {accounts.find((a) => a.id === selectedAccountId)?.account_number ?? ""}
               </p>
             )}
@@ -1217,11 +1273,16 @@ export default function ClientDashboard({
           <div className="mt-4 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
             {accounts.length > 1 && (
               <div className="flex items-center gap-1.5">
-                <Briefcase className="h-4 w-4 flex-shrink-0 text-white/40" />
+                <Briefcase className={cn("h-4 w-4 flex-shrink-0", isModern ? "text-gray-400" : "text-white/40")} />
                 <select
                   value={selectedAccountId}
                   onChange={(e) => handleAccountChange(e.target.value)}
-                  className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-xs font-medium text-white backdrop-blur-sm focus:border-[#B8965A] focus:outline-none sm:w-auto sm:py-1.5"
+                  className={cn(
+                    "w-full rounded-lg border px-3 py-2 text-xs font-medium focus:border-[var(--color-gold)] focus:outline-none sm:w-auto sm:py-1.5",
+                    isModern
+                      ? "border-gray-300 bg-white text-gray-900"
+                      : "border-white/20 bg-white/10 text-white backdrop-blur-sm"
+                  )}
                 >
                   <option value="all" className="text-gray-800">Todas las carteras</option>
                   {accounts.map((acc) => (
@@ -1244,16 +1305,17 @@ export default function ClientDashboard({
             {/* TWR / MWR toggle (Edgard MVP6 #11: todos los selectores
                 en la barra inicial) */}
             <div className="flex items-center gap-1.5">
-              <TrendingUp className="h-4 w-4 flex-shrink-0 text-white/40" />
-              <div className="flex overflow-hidden rounded-lg border border-white/20">
+              <TrendingUp className={cn("h-4 w-4 flex-shrink-0", isModern ? "text-gray-400" : "text-white/40")} />
+              <div className={cn("flex overflow-hidden rounded-lg border", isModern ? "border-gray-300" : "border-white/20")}>
                 <button
                   type="button"
                   onClick={() => setReturnMethod("twr")}
-                  className={`px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider transition-colors ${
+                  className={cn(
+                    "px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider transition-colors",
                     returnMethod === "twr"
-                      ? "bg-[#B8965A] text-[#3D4F63]"
-                      : "bg-white/10 text-white/70 hover:bg-white/20"
-                  }`}
+                      ? isModern ? "bg-[var(--color-gold)] text-white" : "bg-[var(--color-gold)] text-[var(--color-primary)]"
+                      : isModern ? "bg-gray-100 text-gray-600 hover:bg-gray-200" : "bg-white/10 text-white/70 hover:bg-white/20"
+                  )}
                   title="Time Weighted Return - independiente de aportaciones"
                 >
                   TWR
@@ -1261,11 +1323,12 @@ export default function ClientDashboard({
                 <button
                   type="button"
                   onClick={() => setReturnMethod("mwr")}
-                  className={`px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider transition-colors ${
+                  className={cn(
+                    "px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider transition-colors",
                     returnMethod === "mwr"
-                      ? "bg-[#B8965A] text-[#3D4F63]"
-                      : "bg-white/10 text-white/70 hover:bg-white/20"
-                  }`}
+                      ? isModern ? "bg-[var(--color-gold)] text-white" : "bg-[var(--color-gold)] text-[var(--color-primary)]"
+                      : isModern ? "bg-gray-100 text-gray-600 hover:bg-gray-200" : "bg-white/10 text-white/70 hover:bg-white/20"
+                  )}
                   title="Money Weighted Return - ponderada por capital"
                 >
                   MWR
@@ -1310,39 +1373,39 @@ export default function ClientDashboard({
               key={r.period}
               className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md sm:p-4"
             >
-              <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#B8965A] to-[#E8C870] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+              <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[var(--color-gold)] to-[var(--color-gold-soft)] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
               <p className="text-[9px] font-medium uppercase tracking-wider text-gray-400 sm:text-[10px]">
                 {returnMethod === "twr" ? "TWR" : "MWR"} {r.period}
               </p>
               <p className={`mt-0.5 text-base font-bold sm:mt-1 sm:text-lg ${r.returnPct >= 0 ? "text-green-600" : "text-red-600"}`}>
-                {r.returnPct >= 0 ? "+" : ""}{r.returnPct.toFixed(2)}%
+                <AnimatedValue value={r.returnPct} format={(v) => `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`} />
               </p>
               <p className="text-[9px] text-gray-400 sm:text-[10px]">
-                {r.returnEur >= 0 ? "+" : ""}{formatEur(r.returnEur)}
+                <AnimatedValue value={r.returnEur} format={(v) => `${v >= 0 ? "+" : ""}${formatEur(v)}`} />
               </p>
             </div>
           ))}
           {/* Plusvalía total económica */}
           <div className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md sm:p-4">
-            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#B8965A] to-[#E8C870] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[var(--color-gold)] to-[var(--color-gold-soft)] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
             <p className="text-[9px] font-medium uppercase tracking-wider text-gray-400 sm:text-[10px]">Plusvalia total economica</p>
             <p className={`mt-0.5 text-base font-bold sm:mt-1 sm:text-lg ${plusvaliaTotalEco >= 0 ? "text-green-600" : "text-red-600"}`}>
-              {plusvaliaTotalEco >= 0 ? "+" : ""}{formatEur(plusvaliaTotalEco)}
+              <AnimatedValue value={plusvaliaTotalEco} format={(v) => `${v >= 0 ? "+" : ""}${formatEur(v)}`} />
             </p>
             <p className="text-[9px] text-gray-400 sm:text-[10px]">Patrimonio - aportaciones netas</p>
           </div>
           {/* Concentración */}
           <div className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md sm:p-4">
-            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#B8965A] to-[#E8C870] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[var(--color-gold)] to-[var(--color-gold-soft)] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
             <p className="text-[9px] font-medium uppercase tracking-wider text-gray-400 sm:text-[10px]">Concentracion</p>
-            <p className="mt-0.5 text-base font-bold text-[#3D4F63] sm:mt-1 sm:text-lg">Top 5: {concTop5.toFixed(1)}%</p>
+            <p className="mt-0.5 text-base font-bold text-[var(--color-primary)] sm:mt-1 sm:text-lg">Top 5: <AnimatedValue value={concTop5} format={(v) => `${v.toFixed(1)}%`} /></p>
             <p className="text-[9px] text-gray-400 sm:text-[10px]">Top 10: {concTop10.toFixed(1)}%</p>
           </div>
           {/* Comisiones + Retenciones */}
           <div className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md sm:p-4">
-            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#B8965A] to-[#E8C870] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[var(--color-gold)] to-[var(--color-gold-soft)] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
             <p className="text-[9px] font-medium uppercase tracking-wider text-gray-400 sm:text-[10px]">Costes acumulados</p>
-            <p className="mt-0.5 text-base font-bold text-[#3D4F63] sm:mt-1 sm:text-lg">{formatEur(totalCommissions + totalRetentions)}</p>
+            <p className="mt-0.5 text-base font-bold text-[var(--color-primary)] sm:mt-1 sm:text-lg"><AnimatedValue value={totalCommissions + totalRetentions} format={formatEur} /></p>
             <p className="text-[9px] text-gray-400 sm:text-[10px]">
               Com: {formatEur(totalCommissions)} · Ret: {formatEur(totalRetentions)}
             </p>
@@ -1405,7 +1468,7 @@ export default function ClientDashboard({
           onClick={() => setActiveTab("cartera")}
           className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all ${
             activeTab === "cartera"
-              ? "bg-white text-[#3D4F63] shadow-sm"
+              ? "bg-white text-[var(--color-primary)] shadow-sm"
               : "text-gray-500 hover:text-gray-700"
           }`}
         >
@@ -1416,7 +1479,7 @@ export default function ClientDashboard({
           onClick={() => setActiveTab("operaciones")}
           className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all ${
             activeTab === "operaciones"
-              ? "bg-white text-[#3D4F63] shadow-sm"
+              ? "bg-white text-[var(--color-primary)] shadow-sm"
               : "text-gray-500 hover:text-gray-700"
           }`}
         >
@@ -1438,7 +1501,7 @@ export default function ClientDashboard({
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead>
-                    <tr className="bg-[#3D4F63] text-xs uppercase text-white">
+                    <tr className="bg-[var(--color-table-header-bg)] text-xs uppercase text-[var(--color-table-header-text)]">
                       <th className="w-8 px-3 py-2.5"></th>
                       <th className="px-3 py-2.5 font-medium">Fecha</th>
                       <th className="px-3 py-2.5 font-medium">Tipo</th>
@@ -1453,7 +1516,7 @@ export default function ClientDashboard({
                         key={op.id}
                         className={`border-b border-gray-100 last:border-0 ${
                           idx % 2 === 0 ? "bg-white" : "bg-gray-50/50"
-                        } hover:bg-[#F5F5F5]`}
+                        } hover:bg-[var(--color-bg)]`}
                       >
                         <td className="px-3 py-2">{getOpIcon(op.operation_type)}</td>
                         <td className="px-3 py-2 font-mono text-xs">{formatDate(op.operation_date)}</td>
@@ -1518,9 +1581,9 @@ export default function ClientDashboard({
       {/* Footer branding                                                    */}
       {/* ================================================================= */}
       <div className="mt-8 flex items-center justify-center gap-2 pb-4 text-xs text-gray-400">
-        <div className="h-px w-12 bg-[#B8965A]/30" />
-        <span className="font-display font-semibold text-[#B8965A]/60">Rowell Patrimonios</span>
-        <div className="h-px w-12 bg-[#B8965A]/30" />
+        <div className="h-px w-12 bg-[var(--color-gold-30)]" />
+        <span className="font-display font-semibold text-[var(--color-gold)]/60">Rowell Patrimonios</span>
+        <div className="h-px w-12 bg-[var(--color-gold-30)]" />
       </div>
     </div>
   );

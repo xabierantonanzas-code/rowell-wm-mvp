@@ -49,6 +49,8 @@ import {
 import { classifyFlow, flowAmountEur } from "@/lib/operations-taxonomy";
 import { computeEurCostByIsin } from "@/lib/eur-cost-fifo";
 import { buildProductTypeMap } from "@/lib/product-type-from-ops";
+import { useTheme } from "@/components/theme/ThemeContext";
+import { AnimatedValue } from "@/components/ui/AnimatedValue";
 
 // ===========================================================================
 // Types
@@ -158,9 +160,6 @@ function getOpColor(type: string | null): string {
 // Sub-component: Client Dropdown with search
 // ===========================================================================
 
-// MVP6 P2.4: paginacion client-side de 25 en el dropdown del admin.
-const CLIENTS_PAGE_SIZE = 25;
-
 function ClientDropdown({
   clients,
   filteredClients,
@@ -179,18 +178,10 @@ function ClientDropdown({
   onSelect: (id: string | null) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [page, setPage] = useState(1);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Reset page cuando cambia la query de busqueda
-  useEffect(() => {
-    setPage(1);
-  }, [searchQuery]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredClients.length / CLIENTS_PAGE_SIZE));
-  const pageStart = (page - 1) * CLIENTS_PAGE_SIZE;
-  const pageItems = filteredClients.slice(pageStart, pageStart + CLIENTS_PAGE_SIZE);
+  const pageItems = filteredClients;
 
   // Close on outside click
   useEffect(() => {
@@ -223,14 +214,14 @@ function ClientDropdown({
       {/* Trigger button */}
       <button
         onClick={() => { setOpen(!open); setSearchQuery(""); }}
-        className="flex w-full items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm transition-all hover:border-[#B8965A]/50 hover:shadow-md"
+        className="flex w-full items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm transition-all hover:border-[var(--color-gold-50)] hover:shadow-md"
       >
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#3D4F63]/5">
-            <Users className="h-4 w-4 text-[#3D4F63]" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--color-primary-5)]">
+            <Users className="h-4 w-4 text-[var(--color-primary)]" />
           </div>
           <div className="text-left">
-            <p className="text-sm font-semibold text-[#3D4F63]">{selectedName}</p>
+            <p className="text-sm font-semibold text-[var(--color-primary)]">{selectedName}</p>
             <p className="text-xs text-gray-400">
               {selectedAccounts} cartera{selectedAccounts !== 1 ? "s" : ""} · {clients.length} clientes total
             </p>
@@ -246,7 +237,7 @@ function ClientDropdown({
 
       {/* Dropdown panel */}
       {open && (
-        <div className="absolute left-0 right-0 z-50 mt-2 max-h-[420px] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl">
+        <div className="absolute left-0 right-0 z-50 mt-2 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl">
           {/* Search input */}
           <div className="border-b border-gray-100 p-3">
             <div className="relative">
@@ -257,29 +248,29 @@ function ClientDropdown({
                 placeholder="Buscar por nombre, alias o cuenta..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-10 pr-3 text-sm text-gray-700 placeholder:text-gray-400 focus:border-[#B8965A] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#B8965A]"
+                className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-10 pr-3 text-sm text-gray-700 placeholder:text-gray-400 focus:border-[var(--color-gold)] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[var(--color-gold)]"
               />
             </div>
           </div>
 
           {/* Options list */}
-          <div className="max-h-[340px] overflow-y-auto">
+          <div className="max-h-[70vh] overflow-y-auto scrollbar-thin">
             {/* "Todos" option */}
             <button
               onClick={() => { onSelect(null); setOpen(false); }}
-              className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-[#F5F5F5] ${
-                !selectedClient ? "bg-[#3D4F63]/5" : ""
+              className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-[var(--color-bg)] ${
+                !selectedClient ? "bg-[var(--color-primary-5)]" : ""
               }`}
             >
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#B8965A]/10">
-                <Users className="h-4 w-4 text-[#B8965A]" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-gold-10)]">
+                <Users className="h-4 w-4 text-[var(--color-gold)]" />
               </div>
               <div className="flex-1">
-                <p className="text-sm font-medium text-[#3D4F63]">Todos los clientes</p>
+                <p className="text-sm font-medium text-[var(--color-primary)]">Todos los clientes</p>
                 <p className="text-xs text-gray-400">{totalAccounts} cuentas</p>
               </div>
               {!selectedClient && (
-                <div className="h-2 w-2 rounded-full bg-[#B8965A]" />
+                <div className="h-2 w-2 rounded-full bg-[var(--color-gold)]" />
               )}
             </button>
 
@@ -294,11 +285,11 @@ function ClientDropdown({
                 <button
                   key={client.id}
                   onClick={() => { onSelect(client.id); setOpen(false); }}
-                  className={`flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-[#F5F5F5] ${
-                    selectedClient === client.id ? "bg-[#3D4F63]/5" : ""
+                  className={`flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-[var(--color-bg)] ${
+                    selectedClient === client.id ? "bg-[var(--color-primary-5)]" : ""
                   }`}
                 >
-                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#3D4F63]/5 text-xs font-semibold text-[#3D4F63]">
+                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[var(--color-primary-5)] text-xs font-semibold text-[var(--color-primary)]">
                     {client.name.slice(0, 2).toUpperCase()}
                   </div>
                   <div className="min-w-0 flex-1">
@@ -311,41 +302,12 @@ function ClientDropdown({
                     </p>
                   </div>
                   {selectedClient === client.id && (
-                    <div className="h-2 w-2 flex-shrink-0 rounded-full bg-[#B8965A]" />
+                    <div className="h-2 w-2 flex-shrink-0 rounded-full bg-[var(--color-gold)]" />
                   )}
                 </button>
               ))
             )}
           </div>
-          {/* Paginacion 25 (MVP6 P2.4) */}
-          {filteredClients.length > CLIENTS_PAGE_SIZE && (
-            <div className="flex items-center justify-between border-t border-gray-100 bg-gray-50 px-3 py-2 text-xs text-gray-500">
-              <span>
-                {pageStart + 1}-{Math.min(pageStart + CLIENTS_PAGE_SIZE, filteredClients.length)} de {filteredClients.length}
-              </span>
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  className="rounded border border-gray-200 bg-white px-2 py-1 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  ‹
-                </button>
-                <span className="px-2 tabular-nums">
-                  {page} / {totalPages}
-                </span>
-                <button
-                  type="button"
-                  disabled={page >= totalPages}
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  className="rounded border border-gray-200 bg-white px-2 py-1 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  ›
-                </button>
-              </div>
-            </div>
-          )}
         </div>
       )}
     </div>
@@ -377,6 +339,7 @@ export default function AdminDashboard({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { isOwner: currentUserIsOwner } = useUser();
+  const { colors } = useTheme();
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
 
   // State
@@ -671,10 +634,11 @@ export default function AdminDashboard({
     netContributions > 0 ? (rentabAcumEur / netContributions) * 100 : 0;
   const rentabPositive = rentabAcumEur >= 0;
 
-  const kpis = [
+  const kpis: { label: string; rawValue?: number; format?: (v: number) => string; prefix?: string; textValue?: string; sub: string; accent: boolean; positive?: boolean }[] = [
     {
       label: selectedClient ? "Valor cartera" : "AUM Total",
-      value: formatEur(totalValue),
+      rawValue: totalValue,
+      format: formatEur,
       sub: selectedClient
         ? `${positions.length} posiciones`
         : `${aumData.totalAccounts} cuentas`,
@@ -682,45 +646,52 @@ export default function AdminDashboard({
     },
     {
       label: "Patrimonio invertido",
-      value: formatEur(netContributions),
+      rawValue: netContributions,
+      format: formatEur,
       sub: "Aportaciones netas reales",
       accent: false,
     },
     {
       label: "Rentabilidad acumulada",
-      value: `${rentabPositive ? "+" : ""}${formatEur(rentabAcumEur)}`,
+      rawValue: rentabAcumEur,
+      format: formatEur,
+      prefix: rentabPositive ? "+" : "",
       sub: `${rentabPositive ? "+" : ""}${rentabAcumPct.toFixed(2)}% sobre invertido`,
       accent: true,
       positive: rentabPositive,
     },
     {
       label: "Plusvalia latente (coste)",
-      value: `${pnl >= 0 ? "+" : ""}${pnl.toFixed(2)}%`,
+      rawValue: pnl,
+      format: (v) => `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`,
       sub: `Sobre coste medio en divisa origen`,
       accent: true,
       positive: pnl >= 0,
     },
     {
       label: "N° fondos",
-      value: String(positions.length),
+      rawValue: positions.length,
+      format: (v) => String(Math.round(v)),
       sub: "Activos en cartera",
       accent: false,
     },
     {
       label: "N° ISINs",
-      value: String(isinCount),
+      rawValue: isinCount,
+      format: (v) => String(Math.round(v)),
       sub: `${isinCount} instrumentos unicos`,
       accent: false,
     },
     {
       label: "Clientes",
-      value: String(clients.length),
+      rawValue: clients.length,
+      format: (v) => String(Math.round(v)),
       sub: `${totalAccounts} cuentas totales`,
       accent: false,
     },
     {
       label: "Ultimo corte",
-      value: latestDate,
+      textValue: latestDate,
       sub: dateFrom || dateTo ? `${dateFrom ?? "..."} — ${dateTo ?? "..."}` : "Todos los periodos",
       accent: false,
     },
@@ -755,39 +726,33 @@ export default function AdminDashboard({
         <div className="flex flex-wrap items-center gap-1.5">
           <Calendar className="h-4 w-4 flex-shrink-0 text-gray-400" />
           <div className="relative">
+            <span className="pointer-events-none absolute -top-2 left-2 z-10 rounded bg-white px-1 text-[9px] font-medium text-gray-400">
+              Desde
+            </span>
             <input
               type="date"
               value={dateFrom ?? ""}
               min={availableDateRange?.minDate}
               max={dateTo || availableDateRange?.maxDate}
               onChange={(e) => handleDateChange(e.target.value || undefined, dateTo)}
-              style={{ WebkitAppearance: "auto" as any, appearance: "auto" as any }}
-              className="min-w-[125px] cursor-pointer rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs font-medium text-gray-700 shadow-sm focus:border-rowell-navy focus:outline-none focus:ring-1 focus:ring-rowell-navy sm:py-1.5"
+              className="min-w-[140px] cursor-pointer rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 shadow-sm focus:border-[var(--color-gold)] focus:outline-none focus:ring-1 focus:ring-[var(--color-gold)] sm:py-1.5"
               aria-label="Fecha desde"
             />
-            {!dateFrom && (
-              <span className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-xs text-gray-400">
-                Desde
-              </span>
-            )}
           </div>
           <span className="text-xs text-gray-400">—</span>
           <div className="relative">
+            <span className="pointer-events-none absolute -top-2 left-2 z-10 rounded bg-white px-1 text-[9px] font-medium text-gray-400">
+              Hasta
+            </span>
             <input
               type="date"
               value={dateTo ?? ""}
               min={dateFrom || availableDateRange?.minDate}
               max={availableDateRange?.maxDate}
               onChange={(e) => handleDateChange(dateFrom, e.target.value || undefined)}
-              style={{ WebkitAppearance: "auto" as any, appearance: "auto" as any }}
-              className="min-w-[125px] cursor-pointer rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs font-medium text-gray-700 shadow-sm focus:border-rowell-navy focus:outline-none focus:ring-1 focus:ring-rowell-navy sm:py-1.5"
+              className="min-w-[140px] cursor-pointer rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 shadow-sm focus:border-[var(--color-gold)] focus:outline-none focus:ring-1 focus:ring-[var(--color-gold)] sm:py-1.5"
               aria-label="Fecha hasta"
             />
-            {!dateTo && (
-              <span className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-xs text-gray-400">
-                Hasta
-              </span>
-            )}
           </div>
           {(dateFrom || dateTo) && (
             <button
@@ -818,9 +783,9 @@ export default function AdminDashboard({
         </div>
         <button
           onClick={() => setInviteModalOpen(true)}
-          className="flex flex-shrink-0 items-center gap-2 rounded-xl border border-[#B8965A]/30 bg-[#B8965A]/10 px-4 py-3 text-sm font-medium text-[#3D4F63] transition-colors hover:bg-[#B8965A]/20"
+          className="flex flex-shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border border-[var(--color-gold-30)] bg-[var(--color-gold-10)] px-4 py-3 text-sm font-medium text-[var(--color-primary)] transition-colors hover:bg-[var(--color-gold-20)]"
         >
-          <Mail className="h-4 w-4 text-[#B8965A]" />
+          <Mail className="h-4 w-4 text-[var(--color-gold)]" />
           <span className="hidden sm:inline">Invitar cliente</span>
         </button>
       </div>
@@ -849,7 +814,7 @@ export default function AdminDashboard({
             onClick={() => handleAccountChange("all")}
             className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
               selectedAccountId === "all"
-                ? "bg-[#3D4F63] text-white shadow-sm"
+                ? "bg-[var(--color-primary)] text-white shadow-sm"
                 : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}
           >
@@ -861,7 +826,7 @@ export default function AdminDashboard({
               onClick={() => handleAccountChange(acc.id)}
               className={`rounded-lg px-3 py-1.5 text-left text-xs font-medium transition-all ${
                 selectedAccountId === acc.id
-                  ? "bg-[#3D4F63] text-white shadow-sm"
+                  ? "bg-[var(--color-primary)] text-white shadow-sm"
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
             >
@@ -893,7 +858,7 @@ export default function AdminDashboard({
             className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
             style={{ animationDelay: `${i * 80}ms` }}
           >
-            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#B8965A] to-[#E8C870] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[var(--color-gold)] to-[var(--color-gold-soft)] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
             <p className="mb-2 text-xs font-medium uppercase tracking-wider text-gray-400">
               {kpi.label}
             </p>
@@ -903,10 +868,14 @@ export default function AdminDashboard({
                   ? kpi.positive
                     ? "text-green-600"
                     : "text-red-600"
-                  : "text-[#3D4F63]"
+                  : "text-[var(--color-primary)]"
               }`}
             >
-              {kpi.value}
+              {kpi.rawValue != null && kpi.format ? (
+                <AnimatedValue value={kpi.rawValue} format={kpi.format} prefix={kpi.prefix} />
+              ) : (
+                kpi.textValue
+              )}
             </p>
             <p className="mt-1 text-xs text-gray-400">{kpi.sub}</p>
           </div>
@@ -920,32 +889,32 @@ export default function AdminDashboard({
         <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           {rentabilidadPeriods.map((r) => (
             <div key={r.period} className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
-              <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#B8965A] to-[#E8C870] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+              <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[var(--color-gold)] to-[var(--color-gold-soft)] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
               <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400">Rent. {r.period}</p>
               <p className={`mt-1 text-lg font-bold ${r.returnPct >= 0 ? "text-green-600" : "text-red-600"}`}>
-                {r.returnPct >= 0 ? "+" : ""}{r.returnPct.toFixed(2)}%
+                <AnimatedValue value={r.returnPct} format={(v) => `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`} />
               </p>
-              <p className="text-[10px] text-gray-400">{r.returnEur >= 0 ? "+" : ""}{formatEur(r.returnEur)}</p>
+              <p className="text-[10px] text-gray-400"><AnimatedValue value={r.returnEur} format={(v) => `${v >= 0 ? "+" : ""}${formatEur(v)}`} /></p>
             </div>
           ))}
           <div className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
-            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#B8965A] to-[#E8C870] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[var(--color-gold)] to-[var(--color-gold-soft)] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
             <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400">Plusvalia total economica</p>
             <p className={`mt-1 text-lg font-bold ${plusvaliaTotalEco >= 0 ? "text-green-600" : "text-red-600"}`}>
-              {plusvaliaTotalEco >= 0 ? "+" : ""}{formatEur(plusvaliaTotalEco)}
+              <AnimatedValue value={plusvaliaTotalEco} format={(v) => `${v >= 0 ? "+" : ""}${formatEur(v)}`} />
             </p>
             <p className="text-[10px] text-gray-400">Patrimonio - aportaciones netas</p>
           </div>
           <div className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
-            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#B8965A] to-[#E8C870] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[var(--color-gold)] to-[var(--color-gold-soft)] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
             <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400">Concentracion</p>
-            <p className="mt-1 text-lg font-bold text-[#3D4F63]">Top 5: {concTop5.toFixed(1)}%</p>
-            <p className="text-[10px] text-gray-400">Top 10: {concTop10.toFixed(1)}%</p>
+            <p className="mt-1 text-lg font-bold text-[var(--color-primary)]">Top 5: <AnimatedValue value={concTop5} format={(v) => `${v.toFixed(1)}%`} /></p>
+            <p className="text-[10px] text-gray-400">Top 10: <AnimatedValue value={concTop10} format={(v) => `${v.toFixed(1)}%`} /></p>
           </div>
           <div className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
-            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#B8965A] to-[#E8C870] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[var(--color-gold)] to-[var(--color-gold-soft)] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
             <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400">Costes acumulados</p>
-            <p className="mt-1 text-lg font-bold text-[#3D4F63]">{formatEur(totalCommissions + totalRetentions)}</p>
+            <p className="mt-1 text-lg font-bold text-[var(--color-primary)]"><AnimatedValue value={totalCommissions + totalRetentions} format={formatEur} /></p>
             <p className="text-[10px] text-gray-400">Com: {formatEur(totalCommissions)} · Ret: {formatEur(totalRetentions)}</p>
           </div>
         </section>
@@ -973,7 +942,7 @@ export default function AdminDashboard({
                     <Tooltip formatter={(value: number, name: string) => [formatEur(value), name]} contentStyle={{ borderRadius: "8px", border: "1px solid #e5e7eb", fontSize: "12px" }} />
                     <Legend wrapperStyle={{ fontSize: "11px" }} />
                     <Area type="monotone" dataKey="Aportaciones netas" fill="#059669" fillOpacity={0.15} stroke="#059669" strokeWidth={1.5} />
-                    <Area type="monotone" dataKey="Patrimonio" fill="#3D4F63" fillOpacity={0.08} stroke="#3D4F63" strokeWidth={2} />
+                    <Area type="monotone" dataKey="Patrimonio" fill={colors.primary} fillOpacity={0.08} stroke={colors.primary} strokeWidth={2} />
                   </AreaChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -1005,12 +974,12 @@ export default function AdminDashboard({
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                     <XAxis dataKey="month" tick={{ fontSize: 10, fill: "#9ca3af" }} />
                     <YAxis yAxisId="bars" tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)} tick={{ fontSize: 10, fill: "#9ca3af" }} width={55} />
-                    <YAxis yAxisId="line" orientation="right" tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)} tick={{ fontSize: 10, fill: "#B8965A" }} width={55} />
+                    <YAxis yAxisId="line" orientation="right" tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)} tick={{ fontSize: 10, fill: colors.accent }} width={55} />
                     <Tooltip formatter={(value: number, name: string) => [formatEur(value), name]} contentStyle={{ borderRadius: "8px", border: "1px solid #e5e7eb", fontSize: "12px" }} />
                     <Legend wrapperStyle={{ fontSize: "11px" }} />
                     <Bar yAxisId="bars" dataKey="Compras" fill="#059669" radius={[2, 2, 0, 0]} />
                     <Bar yAxisId="bars" dataKey="Ventas" fill="#dc2626" radius={[2, 2, 0, 0]} />
-                    <Line yAxisId="line" type="monotone" dataKey="Neto acum." stroke="#B8965A" strokeWidth={2} dot={false} />
+                    <Line yAxisId="line" type="monotone" dataKey="Neto acum." stroke={colors.accent} strokeWidth={2} dot={false} />
                   </ComposedChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -1194,7 +1163,7 @@ export default function AdminDashboard({
       {selectedClient && (
         <div className="space-y-4">
           <div className="relative mb-2 mt-2">
-            <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-[#3D4F63] to-[#1a3a5c] opacity-90" />
+            <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] opacity-90" />
             <h2 className="relative px-6 py-3 font-display text-lg font-bold text-white">
               5. Espacio Personal
             </h2>

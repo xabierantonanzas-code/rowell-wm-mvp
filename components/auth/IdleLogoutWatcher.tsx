@@ -140,9 +140,9 @@ export default function IdleLogoutWatcher() {
   if (!active || !warning) return null;
 
   return (
-    <div className="fixed bottom-4 right-4 z-[100] flex items-center gap-3 rounded-xl border border-[#B8965A] bg-white px-4 py-3 shadow-2xl">
+    <div className="fixed bottom-4 right-4 z-[100] flex items-center gap-3 rounded-xl border border-[var(--color-gold)] bg-white px-4 py-3 shadow-2xl">
       <div className="text-sm">
-        <p className="font-semibold text-[#3D4F63]">Sesion a punto de expirar</p>
+        <p className="font-semibold text-[var(--color-primary)]">Sesion a punto de expirar</p>
         <p className="text-xs text-gray-500">
           Por inactividad, te desconectaras en menos de 1 minuto.
         </p>
@@ -150,7 +150,7 @@ export default function IdleLogoutWatcher() {
       <button
         type="button"
         onClick={reset}
-        className="rounded-lg bg-[#3D4F63] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#293544]"
+        className="rounded-lg bg-[var(--color-primary)] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[var(--color-primary-dark)]"
       >
         Seguir
       </button>

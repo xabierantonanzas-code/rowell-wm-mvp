@@ -1,5 +1,6 @@
 "use client";
 
+import { useTheme } from "@/components/theme/ThemeContext";
 import {
   PieChart,
   Pie,
@@ -38,6 +39,7 @@ function formatEur(value: number): string {
 export default function DistributionChart({
   positions,
 }: DistributionChartProps) {
+  const { colors } = useTheme();
   if (positions.length === 0) {
     return (
       <p className="py-8 text-center text-sm text-gray-400">
@@ -89,7 +91,7 @@ export default function DistributionChart({
           {chartData.map((_, index) => (
             <Cell
               key={`cell-${index}`}
-              fill={COLORS[index % COLORS.length]}
+              fill={colors.chartColors[index % colors.chartColors.length]}
             />
           ))}
         </Pie>

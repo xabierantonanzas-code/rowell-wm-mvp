@@ -198,8 +198,8 @@ export default function OperationalDashboard({ isOwner = false }: { isOwner?: bo
         {/* Recent Logins */}
         <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
           <div className="flex items-center gap-2 border-b border-gray-100 px-4 py-3">
-            <Activity className="h-4 w-4 text-[#B8965A]" />
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-[#3D4F63]">
+            <Activity className="h-4 w-4 text-[var(--color-gold)]" />
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-primary)]">
               Ultimos accesos
             </h3>
           </div>
@@ -249,8 +249,8 @@ export default function OperationalDashboard({ isOwner = false }: { isOwner?: bo
         {/* Invitations */}
         <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
           <div className="flex items-center gap-2 border-b border-gray-100 px-4 py-3">
-            <Mail className="h-4 w-4 text-[#B8965A]" />
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-[#3D4F63]">
+            <Mail className="h-4 w-4 text-[var(--color-gold)]" />
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-primary)]">
               Invitaciones
             </h3>
           </div>
@@ -324,12 +324,12 @@ function KpiCard({
       }`}
     >
       <div className="flex items-center gap-2">
-        <Icon className={`h-4 w-4 ${alert ? "text-red-500" : "text-[#B8965A]"}`} />
+        <Icon className={`h-4 w-4 ${alert ? "text-red-500" : "text-[var(--color-gold)]"}`} />
         <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400">
           {label}
         </p>
       </div>
-      <p className={`mt-1 text-xl font-bold ${alert ? "text-red-600" : "text-[#3D4F63]"}`}>
+      <p className={`mt-1 text-xl font-bold ${alert ? "text-red-600" : "text-[var(--color-primary)]"}`}>
         {value}
       </p>
       <p className="text-[10px] text-gray-400">{sub}</p>

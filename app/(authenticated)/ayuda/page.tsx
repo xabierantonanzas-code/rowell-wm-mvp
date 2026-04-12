@@ -277,7 +277,7 @@ function Section({
   return (
     <section id={id} className="scroll-mt-8">
       <div className="relative mb-4">
-        <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-[#3D4F63] to-[#2a5080] opacity-90" />
+        <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] opacity-90" />
         <h2 className="relative px-5 py-2.5 font-display text-base font-bold text-white sm:text-lg">
           {number}. {title}
         </h2>
@@ -291,8 +291,8 @@ function Section({
 
 function Term({ term, children }: { term: string; children: React.ReactNode }) {
   return (
-    <div className="border-l-2 border-[#B8965A] pl-4">
-      <p className="text-sm font-semibold text-[#3D4F63]">{term}</p>
+    <div className="border-l-2 border-[var(--color-gold)] pl-4">
+      <p className="text-sm font-semibold text-[var(--color-primary)]">{term}</p>
       <p className="mt-1 text-sm leading-relaxed text-gray-600">{children}</p>
     </div>
   );
@@ -305,7 +305,7 @@ function P({ children }: { children: React.ReactNode }) {
 function GlossaryItem({ term, def }: { term: string; def: string }) {
   return (
     <div className="rounded-lg bg-gray-50 px-3 py-2">
-      <span className="text-xs font-bold text-[#3D4F63]">{term}</span>
+      <span className="text-xs font-bold text-[var(--color-primary)]">{term}</span>
       <span className="ml-1.5 text-xs text-gray-500">— {def}</span>
     </div>
   );

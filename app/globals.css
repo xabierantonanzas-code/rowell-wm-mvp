@@ -19,12 +19,75 @@
   --color-bg-card: #FFFFFF;
   --color-text: #1A1A1A;
   --color-text-muted: #4B5563;
+
+  /* Opacity variants (Tailwind 3 can't do var()/15 with CSS vars) */
+  --color-gold-10: rgba(184, 150, 90, 0.1);
+  --color-gold-15: rgba(184, 150, 90, 0.15);
+  --color-gold-20: rgba(184, 150, 90, 0.2);
+  --color-gold-30: rgba(184, 150, 90, 0.3);
+  --color-gold-40: rgba(184, 150, 90, 0.4);
+  --color-gold-50: rgba(184, 150, 90, 0.5);
+  --color-primary-5: rgba(61, 79, 99, 0.05);
+  --color-primary-10: rgba(61, 79, 99, 0.1);
+
+  /* Sidebar */
+  --color-sidebar-bg: #3D4F63;
+  --color-sidebar-text: #FFFFFF;
+  --color-sidebar-border: transparent;
+
+  /* Table headers */
+  --color-table-header-bg: #3D4F63;
+  --color-table-header-text: #FFFFFF;
+}
+
+/* Tema moderno (shadcn admin kit style) — activado via ThemeProvider */
+.theme-modern {
+  --color-primary: #0F172A;
+  --color-primary-dark: #020617;
+  --color-gold: #0D9488;
+  --color-gold-soft: #5EEAD4;
+  --color-bg: #F8FAFC;
+  --color-bg-card: #FFFFFF;
+  --color-text: #0F172A;
+  --color-text-muted: #64748B;
+  --color-gold-10: rgba(13, 148, 136, 0.1);
+  --color-gold-15: rgba(13, 148, 136, 0.15);
+  --color-gold-20: rgba(13, 148, 136, 0.2);
+  --color-gold-30: rgba(13, 148, 136, 0.3);
+  --color-gold-40: rgba(13, 148, 136, 0.4);
+  --color-gold-50: rgba(13, 148, 136, 0.5);
+  --color-primary-5: rgba(15, 23, 42, 0.05);
+  --color-primary-10: rgba(15, 23, 42, 0.1);
+  --color-sidebar-bg: #FFFFFF;
+  --color-sidebar-text: #0F172A;
+  --color-sidebar-border: #E2E8F0;
+  --color-table-header-bg: #F1F5F9;
+  --color-table-header-text: #334155;
 }
 
 html, body {
   background-color: var(--color-bg);
   color: var(--color-text);
   -webkit-text-size-adjust: 100%;
+}
+
+/* Scrollbar sutil para listas/dropdowns */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
+}
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
 }
 
 /* Las clases legacy [#3D4F63] y [#B8965A] que aparecen hardcoded en

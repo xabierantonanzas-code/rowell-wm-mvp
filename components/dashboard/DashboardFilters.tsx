@@ -118,8 +118,8 @@ export function DateRangeSelector({
             onClick={() => setDateRange(p.from, p.to)}
             className={`rounded-md border px-2 py-1 text-[11px] font-semibold uppercase tracking-wider transition-colors ${
               activeLabel === p.label
-                ? "border-[#B8965A] bg-[#B8965A] text-white"
-                : "border-gray-200 bg-white text-gray-600 hover:border-[#B8965A] hover:text-[#3D4F63]"
+                ? "border-[var(--color-gold)] bg-[var(--color-gold)] text-white"
+                : "border-gray-200 bg-white text-gray-600 hover:border-[var(--color-gold)] hover:text-[var(--color-primary)]"
             }`}
           >
             {p.label}

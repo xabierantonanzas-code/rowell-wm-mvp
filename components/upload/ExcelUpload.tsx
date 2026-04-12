@@ -293,10 +293,10 @@ export default function ExcelUpload({ onUploadComplete }: ExcelUploadProps) {
 
         {/* Analyzing state */}
         {status === "analyzing" && (
-          <div className="flex items-center justify-center gap-3 rounded-lg border border-[#B8965A]/30 bg-[#B8965A]/5 px-4 py-6">
-            <Loader2 className="h-5 w-5 animate-spin text-[#B8965A]" />
+          <div className="flex items-center justify-center gap-3 rounded-lg border border-[var(--color-gold-30)] bg-[var(--color-gold-10)] px-4 py-6">
+            <Loader2 className="h-5 w-5 animate-spin text-[var(--color-gold)]" />
             <div>
-              <p className="text-sm font-medium text-[#3D4F63]">Analizando archivos...</p>
+              <p className="text-sm font-medium text-[var(--color-primary)]">Analizando archivos...</p>
               <p className="text-xs text-gray-500">Verificando formato, columnas y datos</p>
             </div>
           </div>
@@ -341,10 +341,10 @@ export default function ExcelUpload({ onUploadComplete }: ExcelUploadProps) {
             ))}
 
             {/* AI Analysis */}
-            <div className="rounded-lg border border-[#3D4F63]/10 bg-[#3D4F63]/[0.02] p-4">
+            <div className="rounded-lg border border-[var(--color-primary-10)] bg-[var(--color-primary-5)] p-4">
               <div className="mb-2 flex items-center gap-2">
-                <Bot className="h-4 w-4 text-[#B8965A]" />
-                <span className="text-xs font-semibold uppercase tracking-wider text-[#3D4F63]">
+                <Bot className="h-4 w-4 text-[var(--color-gold)]" />
+                <span className="text-xs font-semibold uppercase tracking-wider text-[var(--color-primary)]">
                   Analisis IA
                 </span>
               </div>
@@ -380,7 +380,7 @@ export default function ExcelUpload({ onUploadComplete }: ExcelUploadProps) {
         {/* Loading state */}
         {status === "loading" && (
           <div className="flex items-center justify-center gap-3 py-4">
-            <Loader2 className="h-5 w-5 animate-spin text-[#3D4F63]" />
+            <Loader2 className="h-5 w-5 animate-spin text-[var(--color-primary)]" />
             <span className="text-sm text-gray-600">Procesando y guardando en base de datos...</span>
           </div>
         )}

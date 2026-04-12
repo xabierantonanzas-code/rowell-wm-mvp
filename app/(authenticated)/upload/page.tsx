@@ -260,8 +260,8 @@ function DocumentUploadSection() {
   return (
     <Card className="border bg-white shadow-sm">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-[#3D4F63]">
-          <FileText className="h-5 w-5 text-[#B8965A]" />
+        <CardTitle className="flex items-center gap-2 text-[var(--color-primary)]">
+          <FileText className="h-5 w-5 text-[var(--color-gold)]" />
           Subir Documentos a Clientes
         </CardTitle>
         <p className="text-sm text-gray-400">
@@ -276,7 +276,7 @@ function DocumentUploadSection() {
           </label>
           <button
             onClick={() => { setShowClientDropdown(!showClientDropdown); setClientSearch(""); }}
-            className="flex w-full items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-left text-sm transition-colors hover:border-[#B8965A]/50"
+            className="flex w-full items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-left text-sm transition-colors hover:border-[var(--color-gold)]/50"
           >
             <div className="flex items-center gap-2">
               <Users className="h-4 w-4 text-gray-400" />
@@ -302,7 +302,7 @@ function DocumentUploadSection() {
                     placeholder="Buscar cliente..."
                     value={clientSearch}
                     onChange={(e) => setClientSearch(e.target.value)}
-                    className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-9 pr-3 text-sm focus:border-[#B8965A] focus:bg-white focus:outline-none"
+                    className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-9 pr-3 text-sm focus:border-[var(--color-gold)] focus:bg-white focus:outline-none"
                     autoFocus
                   />
                 </div>
@@ -323,15 +323,15 @@ function DocumentUploadSection() {
                         setShowClientDropdown(false);
                       }}
                       className={`flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors hover:bg-[#F5F5F5] ${
-                        selectedClientId === c.id ? "bg-[#3D4F63]/5" : ""
+                        selectedClientId === c.id ? "bg-[var(--color-primary-5)]" : ""
                       }`}
                     >
-                      <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-[#3D4F63]/5 text-[10px] font-semibold text-[#3D4F63]">
+                      <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-[var(--color-primary-5)] text-[10px] font-semibold text-[var(--color-primary)]">
                         {c.full_name.slice(0, 2).toUpperCase()}
                       </div>
                       <span className="truncate text-gray-700">{c.full_name}</span>
                       {selectedClientId === c.id && (
-                        <div className="ml-auto h-2 w-2 rounded-full bg-[#B8965A]" />
+                        <div className="ml-auto h-2 w-2 rounded-full bg-[var(--color-gold)]" />
                       )}
                     </button>
                   ))
@@ -350,7 +350,7 @@ function DocumentUploadSection() {
               value={docName}
               onChange={(e) => setDocName(e.target.value)}
               placeholder="Informe Q1 2026..."
-              className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:border-[#B8965A] focus:outline-none focus:ring-1 focus:ring-[#B8965A]"
+              className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:border-[var(--color-gold)] focus:outline-none focus:ring-1 focus:ring-[var(--color-gold)]"
             />
           </div>
           <div>
@@ -358,7 +358,7 @@ function DocumentUploadSection() {
             <select
               value={docType}
               onChange={(e) => setDocType(e.target.value as DocType)}
-              className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:border-[#B8965A] focus:outline-none focus:ring-1 focus:ring-[#B8965A]"
+              className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:border-[var(--color-gold)] focus:outline-none focus:ring-1 focus:ring-[var(--color-gold)]"
             >
               {DOC_TYPES.map((t) => (
                 <option key={t.value} value={t.value}>{t.label}</option>
@@ -374,14 +374,14 @@ function DocumentUploadSection() {
             value={docDescription}
             onChange={(e) => setDocDescription(e.target.value)}
             placeholder="Descripcion breve..."
-            className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:border-[#B8965A] focus:outline-none focus:ring-1 focus:ring-[#B8965A]"
+            className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:border-[var(--color-gold)] focus:outline-none focus:ring-1 focus:ring-[var(--color-gold)]"
           />
         </div>
 
         {/* File picker */}
         <div
           onClick={() => fileInputRef.current?.click()}
-          className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-200 py-8 text-sm text-gray-400 transition-colors hover:border-[#B8965A] hover:text-[#B8965A]"
+          className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-200 py-8 text-sm text-gray-400 transition-colors hover:border-[var(--color-gold)] hover:text-[var(--color-gold)]"
         >
           <Upload className="h-5 w-5" />
           {file ? (
@@ -401,7 +401,7 @@ function DocumentUploadSection() {
         <button
           onClick={handleUpload}
           disabled={uploading || !file || !docName.trim() || !selectedClientId}
-          className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#3D4F63] px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-[#3D4F63]/90 disabled:opacity-50"
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--color-primary)] px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-[var(--color-primary)]/90 disabled:opacity-50"
         >
           {uploading ? (
             <Loader2 className="h-4 w-4 animate-spin" />

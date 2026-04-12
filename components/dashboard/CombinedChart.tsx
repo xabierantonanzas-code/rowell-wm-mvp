@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useTheme } from "@/components/theme/ThemeContext";
+import { AnimatedValue } from "@/components/ui/AnimatedValue";
 import {
   ComposedChart,
   Bar,
@@ -128,6 +130,7 @@ function CustomTooltip({ active, payload, label }: any) {
 // ===========================================================================
 
 export default function CombinedChart({ data, flowEvents, kpis }: CombinedChartProps) {
+  const { colors } = useTheme();
   const [view, setView] = useState<ChartView>("general");
 
   const views: { key: ChartView; label: string }[] = [
@@ -137,19 +140,21 @@ export default function CombinedChart({ data, flowEvents, kpis }: CombinedChartP
     { key: "aportaciones", label: "Aportaciones" },
   ];
 
-  const kpiCards = [
-    { label: "Valor inicio", value: formatEur(kpis.valorInicio) },
-    { label: "Valor fin", value: formatEur(kpis.valorFin) },
+  const kpiCards: { label: string; rawValue: number; format: (v: number) => string; sub?: string; color?: string }[] = [
+    { label: "Valor inicio", rawValue: kpis.valorInicio, format: formatEur },
+    { label: "Valor fin", rawValue: kpis.valorFin, format: formatEur },
     {
       label: "Variacion",
-      value: `${kpis.variacionPct >= 0 ? "+" : ""}${kpis.variacionPct.toFixed(2)}%`,
+      rawValue: kpis.variacionPct,
+      format: (v) => `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`,
       sub: `${kpis.variacion >= 0 ? "+" : ""}${formatEur(kpis.variacion)}`,
       color: kpis.variacionPct >= 0 ? "text-green-600" : "text-red-600",
     },
     ...(kpis.mejorMes
       ? [{
           label: "Mejor mes",
-          value: `+${kpis.mejorMes.pct.toFixed(2)}%`,
+          rawValue: kpis.mejorMes.pct,
+          format: (v: number) => `+${v.toFixed(2)}%`,
           sub: kpis.mejorMes.month,
           color: "text-green-600",
         }]
@@ -157,17 +162,19 @@ export default function CombinedChart({ data, flowEvents, kpis }: CombinedChartP
     ...(kpis.peorMes
       ? [{
           label: "Peor mes",
-          value: `${kpis.peorMes.pct.toFixed(2)}%`,
+          rawValue: kpis.peorMes.pct,
+          format: (v: number) => `${v.toFixed(2)}%`,
           sub: kpis.peorMes.month,
           color: "text-red-600",
         }]
       : []),
     {
       label: "Rent. periodo",
-      value: `${kpis.rentabilidadPeriodo >= 0 ? "+" : ""}${kpis.rentabilidadPeriodo.toFixed(2)}%`,
+      rawValue: kpis.rentabilidadPeriodo,
+      format: (v) => `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`,
       color: kpis.rentabilidadPeriodo >= 0 ? "text-green-600" : "text-red-600",
     },
-    { label: "Aportaciones netas", value: formatEur(kpis.aportacionesNetas) },
+    { label: "Aportaciones netas", rawValue: kpis.aportacionesNetas, format: formatEur },
   ];
 
   // Determine visible series based on view
@@ -213,8 +220,8 @@ export default function CombinedChart({ data, flowEvents, kpis }: CombinedChartP
             <p className="text-[9px] font-medium uppercase tracking-wider text-gray-400 sm:text-[10px]">
               {kpi.label}
             </p>
-            <p className={`mt-0.5 text-xs font-bold sm:text-sm ${"color" in kpi && kpi.color ? kpi.color : "text-[#3D4F63]"}`}>
-              {kpi.value}
+            <p className={`mt-0.5 text-xs font-bold sm:text-sm ${kpi.color ? kpi.color : "text-[var(--color-primary)]"}`}>
+              <AnimatedValue value={kpi.rawValue} format={kpi.format} />
             </p>
             {"sub" in kpi && kpi.sub && (
               <p className="text-[9px] text-gray-400 sm:text-[10px]">{kpi.sub}</p>
@@ -231,7 +238,7 @@ export default function CombinedChart({ data, flowEvents, kpis }: CombinedChartP
             onClick={() => setView(v.key)}
             className={`flex-shrink-0 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
               view === v.key
-                ? "bg-[#3D4F63] text-white shadow-sm"
+                ? "bg-[var(--color-primary)] text-white shadow-sm"
                 : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}
           >
@@ -269,7 +276,7 @@ export default function CombinedChart({ data, flowEvents, kpis }: CombinedChartP
                     yAxisId="pct"
                     orientation="right"
                     tickFormatter={(v: number) => `${v.toFixed(1)}%`}
-                    tick={{ fontSize: 10, fill: "#B8965A" }}
+                    tick={{ fontSize: 10, fill: colors.accent }}
                     width={50}
                   />
                 )}
@@ -294,7 +301,7 @@ export default function CombinedChart({ data, flowEvents, kpis }: CombinedChartP
                       dataKey="iic"
                       stackId="nav"
                       name="Fondos (IIC)"
-                      fill="#3D4F63"
+                      fill={colors.primary}
                       fillOpacity={0.9}
                     />
                     <Bar
@@ -355,10 +362,10 @@ export default function CombinedChart({ data, flowEvents, kpis }: CombinedChartP
                     type="monotone"
                     dataKey="returnPct"
                     name="Rentabilidad %"
-                    stroke="#B8965A"
+                    stroke={colors.accent}
                     strokeWidth={2.5}
-                    dot={{ r: 3, fill: "#B8965A", strokeWidth: 0 }}
-                    activeDot={{ r: 5, fill: "#B8965A", strokeWidth: 2, stroke: "#fff" }}
+                    dot={{ r: 3, fill: colors.accent, strokeWidth: 0 }}
+                    activeDot={{ r: 5, fill: colors.accent, strokeWidth: 2, stroke: "#fff" }}
                   />
                 )}
               </ComposedChart>

@@ -125,8 +125,8 @@ export default function InviteClientModal({
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
           <div className="flex items-center gap-2">
-            <Mail className="h-5 w-5 text-[#B8965A]" />
-            <h2 className="text-lg font-semibold text-[#3D4F63]">
+            <Mail className="h-5 w-5 text-[var(--color-gold)]" />
+            <h2 className="text-lg font-semibold text-[var(--color-primary)]">
               Invitar Cliente
             </h2>
           </div>
@@ -142,7 +142,7 @@ export default function InviteClientModal({
         <div className="space-y-4 px-6 py-5">
           {/* Client selector */}
           <div ref={dropdownRef} className="relative">
-            <label className="mb-1.5 block text-sm font-medium text-[#3D4F63]">
+            <label className="mb-1.5 block text-sm font-medium text-[var(--color-primary)]">
               Cliente
             </label>
             <div className="relative">
@@ -158,7 +158,7 @@ export default function InviteClientModal({
                   if (selectedClient) setSelectedClient(null);
                 }}
                 onFocus={() => setShowDropdown(true)}
-                className="w-full rounded-lg border border-gray-200 py-2.5 pl-10 pr-3 text-sm outline-none focus:border-[#B8965A] focus:ring-2 focus:ring-[#B8965A]/20"
+                className="w-full rounded-lg border border-gray-200 py-2.5 pl-10 pr-3 text-sm outline-none focus:border-[var(--color-gold)] focus:ring-2 focus:ring-[var(--color-gold-20)]"
               />
             </div>
 
@@ -173,7 +173,7 @@ export default function InviteClientModal({
                     <button
                       key={client.id}
                       onClick={() => handleSelectClient(client)}
-                      className="flex w-full items-center justify-between px-4 py-2.5 text-left hover:bg-[#F5F5F5]"
+                      className="flex w-full items-center justify-between px-4 py-2.5 text-left hover:bg-[var(--color-bg)]"
                     >
                       <div>
                         <p className="text-sm font-medium text-gray-800">
@@ -206,7 +206,7 @@ export default function InviteClientModal({
 
           {/* Email input */}
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-[#3D4F63]">
+            <label className="mb-1.5 block text-sm font-medium text-[var(--color-primary)]">
               Email del cliente
             </label>
             <input
@@ -214,7 +214,7 @@ export default function InviteClientModal({
               placeholder="cliente@email.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-lg border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-[#B8965A] focus:ring-2 focus:ring-[#B8965A]/20"
+              className="w-full rounded-lg border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-[var(--color-gold)] focus:ring-2 focus:ring-[var(--color-gold-20)]"
             />
           </div>
 
@@ -244,7 +244,7 @@ export default function InviteClientModal({
             <button
               onClick={handleInvite}
               disabled={!canInvite}
-              className="flex items-center gap-2 rounded-lg bg-[#3D4F63] px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-[#3D4F63] disabled:opacity-40"
+              className="flex items-center gap-2 rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-[var(--color-primary)] disabled:opacity-40"
             >
               {status === "loading" ? (
                 <>

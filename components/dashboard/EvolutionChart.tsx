@@ -1,5 +1,6 @@
 "use client";
 
+import { useTheme } from "@/components/theme/ThemeContext";
 import {
   LineChart,
   Line,
@@ -38,6 +39,7 @@ function formatDateLabel(dateStr: string): string {
 }
 
 export default function EvolutionChart({ data }: EvolutionChartProps) {
+  const { colors } = useTheme();
   if (data.length === 0) {
     return (
       <p className="py-8 text-center text-sm text-gray-400">
@@ -87,10 +89,10 @@ export default function EvolutionChart({ data }: EvolutionChartProps) {
         <Line
           type="monotone"
           dataKey="totalValue"
-          stroke="#3D4F63"
+          stroke={colors.primary}
           strokeWidth={2.5}
-          dot={{ fill: "#B8965A", r: 4, strokeWidth: 0 }}
-          activeDot={{ fill: "#B8965A", r: 6, strokeWidth: 2, stroke: "#3D4F63" }}
+          dot={{ fill: colors.accent, r: 4, strokeWidth: 0 }}
+          activeDot={{ fill: colors.accent, r: 6, strokeWidth: 2, stroke: colors.primary }}
         />
       </LineChart>
     </ResponsiveContainer>
