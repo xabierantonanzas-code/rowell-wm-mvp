@@ -6,6 +6,7 @@ import {
   isPlus,
   isMinus,
 } from "@/lib/operations-taxonomy";
+import { cached } from "@/lib/cache";
 
 /**
  * Obtiene TODAS las operaciones de uno o varios accounts (sin paginacion).
@@ -26,33 +27,38 @@ export async function getAllOperationsForAccounts(
   dateRange?: DateRange
 ): Promise<any[]> {
   if (accountIds.length === 0) return [];
-  const supabase = await createClient();
 
-  const all: any[] = [];
-  let from = 0;
-  const PAGE = 1000;
+  const cacheKey = `all_ops_${accountIds.sort().join("_")}_${dateRange?.dateFrom ?? ""}_${dateRange?.dateTo ?? ""}`;
 
-  for (;;) {
-    let q = supabase
-      .from("operations")
-      .select("*")
-      .in("account_id", accountIds)
-      .order("operation_date", { ascending: false })
-      .range(from, from + PAGE - 1);
+  return cached(cacheKey, 300, async () => {
+    const supabase = await createClient();
 
-    if (dateRange?.dateFrom) q = q.gte("operation_date", dateRange.dateFrom);
-    if (dateRange?.dateTo) q = q.lte("operation_date", dateRange.dateTo);
+    const all: any[] = [];
+    let from = 0;
+    const PAGE = 1000;
 
-    const { data, error } = await q;
-    if (error) throw error;
-    if (!data || data.length === 0) break;
+    for (;;) {
+      let q = supabase
+        .from("operations")
+        .select("*")
+        .in("account_id", accountIds)
+        .order("operation_date", { ascending: false })
+        .range(from, from + PAGE - 1);
 
-    all.push(...data);
-    if (data.length < PAGE) break;
-    from += PAGE;
-  }
+      if (dateRange?.dateFrom) q = q.gte("operation_date", dateRange.dateFrom);
+      if (dateRange?.dateTo) q = q.lte("operation_date", dateRange.dateTo);
 
-  return all;
+      const { data, error } = await q;
+      if (error) throw error;
+      if (!data || data.length === 0) break;
+
+      all.push(...data);
+      if (data.length < PAGE) break;
+      from += PAGE;
+    }
+
+    return all;
+  });
 }
 
 /**

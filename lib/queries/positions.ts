@@ -67,30 +67,34 @@ export async function getLatestPositions(
  * Devuelve el valor total por fecha de snapshot.
  */
 export async function getPositionHistory(accountId: string, dateRange?: DateRange) {
-  const supabase = await createClient();
+  const cacheKey = `pos_hist_${accountId}_${dateRange?.dateFrom ?? ""}_${dateRange?.dateTo ?? ""}`;
 
-  let query = supabase
-    .from("positions")
-    .select("snapshot_date, position_value")
-    .eq("account_id", accountId)
-    .order("snapshot_date");
+  return cached(cacheKey, 300, async () => {
+    const supabase = await createClient();
 
-  query = applyDateFilter(query, "snapshot_date", dateRange);
+    let query = supabase
+      .from("positions")
+      .select("snapshot_date, position_value")
+      .eq("account_id", accountId)
+      .order("snapshot_date");
 
-  const { data, error } = await query;
+    query = applyDateFilter(query, "snapshot_date", dateRange);
 
-  if (error) throw error;
+    const { data, error } = await query;
 
-  const grouped = new Map<string, number>();
-  for (const row of data ?? []) {
-    const current = grouped.get(row.snapshot_date) ?? 0;
-    grouped.set(row.snapshot_date, current + (row.position_value ?? 0));
-  }
+    if (error) throw error;
 
-  return Array.from(grouped.entries()).map(([date, total]) => ({
-    date,
-    totalValue: total,
-  }));
+    const grouped = new Map<string, number>();
+    for (const row of data ?? []) {
+      const current = grouped.get(row.snapshot_date) ?? 0;
+      grouped.set(row.snapshot_date, current + (row.position_value ?? 0));
+    }
+
+    return Array.from(grouped.entries()).map(([date, total]) => ({
+      date,
+      totalValue: total,
+    }));
+  });
 }
 
 /**

@@ -10,6 +10,7 @@ import {
 import type { DateRange } from "@/lib/queries/positions";
 import { getOperations } from "@/lib/queries/operations";
 import { getCashBalances } from "@/lib/queries/balances";
+import { cached } from "@/lib/cache";
 
 /**
  * GET /api/dashboard
@@ -77,51 +78,56 @@ export async function GET(req: NextRequest) {
     const isSingle = accountIds.length === 1;
     const primaryAccountId = accountIds[0];
 
-    // Fetch en paralelo
-    const [positions, history, opsResult] = await Promise.all([
-      isSingle
-        ? getLatestPositions(primaryAccountId, dateRange)
-        : getAggregatedPositions(accountIds, dateRange),
-      isSingle
-        ? getPositionHistory(primaryAccountId, dateRange)
-        : getAggregatedHistory(accountIds, dateRange),
-      // Operaciones solo para single-account
-      isSingle
-        ? getOperations(primaryAccountId, { dateRange, page, pageSize: 25 })
-        : Promise.resolve({ operations: [], total: 0, page: 1, totalPages: 0, pageSize: 25 }),
-    ]);
+    // Cache key: positions + history + cash (no cambian en 5 min)
+    const baseCacheKey = `dash_${accountIds.sort().join("_")}_${dateFrom ?? ""}_${dateTo ?? ""}`;
 
-    // Cash balance (solo single)
-    let cashBalance = 0;
-    if (isSingle) {
-      const balances = await getCashBalances(primaryAccountId);
-      cashBalance = balances.reduce(
-        (sum, b) => sum + (b.balance ?? 0),
-        0
-      );
-    }
+    // Fetch positions, history, cash con cache de 5 min
+    const baseData = await cached(baseCacheKey, 300, async () => {
+      const [positions, history, cashResult] = await Promise.all([
+        isSingle
+          ? getLatestPositions(primaryAccountId, dateRange)
+          : getAggregatedPositions(accountIds, dateRange),
+        isSingle
+          ? getPositionHistory(primaryAccountId, dateRange)
+          : getAggregatedHistory(accountIds, dateRange),
+        isSingle
+          ? getCashBalances(primaryAccountId).then((b) =>
+              b.reduce((sum, x) => sum + (x.balance ?? 0), 0)
+            )
+          : Promise.resolve(0),
+      ]);
 
-    // Per-account history (for strategy chart, multi-account only)
-    let historyByAccount: Record<string, { date: string; totalValue: number }[]> | undefined;
-    if (!isSingle) {
-      const histMap = await getHistoryByAccount(accountIds, dateRange);
-      historyByAccount = Object.fromEntries(histMap);
-    }
+      // Per-account history (for strategy chart, multi-account only)
+      let historyByAccount:
+        | Record<string, { date: string; totalValue: number }[]>
+        | undefined;
+      if (!isSingle) {
+        const histMap = await getHistoryByAccount(accountIds, dateRange);
+        historyByAccount = Object.fromEntries(histMap);
+      }
+
+      return { positions, history, cashBalance: cashResult, historyByAccount };
+    });
+
+    // Operations: paginated per request (page can change), not cached
+    const opsResult = isSingle
+      ? await getOperations(primaryAccountId, { dateRange, page, pageSize: 25 })
+      : { operations: [], total: 0, page: 1, totalPages: 0, pageSize: 25 };
 
     return NextResponse.json({
       accountId: isSingle ? primaryAccountId : "all",
       dateFrom: dateFrom ?? null,
       dateTo: dateTo ?? null,
-      positions,
-      history,
-      historyByAccount,
+      positions: baseData.positions,
+      history: baseData.history,
+      historyByAccount: baseData.historyByAccount,
       operations: {
         operations: opsResult.operations,
         total: opsResult.total,
         page: opsResult.page,
         totalPages: opsResult.totalPages,
       },
-      cashBalance,
+      cashBalance: baseData.cashBalance,
     });
   } catch (error) {
     const { captureError } = await import("@/lib/error");
