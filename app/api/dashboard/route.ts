@@ -47,13 +47,21 @@ export async function GET(req: NextRequest) {
     dateFrom || dateTo ? { dateFrom, dateTo } : undefined;
 
   // Determinar que cuentas usar
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   let accountIds: string[] = [];
 
   if (accountId) {
+    if (!uuidRegex.test(accountId)) {
+      return NextResponse.json({ error: "account ID invalido" }, { status: 400 });
+    }
     accountIds = [accountId];
   } else if (accountsParam) {
     try {
-      accountIds = JSON.parse(accountsParam);
+      const parsed = JSON.parse(accountsParam);
+      if (!Array.isArray(parsed) || !parsed.every((id: unknown) => typeof id === "string" && uuidRegex.test(id))) {
+        return NextResponse.json({ error: "accounts param invalido" }, { status: 400 });
+      }
+      accountIds = parsed;
     } catch {
       return NextResponse.json(
         { error: "accounts param invalido" },
