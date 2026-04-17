@@ -8,7 +8,7 @@ import {
   getHistoryByAccount,
 } from "@/lib/queries/positions";
 import type { DateRange } from "@/lib/queries/positions";
-import { getOperations } from "@/lib/queries/operations";
+import { getAllOperationsForAccounts } from "@/lib/queries/operations";
 import { getCashBalances } from "@/lib/queries/balances";
 import { cached } from "@/lib/cache";
 
@@ -20,7 +20,6 @@ import { cached } from "@/lib/cache";
  *   accounts - JSON array de UUIDs (para multi-cuenta)
  *   dateFrom - Fecha inicio (YYYY-MM-DD)
  *   dateTo   - Fecha fin (YYYY-MM-DD)
- *   page     - Pagina de operaciones (default 1)
  */
 export async function GET(req: NextRequest) {
   const supabase = await createClient();
@@ -39,8 +38,6 @@ export async function GET(req: NextRequest) {
   const accountsParam = params.get("accounts");
   const rawDateFrom = params.get("dateFrom") ?? undefined;
   const rawDateTo = params.get("dateTo") ?? undefined;
-  const pageStr = params.get("page");
-
   // Validate date format (YYYY-MM-DD)
   const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
   const dateFrom = rawDateFrom && dateRegex.test(rawDateFrom) ? rawDateFrom : undefined;
@@ -48,7 +45,6 @@ export async function GET(req: NextRequest) {
 
   const dateRange: DateRange | undefined =
     dateFrom || dateTo ? { dateFrom, dateTo } : undefined;
-  const page = pageStr ? parseInt(pageStr, 10) : 1;
 
   // Determinar que cuentas usar
   let accountIds: string[] = [];
@@ -109,10 +105,9 @@ export async function GET(req: NextRequest) {
       return { positions, history, cashBalance: cashResult, historyByAccount };
     });
 
-    // Operations: paginated per request (page can change), not cached
-    const opsResult = isSingle
-      ? await getOperations(primaryAccountId, { dateRange, page, pageSize: 25 })
-      : { operations: [], total: 0, page: 1, totalPages: 0, pageSize: 25 };
+    // All operations (no pagination) — needed for flow calculations,
+    // originDate, FIFO, productTypeMap. The UI paginates client-side.
+    const allOps = await getAllOperationsForAccounts(accountIds, dateRange);
 
     return NextResponse.json({
       accountId: isSingle ? primaryAccountId : "all",
@@ -122,10 +117,10 @@ export async function GET(req: NextRequest) {
       history: baseData.history,
       historyByAccount: baseData.historyByAccount,
       operations: {
-        operations: opsResult.operations,
-        total: opsResult.total,
-        page: opsResult.page,
-        totalPages: opsResult.totalPages,
+        operations: allOps,
+        total: allOps.length,
+        page: 1,
+        totalPages: Math.max(1, Math.ceil(allOps.length / 25)),
       },
       cashBalance: baseData.cashBalance,
     });

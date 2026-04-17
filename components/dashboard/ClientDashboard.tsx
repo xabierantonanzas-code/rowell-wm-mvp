@@ -7,6 +7,7 @@ import {
   BarChart3,
   Calendar,
   Briefcase,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   FileText,
@@ -584,21 +585,31 @@ function TopHoldings({ positions }: { positions: Position[] }) {
 // Sub-component: Asset Distribution (like page 5 of informe)
 // ===========================================================================
 
-function AssetDistribution({ positions }: { positions: Position[] }) {
-  if (positions.length === 0) return null;
+function AssetDistribution({
+  positions,
+  cashBalance = 0,
+  productTypeMap,
+}: {
+  positions: Position[];
+  cashBalance?: number;
+  productTypeMap: Map<string, "iic" | "rv">;
+}) {
+  if (positions.length === 0 && cashBalance === 0) return null;
 
-  // Agrupar por gestora
-  const byManager = new Map<string, number>();
+  // Agrupar por tipo de activo: Acciones (RV), Fondos (IIC), Efectivo, Otro
+  let rvValue = 0;
+  let iicValue = 0;
   for (const pos of positions) {
-    const manager = pos.manager || "Otros";
-    byManager.set(manager, (byManager.get(manager) ?? 0) + (pos.position_value ?? 0));
+    const t = resolveProductType(pos.isin, pos.product_name, productTypeMap);
+    if (t === "rv") rvValue += pos.position_value ?? 0;
+    else iicValue += pos.position_value ?? 0;
   }
-  const managerData = Array.from(byManager.entries())
-    .sort((a, b) => b[1] - a[1])
-    .map(([name, value]) => ({
-      name: name.length > 20 ? name.slice(0, 17) + "..." : name,
-      value,
-    }));
+
+  const assetData = [
+    { name: "Fondos (IIC)", value: iicValue },
+    { name: "Acciones / ETFs", value: rvValue },
+    { name: "Efectivo", value: cashBalance },
+  ].filter((d) => d.value > 0);
 
   // Agrupar por moneda
   const byCurrency = new Map<string, number>();
@@ -606,26 +617,29 @@ function AssetDistribution({ positions }: { positions: Position[] }) {
     const currency = pos.currency || "EUR";
     byCurrency.set(currency, (byCurrency.get(currency) ?? 0) + (pos.position_value ?? 0));
   }
+  if (cashBalance > 0) {
+    byCurrency.set("EUR", (byCurrency.get("EUR") ?? 0) + cashBalance);
+  }
   const currencyData = Array.from(byCurrency.entries())
     .sort((a, b) => b[1] - a[1])
     .map(([name, value]) => ({ name, value }));
 
-  const totalValue = positions.reduce((s, p) => s + (p.position_value ?? 0), 0);
+  const totalValue = positions.reduce((s, p) => s + (p.position_value ?? 0), 0) + cashBalance;
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
-      {/* Por Gestora - estilo informe con tabla + donut */}
+      {/* Por Tipo de Activo */}
       <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
         <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-primary)] sm:mb-4 sm:text-sm">
           <PieChartIcon className="h-4 w-4 text-[var(--color-gold)]" />
-          Distribucion por Gestora
+          Distribucion por Tipo de Activo
         </h3>
         <div className="flex items-center gap-4">
           <div className="w-1/2">
             <ResponsiveContainer width="100%" height={160}>
               <PieChart>
                 <Pie
-                  data={managerData.slice(0, 8)}
+                  data={assetData}
                   cx="50%"
                   cy="50%"
                   innerRadius={35}
@@ -633,7 +647,7 @@ function AssetDistribution({ positions }: { positions: Position[] }) {
                   paddingAngle={2}
                   dataKey="value"
                 >
-                  {managerData.slice(0, 8).map((_, i) => (
+                  {assetData.map((_, i) => (
                     <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
                   ))}
                 </Pie>
@@ -645,7 +659,7 @@ function AssetDistribution({ positions }: { positions: Position[] }) {
             </ResponsiveContainer>
           </div>
           <div className="w-1/2 space-y-1.5">
-            {managerData.slice(0, 8).map((item, i) => (
+            {assetData.map((item, i) => (
               <div key={item.name} className="flex items-center gap-2 text-xs">
                 <div
                   className="h-2.5 w-2.5 flex-shrink-0 rounded-sm"
@@ -653,7 +667,7 @@ function AssetDistribution({ positions }: { positions: Position[] }) {
                 />
                 <span className="flex-1 truncate text-gray-600">{item.name}</span>
                 <span className="font-medium text-gray-800">
-                  {((item.value / totalValue) * 100).toFixed(1)}%
+                  {totalValue > 0 ? ((item.value / totalValue) * 100).toFixed(1) : "0.0"}%
                 </span>
               </div>
             ))}
@@ -701,7 +715,7 @@ function AssetDistribution({ positions }: { positions: Position[] }) {
                 <span className="flex-1 text-gray-600">{item.name}</span>
                 <span className="font-semibold text-gray-800">{formatEur(item.value)}</span>
                 <span className="text-gray-400">
-                  ({((item.value / totalValue) * 100).toFixed(1)}%)
+                  ({totalValue > 0 ? ((item.value / totalValue) * 100).toFixed(1) : "0.0"}%)
                 </span>
               </div>
             ))}
@@ -839,6 +853,7 @@ export default function ClientDashboard({
   const [activeTab, setActiveTab] = useState<"cartera" | "operaciones">("cartera");
   const [opsPage, setOpsPage] = useState(1);
   const [returnMethod, setReturnMethod] = useState<"twr" | "mwr">("twr");
+  const [positionsOpen, setPositionsOpen] = useState(false);
 
   // Fetch data
   const fetchData = async (
@@ -1123,7 +1138,7 @@ export default function ClientDashboard({
     const allOps = [...data.operations.operations]
       .filter((op) => op.operation_date)
       .sort((a, b) => (a.operation_date ?? "").localeCompare(b.operation_date ?? ""));
-    const flowEvents: { date: string; amount: number; netAfter: number }[] = [];
+    const flowEvents: { date: string; amount: number; netAfter: number; operationType?: string; productName?: string; isin?: string }[] = [];
     let runningNet = 0;
     for (const op of allOps) {
       const signed = flowAmountEur(op);
@@ -1133,6 +1148,9 @@ export default function ClientDashboard({
         date: op.operation_date!,
         amount: signed,
         netAfter: runningNet,
+        operationType: op.operation_type ?? undefined,
+        productName: op.product_name ?? undefined,
+        isin: op.isin ?? undefined,
       });
     }
 
@@ -1177,6 +1195,7 @@ export default function ClientDashboard({
       return {
         date: s.date,
         label,
+        ts: new Date(s.date).getTime(),
         cash: nav * rCash,
         iic: nav * rIic,
         rv: nav * rRv,
@@ -1362,9 +1381,7 @@ export default function ClientDashboard({
         positions={data.positions}
       />
 
-      {/* TWR/MWR toggle movido a la barra superior (MVP6 #11) */}
-
-      {/* Row 3: Rentabilidad + Costes + Concentración */}
+      {/* Row 2: Rentabilidad + Costes + Concentración */}
       {(rentabilidadPeriods.length > 0 || totalCommissions > 0 || data.positions.length > 0) && (
         <div className="mt-2 grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-4">
           {/* Rentabilidad por periodos */}
@@ -1413,29 +1430,11 @@ export default function ClientDashboard({
         </div>
       )}
 
-      {/* Cartera completa con sub-secciones IIC / RV (Edgard MVP6 #10) */}
-      <div className="mt-4">
-        <PositionsTable
-          positions={data.positions}
-          eurCostMap={eurCostMap}
-          productTypeMap={productTypeMap}
-        />
-      </div>
-
+      {/* ================================================================= */}
+      {/* 2. EVOLUCION PATRIMONIAL — Gráfico combinado                      */}
+      {/* ================================================================= */}
       <SectionDivider />
-
-      {/* ================================================================= */}
-      {/* 2. DISTRIBUCION DE ACTIVOS                                        */}
-      {/* ================================================================= */}
-      <SectionHeader number="2" title="Distribucion de Activos" />
-      <AssetDistribution positions={data.positions} />
-
-      <SectionDivider />
-
-      {/* ================================================================= */}
-      {/* 3. EVOLUCION PATRIMONIAL — Gráfico combinado                      */}
-      {/* ================================================================= */}
-      <SectionHeader number="3" title="Evolucion Patrimonial" />
+      <SectionHeader number="2" title="Evolucion Patrimonial" />
       {combinedChartData.kpis ? (
         <CombinedChart
           data={combinedChartData.chartData}
@@ -1455,12 +1454,40 @@ export default function ClientDashboard({
         </div>
       )}
 
+      {/* ================================================================= */}
+      {/* 3. DISTRIBUCION DE ACTIVOS                                        */}
+      {/* ================================================================= */}
+      <SectionDivider />
+      <SectionHeader number="3" title="Distribucion de Activos" />
+      <AssetDistribution positions={data.positions} cashBalance={data.cashBalance} productTypeMap={productTypeMap} />
+
+      {/* ================================================================= */}
+      {/* 4. POSICIONES (colapsable, colapsado por defecto)                 */}
+      {/* ================================================================= */}
+      <SectionDivider />
+      <div className="mt-4">
+        <button
+          onClick={() => setPositionsOpen((v) => !v)}
+          className="mb-2 flex w-full items-center justify-between rounded-lg bg-white px-4 py-3 text-left text-sm font-semibold text-[var(--color-primary)] shadow-sm border border-gray-200 hover:bg-gray-50 transition-colors"
+        >
+          <span>Posiciones ({data.positions.length})</span>
+          <ChevronDown className={`h-4 w-4 transition-transform ${positionsOpen ? "rotate-180" : ""}`} />
+        </button>
+        {positionsOpen && (
+          <PositionsTable
+            positions={data.positions}
+            eurCostMap={eurCostMap}
+            productTypeMap={productTypeMap}
+          />
+        )}
+      </div>
+
       <SectionDivider />
 
       {/* ================================================================= */}
-      {/* 4. CARTERA DE INVERSION ROWELL / OPERACIONES                      */}
+      {/* 5. CARTERA DE INVERSION ROWELL / OPERACIONES                      */}
       {/* ================================================================= */}
-      <SectionHeader number="4" title="Cartera de Inversion Rowell" />
+      <SectionHeader number="5" title="Cartera de Inversion Rowell" />
 
       {/* Tabs */}
       <div className="mb-4 flex items-center gap-1 rounded-lg bg-gray-100 p-1">
@@ -1563,12 +1590,12 @@ export default function ClientDashboard({
       )}
 
       {/* ================================================================= */}
-      {/* 5. ESPACIO PERSONAL – Comunicacion y Documentos                    */}
+      {/* 6. ESPACIO PERSONAL – Comunicacion y Documentos                    */}
       {/* ================================================================= */}
       {clientId && (
         <>
           <SectionDivider />
-          <SectionHeader number="5" title="Tu Espacio Personal" />
+          <SectionHeader number="6" title="Tu Espacio Personal" />
           <CommunicationPanel
             clientId={clientId}
             clientName={clientName}

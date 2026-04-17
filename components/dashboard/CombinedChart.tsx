@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useTheme } from "@/components/theme/ThemeContext";
 import { AnimatedValue } from "@/components/ui/AnimatedValue";
 import {
@@ -15,24 +15,19 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
+import { Minus, Plus } from "lucide-react";
 
 // ===========================================================================
 // Types - MVP6 Edgard punto 2
 // ===========================================================================
-//
-// Cambios respecto a la version anterior:
-// - NAV apilado en 3 sub-categorias (cash + iic + rv) en lugar de una sola
-//   barra. Cada bar usa stackId="nav".
-// - Linea continua de "aportaciones netas acumuladas" en EUR (en vez de
-//   barras de flujos por mes).
-// - Eventos PLUS / MINUS individuales como Scatter con marcadores
-//   verdes / rojos en la fecha exacta.
-// - El label de eje X incluye dia (15 ene 25) en lugar de solo mes.
 
 export interface FlowEvent {
   date: string;          // YYYY-MM-DD - fecha exacta de la operacion
   amount: number;        // > 0 PLUS, < 0 MINUS
   netAfter: number;      // aportaciones netas acumuladas tras este evento
+  operationType?: string;
+  productName?: string;
+  isin?: string;
 }
 
 export interface CombinedChartDataPoint {
@@ -40,6 +35,8 @@ export interface CombinedChartDataPoint {
   date: string;
   /** Label corto para eje X: "15 ene 25". */
   label: string;
+  /** Numeric timestamp for proportional axis. */
+  ts: number;
   /** Desglose NAV apilado. Solo presente en snapshots reales. */
   cash?: number;
   iic?: number;
@@ -54,6 +51,16 @@ export interface CombinedChartDataPoint {
   plusMarker?: number;
   /** Marcador MINUS (importe negativo) - solo en puntos de evento. */
   minusMarker?: number;
+  /** Metadata for tooltip on flow markers. */
+  flowMeta?: {
+    type: "plus" | "minus";
+    amount: number;
+    operationType?: string;
+    productName?: string;
+    isin?: string;
+  };
+  /** Whether this is a synthetic point (flow event, no NAV). */
+  synthetic?: boolean;
 }
 
 interface CombinedChartProps {
@@ -73,6 +80,15 @@ interface CombinedChartProps {
 }
 
 type ChartView = "general" | "nav" | "rentabilidad" | "aportaciones";
+type Granularity = "semanal" | "mensual" | "trimestral" | "anual";
+
+const GRANULARITY_ORDER: Granularity[] = ["semanal", "mensual", "trimestral", "anual"];
+const GRANULARITY_LABELS: Record<Granularity, string> = {
+  semanal: "Sem",
+  mensual: "Mes",
+  trimestral: "Trim",
+  anual: "Año",
+};
 
 // ===========================================================================
 // Helpers
@@ -93,6 +109,55 @@ function formatCompact(value: number): string {
   return String(Math.round(value));
 }
 
+function dateToTs(dateStr: string): number {
+  return new Date(dateStr).getTime();
+}
+
+function formatDateLabel(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString("es-ES", {
+    day: "2-digit",
+    month: "short",
+    year: "2-digit",
+  });
+}
+
+/** Granularity key for a date (for rollup). */
+function granularityKey(dateStr: string, g: Granularity): string {
+  const d = new Date(dateStr);
+  const y = d.getFullYear();
+  const m = d.getMonth() + 1;
+  switch (g) {
+    case "semanal":
+      return dateStr; // no rollup
+    case "mensual":
+      return `${y}-${String(m).padStart(2, "0")}`;
+    case "trimestral":
+      return `${y}-Q${Math.ceil(m / 3)}`;
+    case "anual":
+      return String(y);
+  }
+}
+
+/** Roll up snapshot data: keep last snapshot per granularity bucket. */
+function rollupSnapshots(
+  points: CombinedChartDataPoint[],
+  granularity: Granularity
+): CombinedChartDataPoint[] {
+  if (granularity === "semanal") return points;
+
+  const buckets = new Map<string, CombinedChartDataPoint>();
+  for (const p of points) {
+    if (p.synthetic) continue; // flow-only points don't roll up
+    const key = granularityKey(p.date, granularity);
+    // Keep last (most recent) snapshot per bucket
+    const existing = buckets.get(key);
+    if (!existing || p.date > existing.date) {
+      buckets.set(key, { ...p });
+    }
+  }
+  return Array.from(buckets.values()).sort((a, b) => a.ts - b.ts);
+}
+
 // ===========================================================================
 // Custom Tooltip
 // ===========================================================================
@@ -100,11 +165,38 @@ function formatCompact(value: number): string {
 function CustomTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
 
+  // Check if this is a flow marker point with metadata
+  const flowMeta = payload[0]?.payload?.flowMeta;
+
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-lg">
-      <p className="mb-2 text-xs font-semibold text-gray-600">{label}</p>
+      <p className="mb-2 text-xs font-semibold text-gray-600">
+        {typeof label === "number"
+          ? new Date(label).toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "2-digit" })
+          : label}
+      </p>
+      {flowMeta && (
+        <div className="mb-2 border-b border-gray-100 pb-2">
+          <div className="flex items-center gap-1.5 text-xs">
+            <span
+              className={`inline-block h-2 w-2 rounded-full ${flowMeta.type === "plus" ? "bg-green-500" : "bg-red-500"}`}
+            />
+            <span className="font-medium">
+              {flowMeta.type === "plus" ? "Aportacion" : "Reembolso"}: {formatEur(Math.abs(flowMeta.amount))}
+            </span>
+          </div>
+          {flowMeta.operationType && (
+            <p className="mt-0.5 text-[10px] text-gray-500">{flowMeta.operationType}</p>
+          )}
+          {flowMeta.isin && (
+            <p className="text-[10px] text-gray-400">{flowMeta.isin}{flowMeta.productName ? ` — ${flowMeta.productName}` : ""}</p>
+          )}
+        </div>
+      )}
       {payload.map((entry: any) => {
         if (entry.value == null) return null;
+        // Skip marker dataKeys in generic list
+        if (entry.dataKey === "plusMarker" || entry.dataKey === "minusMarker") return null;
         const isPct = entry.dataKey === "returnPct";
         return (
           <div key={entry.dataKey} className="flex items-center gap-2 text-xs">
@@ -132,6 +224,7 @@ function CustomTooltip({ active, payload, label }: any) {
 export default function CombinedChart({ data, flowEvents, kpis }: CombinedChartProps) {
   const { colors } = useTheme();
   const [view, setView] = useState<ChartView>("general");
+  const [granularity, setGranularity] = useState<Granularity>("semanal");
 
   const views: { key: ChartView; label: string }[] = [
     { key: "general", label: "General" },
@@ -182,34 +275,121 @@ export default function CombinedChart({ data, flowEvents, kpis }: CombinedChartP
   const showReturn = view === "general" || view === "rentabilidad";
   const showFlows = view === "general" || view === "aportaciones";
 
-  // Construir el chartData manteniendo SOLO los snapshots reales como
-  // puntos del eje X (con NAV apilado). Los flow events se asocian al
-  // snapshot mas cercano (anterior o igual) y se renderizan como marcadores
-  // PLUS / MINUS encima de la linea de aportaciones netas.
-  //
-  // Esto evita los "huecos" visuales que provocaba inyectar puntos
-  // sinteticos sin NAV: el eje X se mantiene uniforme en snapshots reales.
-  // (Si en un mismo snapshot hay varios eventos PLUS o MINUS, mostramos
-  // un unico marker apuntando al netContrib final del snapshot.)
+  // Build chart data with numeric timestamps for proportional axis.
+  // Snapshot points have NAV bars; flow events are injected as synthetic
+  // points at their exact dates with markers.
   const chartData = useMemo(() => {
     if (data.length === 0) return [];
 
-    // Trabajamos sobre una copia mutable
-    const points: CombinedChartDataPoint[] = data.map((p) => ({ ...p }));
-    points.sort((a, b) => a.date.localeCompare(b.date));
+    // Start with snapshot points (add ts)
+    const snapshotPoints: CombinedChartDataPoint[] = data.map((p) => ({
+      ...p,
+      ts: dateToTs(p.date),
+      label: formatDateLabel(p.date),
+    }));
 
-    // Para cada flow event, encontrar el snapshot mas cercano (el primero
-    // cuyo date >= event.date; si no hay, el ultimo)
+    // Inject flow events as synthetic points at exact dates
+    const allPoints = [...snapshotPoints];
+
     for (const e of flowEvents) {
-      let target = points.find((p) => p.date >= e.date);
-      if (!target) target = points[points.length - 1];
-      if (!target) continue;
-      if (e.amount > 0) target.plusMarker = target.netContrib;
-      else target.minusMarker = target.netContrib;
+      const ts = dateToTs(e.date);
+      // Check if a snapshot already exists on this exact date
+      const existing = allPoints.find((p) => p.date === e.date && !p.synthetic);
+      if (existing) {
+        // Attach marker to existing snapshot point
+        if (e.amount > 0) {
+          existing.plusMarker = existing.netContrib;
+          existing.flowMeta = {
+            type: "plus",
+            amount: e.amount,
+            operationType: e.operationType,
+            productName: e.productName,
+            isin: e.isin,
+          };
+        } else {
+          existing.minusMarker = existing.netContrib;
+          existing.flowMeta = {
+            type: "minus",
+            amount: e.amount,
+            operationType: e.operationType,
+            productName: e.productName,
+            isin: e.isin,
+          };
+        }
+      } else {
+        // Create synthetic point at exact flow date
+        const syntheticPoint: CombinedChartDataPoint = {
+          date: e.date,
+          label: formatDateLabel(e.date),
+          ts,
+          netContrib: e.netAfter,
+          synthetic: true,
+          plusMarker: e.amount > 0 ? e.netAfter : undefined,
+          minusMarker: e.amount < 0 ? e.netAfter : undefined,
+          flowMeta: {
+            type: e.amount > 0 ? "plus" : "minus",
+            amount: e.amount,
+            operationType: e.operationType,
+            productName: e.productName,
+            isin: e.isin,
+          },
+        };
+        allPoints.push(syntheticPoint);
+      }
     }
 
-    return points;
+    // Sort by timestamp
+    allPoints.sort((a, b) => a.ts - b.ts);
+
+    return allPoints;
   }, [data, flowEvents]);
+
+  // Apply granularity rollup (only affects snapshot/NAV points)
+  const displayData = useMemo(() => {
+    if (granularity === "semanal") return chartData;
+
+    // Roll up snapshots; keep ALL flow event points at exact dates
+    const snapshots = chartData.filter((p) => !p.synthetic);
+    const flows = chartData.filter((p) => p.synthetic);
+    const rolledUp = rollupSnapshots(snapshots, granularity);
+
+    // Merge and sort
+    return [...rolledUp, ...flows].sort((a, b) => a.ts - b.ts);
+  }, [chartData, granularity]);
+
+  const granIdx = GRANULARITY_ORDER.indexOf(granularity);
+  const canZoomOut = granIdx < GRANULARITY_ORDER.length - 1;
+  const canZoomIn = granIdx > 0;
+
+  const handleZoomOut = useCallback(() => {
+    if (canZoomOut) setGranularity(GRANULARITY_ORDER[granIdx + 1]);
+  }, [canZoomOut, granIdx]);
+
+  const handleZoomIn = useCallback(() => {
+    if (canZoomIn) setGranularity(GRANULARITY_ORDER[granIdx - 1]);
+  }, [canZoomIn, granIdx]);
+
+  // Compute tick values for the XAxis (only from non-synthetic points)
+  const tickValues = useMemo(() => {
+    const nonSynthetic = displayData.filter((p) => !p.synthetic);
+    if (nonSynthetic.length <= 12) return nonSynthetic.map((p) => p.ts);
+    // Thin out to ~10 ticks
+    const step = Math.ceil(nonSynthetic.length / 10);
+    const ticks = nonSynthetic
+      .filter((_, i) => i % step === 0 || i === nonSynthetic.length - 1)
+      .map((p) => p.ts);
+    return ticks;
+  }, [displayData]);
+
+  // Domain for X axis
+  const xDomain = useMemo(() => {
+    if (displayData.length === 0) return [0, 1];
+    const min = displayData[0].ts;
+    const max = displayData[displayData.length - 1].ts;
+    // Add small padding
+    const pad = (max - min) * 0.02;
+    return [min - pad, max + pad];
+  }, [displayData]);
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
@@ -230,34 +410,69 @@ export default function CombinedChart({ data, flowEvents, kpis }: CombinedChartP
         ))}
       </div>
 
-      {/* View selector */}
-      <div className="flex items-center gap-1 overflow-x-auto border-b border-gray-100 px-3 py-2 sm:px-5 sm:py-3">
-        {views.map((v) => (
+      {/* View selector + Zoom controls */}
+      <div className="flex items-center justify-between border-b border-gray-100 px-3 py-2 sm:px-5 sm:py-3">
+        <div className="flex items-center gap-1 overflow-x-auto">
+          {views.map((v) => (
+            <button
+              key={v.key}
+              onClick={() => setView(v.key)}
+              className={`flex-shrink-0 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                view === v.key
+                  ? "bg-[var(--color-primary)] text-white shadow-sm"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+            >
+              {v.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Zoom +/- and granularity label */}
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wider">
+            {GRANULARITY_LABELS[granularity]}
+          </span>
           <button
-            key={v.key}
-            onClick={() => setView(v.key)}
-            className={`flex-shrink-0 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-              view === v.key
-                ? "bg-[var(--color-primary)] text-white shadow-sm"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-            }`}
+            onClick={handleZoomIn}
+            disabled={!canZoomIn}
+            className="rounded-md p-1 text-gray-500 hover:bg-gray-100 disabled:opacity-30"
+            title="Mas detalle"
           >
-            {v.label}
+            <Plus className="h-3.5 w-3.5" />
           </button>
-        ))}
+          <button
+            onClick={handleZoomOut}
+            disabled={!canZoomOut}
+            className="rounded-md p-1 text-gray-500 hover:bg-gray-100 disabled:opacity-30"
+            title="Menos detalle"
+          >
+            <Minus className="h-3.5 w-3.5" />
+          </button>
+        </div>
       </div>
 
       {/* Chart */}
       <div className="overflow-x-auto p-3 sm:p-5">
         <div className="min-w-[480px]">
-          {chartData.length > 0 ? (
+          {displayData.length > 0 ? (
             <ResponsiveContainer width="100%" height={320}>
-              <ComposedChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+              <ComposedChart data={displayData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis
-                  dataKey="label"
+                  dataKey="ts"
+                  type="number"
+                  scale="time"
+                  domain={xDomain}
+                  ticks={tickValues}
+                  tickFormatter={(ts: number) =>
+                    new Date(ts).toLocaleDateString("es-ES", {
+                      day: "2-digit",
+                      month: "short",
+                      year: "2-digit",
+                    })
+                  }
                   tick={{ fontSize: 10, fill: "#9ca3af" }}
-                  interval="preserveStartEnd"
                 />
 
                 {/* Eje EUR (NAV apilado + aportaciones netas) */}
@@ -284,8 +499,7 @@ export default function CombinedChart({ data, flowEvents, kpis }: CombinedChartP
                 <Tooltip content={<CustomTooltip />} />
                 <Legend wrapperStyle={{ fontSize: "11px" }} />
 
-                {/* NAV apilado: efectivo (abajo) -> fondos -> RV (arriba)
-                    Edgard MVP6 #2b */}
+                {/* NAV apilado: efectivo (abajo) -> fondos -> RV (arriba) */}
                 {showNav && (
                   <>
                     <Bar
@@ -316,25 +530,22 @@ export default function CombinedChart({ data, flowEvents, kpis }: CombinedChartP
                   </>
                 )}
 
-                {/* Linea continua de aportaciones netas acumuladas
-                    Edgard MVP6 #2a */}
+                {/* Linea continua de aportaciones netas acumuladas */}
                 {showFlows && (
                   <Line
                     yAxisId="eur"
-                    type="monotone"
+                    type="stepAfter"
                     dataKey="netContrib"
                     name="Aportaciones netas"
                     stroke="#10b981"
                     strokeWidth={2}
                     dot={false}
                     activeDot={{ r: 4, fill: "#10b981", strokeWidth: 2, stroke: "#fff" }}
+                    connectNulls
                   />
                 )}
 
-                {/* Marcadores PLUS (verde) y MINUS (rojo) en la fecha exacta
-                    de cada operacion, sobre la linea de aportaciones netas
-                    (Edgard MVP6 #2a). Solo aparecen en puntos sinteticos
-                    inyectados en chartData con plusMarker / minusMarker. */}
+                {/* Marcadores PLUS (verde) y MINUS (rojo) en fecha exacta */}
                 {showFlows && (
                   <Scatter
                     yAxisId="eur"
@@ -354,8 +565,7 @@ export default function CombinedChart({ data, flowEvents, kpis }: CombinedChartP
                   />
                 )}
 
-                {/* Linea de rentabilidad (centrada con NAV bars por usar
-                    el mismo eje X). Edgard MVP6 #2c */}
+                {/* Linea de rentabilidad */}
                 {showReturn && (
                   <Line
                     yAxisId="pct"
@@ -366,6 +576,7 @@ export default function CombinedChart({ data, flowEvents, kpis }: CombinedChartP
                     strokeWidth={2.5}
                     dot={{ r: 3, fill: colors.accent, strokeWidth: 0 }}
                     activeDot={{ r: 5, fill: colors.accent, strokeWidth: 2, stroke: "#fff" }}
+                    connectNulls
                   />
                 )}
               </ComposedChart>
@@ -378,8 +589,7 @@ export default function CombinedChart({ data, flowEvents, kpis }: CombinedChartP
         </div>
       </div>
 
-      {/* Leyenda compacta de los marcadores (los puntos PLUS/MINUS estan
-          dentro del chart sobre la linea de aportaciones netas) */}
+      {/* Leyenda compacta de los marcadores */}
       {showFlows && flowEvents.length > 0 && (
         <div className="flex items-center gap-3 border-t border-gray-100 px-3 py-2 text-[10px] text-gray-500 sm:px-5">
           <span className="inline-flex items-center gap-1.5">
