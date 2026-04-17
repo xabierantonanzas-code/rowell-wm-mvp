@@ -391,6 +391,16 @@ export default function CombinedChart({ data, flowEvents, kpis }: CombinedChartP
     return [min - pad, max + pad];
   }, [displayData]);
 
+  // Compute bar width based on snapshot count.
+  // Fewer snapshots = wider bars (annual has ~4, weekly has ~100+).
+  const snapshotCount = displayData.filter((p) => !p.synthetic).length;
+  const barSize = snapshotCount <= 2 ? 50
+    : snapshotCount <= 5 ? 36
+    : snapshotCount <= 12 ? 20
+    : snapshotCount <= 30 ? 12
+    : snapshotCount <= 60 ? 8
+    : 5;
+
   return (
     <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
       {/* KPIs row */}
@@ -457,7 +467,7 @@ export default function CombinedChart({ data, flowEvents, kpis }: CombinedChartP
         <div className="min-w-[480px]">
           {displayData.length > 0 ? (
             <ResponsiveContainer width="100%" height={320}>
-              <ComposedChart data={displayData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+              <ComposedChart data={displayData} barSize={barSize} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis
                   dataKey="ts"
