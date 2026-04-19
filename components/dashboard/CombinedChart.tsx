@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo } from "react";
 import { useTheme } from "@/components/theme/ThemeContext";
 import { AnimatedValue } from "@/components/ui/AnimatedValue";
 import {
@@ -288,10 +288,15 @@ export default function CombinedChart({ data, flowEvents, kpis }: CombinedChartP
       label: formatDateLabel(p.date),
     }));
 
-    // Inject flow events as synthetic points at exact dates
+    // Only include flow events within the snapshot date range
+    // (earlier events stretch the axis with empty space)
+    const firstSnapshotDate = snapshotPoints.length > 0 ? snapshotPoints[0].date : "";
+    const lastSnapshotDate = snapshotPoints.length > 0 ? snapshotPoints[snapshotPoints.length - 1].date : "";
     const allPoints = [...snapshotPoints];
 
     for (const e of flowEvents) {
+      if (e.date < firstSnapshotDate) continue;
+      if (e.date > lastSnapshotDate) continue;
       const ts = dateToTs(e.date);
       // Check if a snapshot already exists on this exact date
       const existing = allPoints.find((p) => p.date === e.date && !p.synthetic);
@@ -344,30 +349,50 @@ export default function CombinedChart({ data, flowEvents, kpis }: CombinedChartP
     return allPoints;
   }, [data, flowEvents]);
 
-  // Apply granularity rollup (only affects snapshot/NAV points)
+  // Apply granularity rollup.
+  // At semanal: show all points (snapshots + synthetic flow events).
+  // At coarser: roll up snapshots and attach flow markers to nearest
+  // rolled-up point (no synthetic points — avoids line gaps).
   const displayData = useMemo(() => {
     if (granularity === "semanal") return chartData;
 
-    // Roll up snapshots; keep ALL flow event points at exact dates
     const snapshots = chartData.filter((p) => !p.synthetic);
     const flows = chartData.filter((p) => p.synthetic);
     const rolledUp = rollupSnapshots(snapshots, granularity);
 
-    // Merge and sort
-    return [...rolledUp, ...flows].sort((a, b) => a.ts - b.ts);
+    // Attach flow markers to nearest rolled-up snapshot
+    for (const f of flows) {
+      let nearest = rolledUp[0];
+      let minDist = Infinity;
+      for (const s of rolledUp) {
+        const dist = Math.abs(s.ts - f.ts);
+        if (dist < minDist) { minDist = dist; nearest = s; }
+      }
+      if (!nearest) continue;
+      if (f.plusMarker != null) nearest.plusMarker = nearest.netContrib;
+      if (f.minusMarker != null) nearest.minusMarker = nearest.netContrib;
+    }
+
+    return rolledUp;
   }, [chartData, granularity]);
 
   const granIdx = GRANULARITY_ORDER.indexOf(granularity);
   const canZoomOut = granIdx < GRANULARITY_ORDER.length - 1;
   const canZoomIn = granIdx > 0;
 
-  const handleZoomOut = useCallback(() => {
-    if (canZoomOut) setGranularity(GRANULARITY_ORDER[granIdx + 1]);
-  }, [canZoomOut, granIdx]);
+  const handleZoomOut = () => {
+    const idx = GRANULARITY_ORDER.indexOf(granularity);
+    if (idx < GRANULARITY_ORDER.length - 1) {
+      setGranularity(GRANULARITY_ORDER[idx + 1]);
+    }
+  };
 
-  const handleZoomIn = useCallback(() => {
-    if (canZoomIn) setGranularity(GRANULARITY_ORDER[granIdx - 1]);
-  }, [canZoomIn, granIdx]);
+  const handleZoomIn = () => {
+    const idx = GRANULARITY_ORDER.indexOf(granularity);
+    if (idx > 0) {
+      setGranularity(GRANULARITY_ORDER[idx - 1]);
+    }
+  };
 
   // Compute tick values for the XAxis (only from non-synthetic points)
   const tickValues = useMemo(() => {
@@ -381,25 +406,25 @@ export default function CombinedChart({ data, flowEvents, kpis }: CombinedChartP
     return ticks;
   }, [displayData]);
 
-  // Domain for X axis
+  // Compute bar width — fill more space at coarser granularities.
+  const snapshotCount = displayData.filter((p) => !p.synthetic).length;
+  const barSize = snapshotCount <= 2 ? 80
+    : snapshotCount <= 5 ? 60
+    : snapshotCount <= 12 ? 28
+    : snapshotCount <= 30 ? 14
+    : snapshotCount <= 60 ? 8
+    : 5;
+
+  // Domain for X axis — tighter padding with fewer points
   const xDomain = useMemo(() => {
     if (displayData.length === 0) return [0, 1];
     const min = displayData[0].ts;
     const max = displayData[displayData.length - 1].ts;
-    // Add small padding
-    const pad = (max - min) * 0.02;
+    const range = max - min || 1;
+    const padRatio = snapshotCount <= 5 ? 0.08 : 0.03;
+    const pad = range * padRatio;
     return [min - pad, max + pad];
-  }, [displayData]);
-
-  // Compute bar width based on snapshot count.
-  // Fewer snapshots = wider bars (annual has ~4, weekly has ~100+).
-  const snapshotCount = displayData.filter((p) => !p.synthetic).length;
-  const barSize = snapshotCount <= 2 ? 50
-    : snapshotCount <= 5 ? 36
-    : snapshotCount <= 12 ? 20
-    : snapshotCount <= 30 ? 12
-    : snapshotCount <= 60 ? 8
-    : 5;
+  }, [displayData, snapshotCount]);
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
@@ -466,24 +491,32 @@ export default function CombinedChart({ data, flowEvents, kpis }: CombinedChartP
       <div className="overflow-x-auto p-3 sm:p-5">
         <div className="min-w-[480px]">
           {displayData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={320}>
-              <ComposedChart data={displayData} barSize={barSize} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+            <ResponsiveContainer width="100%" height={420}>
+              <ComposedChart data={displayData} barSize={granularity === "semanal" ? barSize : undefined} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis
-                  dataKey="ts"
-                  type="number"
-                  scale="time"
-                  domain={xDomain}
-                  ticks={tickValues}
-                  tickFormatter={(ts: number) =>
-                    new Date(ts).toLocaleDateString("es-ES", {
-                      day: "2-digit",
-                      month: "short",
-                      year: "2-digit",
-                    })
-                  }
-                  tick={{ fontSize: 10, fill: "#9ca3af" }}
-                />
+                {granularity === "semanal" ? (
+                  <XAxis
+                    dataKey="ts"
+                    type="number"
+                    scale="time"
+                    domain={xDomain}
+                    ticks={tickValues}
+                    tickFormatter={(ts: number) =>
+                      new Date(ts).toLocaleDateString("es-ES", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "2-digit",
+                      })
+                    }
+                    tick={{ fontSize: 10, fill: "#9ca3af" }}
+                  />
+                ) : (
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fontSize: 10, fill: "#9ca3af" }}
+                    interval={0}
+                  />
+                )}
 
                 {/* Eje EUR (NAV apilado + aportaciones netas) */}
                 {(showNav || showFlows) && (

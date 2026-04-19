@@ -6,12 +6,10 @@ import {
   getAggregatedHistory,
   getAvailableDateRange,
   getHistoryByAccount,
-  getAllLatestPositions,
   getAllPositionHistory,
 } from "@/lib/queries/positions";
 import type { DateRange } from "@/lib/queries/positions";
 import {
-  getOperations,
   getAllOperationsForAccounts,
 } from "@/lib/queries/operations";
 import { getGlobalAdminKpis } from "@/lib/queries/admin-summary";
@@ -234,15 +232,13 @@ export default async function AdminPage({
   // =========================================================================
   // ALL CLIENTS → aggregated admin view
   // =========================================================================
-  // MVP6 P2: los KPIs globales (AUM, invertido, rentabilidad) vienen de
-  // la vista materializada global_kpis via getGlobalAdminKpis(). Con la
-  // migracion 007 aplicada, esto es O(1). Sin migracion, cae al fallback
-  // SQL que sigue siendo mas rapido que iterar 10k ops en JS.
-  const [positions, history, availDateRange, globalKpis] = await Promise.all([
-    getAllLatestPositions(dateRange),
+  // MVP6 P2: KPIs globales de la vista materializada (O(1)).
+  // Solo cargamos history (totales agregados por fecha, ligero) para el
+  // grafico. NO cargamos positions individuales (miles de filas, lento).
+  const [globalKpis, history, availDateRange] = await Promise.all([
+    getGlobalAdminKpis(),
     getAllPositionHistory(dateRange),
     getAvailableDateRange([]),
-    getGlobalAdminKpis(),
   ]);
 
   return (
@@ -254,7 +250,7 @@ export default async function AdminPage({
       availableDateRange={availDateRange}
       initialDateFrom={dateFromParam ?? null}
       initialDateTo={dateToParam ?? null}
-      initialPositions={positions}
+      initialPositions={[]}
       initialHistory={history}
       initialOperations={{ operations: [], total: 0, page: 1, totalPages: 0 }}
       initialNetContributionsGlobal={globalKpis.patrimonioInvertido}

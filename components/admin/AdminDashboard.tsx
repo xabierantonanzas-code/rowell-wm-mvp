@@ -486,11 +486,17 @@ export default function AdminDashboard({
     fetchData(selectedClient, dateFrom, dateTo, page, selectedAccountId);
   };
 
-  // KPIs
-  const totalValue = useMemo(
+  // KPIs — in global view (no client selected), use aumData from MV
+  // instead of computing from positions array (which is empty for perf).
+  const isGlobalView = !selectedClient;
+
+  const totalValueFromPositions = useMemo(
     () => positions.reduce((sum, p) => sum + (p.position_value ?? 0), 0),
     [positions]
   );
+  const totalValue = isGlobalView && positions.length === 0
+    ? aumData.totalAUM
+    : totalValueFromPositions;
 
   const totalCost = useMemo(
     () =>
@@ -504,17 +510,28 @@ export default function AdminDashboard({
   const pnl = totalCost > 0 ? ((totalValue - totalCost) / totalCost) * 100 : 0;
 
   const latestDate = useMemo(() => {
-    if (positions.length === 0) return "Sin datos";
-    return new Date(positions[0].snapshot_date).toLocaleDateString("es-ES", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
-  }, [positions]);
+    if (positions.length > 0) {
+      return new Date(positions[0].snapshot_date).toLocaleDateString("es-ES", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      });
+    }
+    if (aumData.snapshotDate) {
+      return new Date(aumData.snapshotDate).toLocaleDateString("es-ES", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      });
+    }
+    return "Sin datos";
+  }, [positions, aumData.snapshotDate]);
 
   const isinCount = useMemo(
-    () => new Set(positions.map((p) => p.isin).filter(Boolean)).size,
-    [positions]
+    () => isGlobalView && positions.length === 0
+      ? aumData.totalPositions
+      : new Set(positions.map((p) => p.isin).filter(Boolean)).size,
+    [positions, isGlobalView, aumData.totalPositions]
   );
 
   // FIFO EUR cost por ISIN para P&L con efecto divisa real (Edgard MVP6 #8)
@@ -546,7 +563,6 @@ export default function AdminDashboard({
       retentions += op.withholding ?? 0;
     }
     // Override con valor global precalculado si estamos en vista "Todos"
-    const isGlobalView = !selectedClient;
     const netContrib =
       isGlobalView && typeof initialNetContributionsGlobal === "number"
         ? initialNetContributionsGlobal
@@ -670,7 +686,7 @@ export default function AdminDashboard({
     },
     {
       label: "N° fondos",
-      rawValue: positions.length,
+      rawValue: isGlobalView && positions.length === 0 ? aumData.totalPositions : positions.length,
       format: (v) => String(Math.round(v)),
       sub: "Activos en cartera",
       accent: false,

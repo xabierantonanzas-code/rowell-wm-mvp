@@ -323,9 +323,52 @@ function getOpColor(type: string | null): string {
 // Sub-components: Section header (replica del estilo del informe)
 // ===========================================================================
 
-function SectionHeader({ number, title }: { number: string; title: string }) {
+function SectionHeader({
+  number,
+  title,
+  collapsible,
+  open,
+  onToggle,
+}: {
+  number: string;
+  title: string;
+  collapsible?: boolean;
+  open?: boolean;
+  onToggle?: () => void;
+}) {
   const { themeName } = useTheme();
   const isModern = themeName === "modern";
+
+  const content = (
+    <>
+      <span>{number}. {title}</span>
+      {collapsible && (
+        <ChevronDown className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} />
+      )}
+    </>
+  );
+
+  if (collapsible) {
+    return (
+      <div className="relative mb-4 mt-2 sm:mb-6">
+        <button
+          onClick={onToggle}
+          className="flex w-full items-center justify-between"
+        >
+          {isModern ? (
+            <h2 className="flex w-full items-center justify-between border-l-4 border-[var(--color-gold)] px-4 py-2.5 text-sm font-bold text-gray-900 sm:px-6 sm:py-3 sm:text-lg">
+              {content}
+            </h2>
+          ) : (
+            <h2 className="relative flex w-full items-center justify-between rounded-lg bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] px-4 py-2.5 font-display text-sm font-bold text-white sm:px-6 sm:py-3 sm:text-lg">
+              {content}
+            </h2>
+          )}
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="relative mb-4 mt-2 sm:mb-6">
       {isModern ? (
@@ -853,7 +896,15 @@ export default function ClientDashboard({
   const [activeTab, setActiveTab] = useState<"cartera" | "operaciones">("cartera");
   const [opsPage, setOpsPage] = useState(1);
   const [returnMethod, setReturnMethod] = useState<"twr" | "mwr">("twr");
-  const [positionsOpen, setPositionsOpen] = useState(false);
+  const [sectionsOpen, setSectionsOpen] = useState<Record<string, boolean>>({
+    "2": true,  // Evolucion Patrimonial
+    "3": true,  // Distribucion de Activos
+    "4": false, // Posiciones (collapsed by default)
+    "5": true,  // Cartera / Operaciones
+    "6": true,  // Espacio Personal
+  });
+  const toggleSection = (key: string) =>
+    setSectionsOpen((prev) => ({ ...prev, [key]: !prev[key] }));
 
   // Fetch data
   const fetchData = async (
@@ -1434,90 +1485,89 @@ export default function ClientDashboard({
       {/* 2. EVOLUCION PATRIMONIAL — Gráfico combinado                      */}
       {/* ================================================================= */}
       <SectionDivider />
-      <SectionHeader number="2" title="Evolucion Patrimonial" />
-      {combinedChartData.kpis ? (
-        <CombinedChart
-          data={combinedChartData.chartData}
-          flowEvents={combinedChartData.flowEvents}
-          kpis={combinedChartData.kpis}
-        />
-      ) : (
-        <div className="rounded-xl border border-gray-200 bg-white p-12 text-center shadow-sm">
-          <p className="text-sm text-gray-400">Sin datos suficientes para generar el grafico</p>
-        </div>
-      )}
+      <SectionHeader number="2" title="Evolucion Patrimonial" collapsible open={sectionsOpen["2"]} onToggle={() => toggleSection("2")} />
+      {sectionsOpen["2"] && (
+        <>
+          {combinedChartData.kpis ? (
+            <CombinedChart
+              data={combinedChartData.chartData}
+              flowEvents={combinedChartData.flowEvents}
+              kpis={combinedChartData.kpis}
+            />
+          ) : (
+            <div className="rounded-xl border border-gray-200 bg-white p-12 text-center shadow-sm">
+              <p className="text-sm text-gray-400">Sin datos suficientes para generar el grafico</p>
+            </div>
+          )}
 
-      {/* Gráfico acumulativo por estrategias (solo multi-cuenta) */}
-      {accounts.length > 1 && data.historyByAccount && strategySeries.length > 0 && (
-        <div className="mt-6">
-          <StrategyChart series={strategySeries} />
-        </div>
+          {accounts.length > 1 && data.historyByAccount && strategySeries.length > 0 && (
+            <div className="mt-6">
+              <StrategyChart series={strategySeries} />
+            </div>
+          )}
+        </>
       )}
 
       {/* ================================================================= */}
       {/* 3. DISTRIBUCION DE ACTIVOS                                        */}
       {/* ================================================================= */}
       <SectionDivider />
-      <SectionHeader number="3" title="Distribucion de Activos" />
-      <AssetDistribution positions={data.positions} cashBalance={data.cashBalance} productTypeMap={productTypeMap} />
+      <SectionHeader number="3" title="Distribucion de Activos" collapsible open={sectionsOpen["3"]} onToggle={() => toggleSection("3")} />
+      {sectionsOpen["3"] && (
+        <AssetDistribution positions={data.positions} cashBalance={data.cashBalance} productTypeMap={productTypeMap} />
+      )}
 
       {/* ================================================================= */}
-      {/* 4. POSICIONES (colapsable, colapsado por defecto)                 */}
+      {/* 4. POSICIONES (con tabs: resumen IIC/RV + detalle producto)       */}
       {/* ================================================================= */}
       <SectionDivider />
-      <div className="mt-4">
-        <button
-          onClick={() => setPositionsOpen((v) => !v)}
-          className="mb-2 flex w-full items-center justify-between rounded-lg bg-white px-4 py-3 text-left text-sm font-semibold text-[var(--color-primary)] shadow-sm border border-gray-200 hover:bg-gray-50 transition-colors"
-        >
-          <span>Posiciones ({data.positions.length})</span>
-          <ChevronDown className={`h-4 w-4 transition-transform ${positionsOpen ? "rotate-180" : ""}`} />
-        </button>
-        {positionsOpen && (
-          <PositionsTable
-            positions={data.positions}
-            eurCostMap={eurCostMap}
-            productTypeMap={productTypeMap}
-          />
-        )}
-      </div>
+      <SectionHeader number="4" title={`Posiciones (${data.positions.length})`} collapsible open={sectionsOpen["4"]} onToggle={() => toggleSection("4")} />
+      {sectionsOpen["4"] && (
+        <>
+          <div className="mb-4 flex items-center gap-1 rounded-lg bg-gray-100 p-1">
+            <button
+              onClick={() => setActiveTab("cartera")}
+              className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all ${
+                activeTab === "cartera"
+                  ? "bg-white text-[var(--color-primary)] shadow-sm"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              <PieChartIcon className="h-4 w-4" />
+              Resumen IIC / RV
+            </button>
+            <button
+              onClick={() => setActiveTab("operaciones")}
+              className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all ${
+                activeTab === "operaciones"
+                  ? "bg-white text-[var(--color-primary)] shadow-sm"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              <FileText className="h-4 w-4" />
+              Detalle producto
+            </button>
+          </div>
+          {activeTab === "cartera" ? (
+            <PositionsTable
+              positions={data.positions}
+              eurCostMap={eurCostMap}
+              productTypeMap={productTypeMap}
+            />
+          ) : (
+            <PortfolioTable positions={data.positions} />
+          )}
+        </>
+      )}
 
       <SectionDivider />
 
       {/* ================================================================= */}
-      {/* 5. CARTERA DE INVERSION ROWELL / OPERACIONES                      */}
+      {/* 5. OPERACIONES                                                    */}
       {/* ================================================================= */}
-      <SectionHeader number="5" title="Cartera de Inversion Rowell" />
+      <SectionHeader number="5" title={`Operaciones (${data.operations.total})`} collapsible open={sectionsOpen["5"]} onToggle={() => toggleSection("5")} />
 
-      {/* Tabs */}
-      <div className="mb-4 flex items-center gap-1 rounded-lg bg-gray-100 p-1">
-        <button
-          onClick={() => setActiveTab("cartera")}
-          className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all ${
-            activeTab === "cartera"
-              ? "bg-white text-[var(--color-primary)] shadow-sm"
-              : "text-gray-500 hover:text-gray-700"
-          }`}
-        >
-          <PieChartIcon className="h-4 w-4" />
-          Posiciones ({data.positions.length})
-        </button>
-        <button
-          onClick={() => setActiveTab("operaciones")}
-          className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all ${
-            activeTab === "operaciones"
-              ? "bg-white text-[var(--color-primary)] shadow-sm"
-              : "text-gray-500 hover:text-gray-700"
-          }`}
-        >
-          <FileText className="h-4 w-4" />
-          Operaciones ({data.operations.total})
-        </button>
-      </div>
-
-      {activeTab === "cartera" ? (
-        <PortfolioTable positions={data.positions} />
-      ) : (
+      {sectionsOpen["5"] && (
         <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
           {data.operations.operations.length === 0 ? (
             <p className="py-12 text-center text-gray-400">
@@ -1595,12 +1645,14 @@ export default function ClientDashboard({
       {clientId && (
         <>
           <SectionDivider />
-          <SectionHeader number="6" title="Tu Espacio Personal" />
-          <CommunicationPanel
-            clientId={clientId}
-            clientName={clientName}
-            isAdmin={isAdmin}
-          />
+          <SectionHeader number="6" title="Tu Espacio Personal" collapsible open={sectionsOpen["6"]} onToggle={() => toggleSection("6")} />
+          {sectionsOpen["6"] && (
+            <CommunicationPanel
+              clientId={clientId}
+              clientName={clientName}
+              isAdmin={isAdmin}
+            />
+          )}
         </>
       )}
 
