@@ -127,6 +127,72 @@ export function resetRateLimit(ip: string) {
   rateLimitStore.delete(ip);
 }
 
+// ===========================================================================
+// Route-level rate limiting — configurable per endpoint type
+// ===========================================================================
+
+const routeRateLimitStores = new Map<string, Map<string, RateLimitEntry>>();
+
+/**
+ * Rate limit by route key + IP. Different limits for different route types.
+ * Returns 429 NextResponse if blocked, null if allowed.
+ */
+export function checkRouteRateLimit(
+  request: NextRequest,
+  routeKey: string,
+  maxAttempts = 100,
+  windowMs = 15 * 60 * 1000
+): NextResponse | null {
+  const ip = getClientIp(request);
+  const key = `${routeKey}:${ip}`;
+
+  if (!routeRateLimitStores.has(routeKey)) {
+    routeRateLimitStores.set(routeKey, new Map());
+  }
+  const store = routeRateLimitStores.get(routeKey)!;
+
+  const now = Date.now();
+
+  // Cleanup
+  if (store.size > 5000) {
+    store.forEach((val, k) => {
+      if (now - val.firstAttempt > windowMs * 2) store.delete(k);
+    });
+  }
+
+  const entry = store.get(key);
+
+  if (!entry) {
+    store.set(key, { attempts: 1, firstAttempt: now, blockedUntil: 0 });
+    return null;
+  }
+
+  if (entry.blockedUntil > now) {
+    const retryAfter = Math.ceil((entry.blockedUntil - now) / 1000);
+    return NextResponse.json(
+      { error: "Demasiadas peticiones. Intenta de nuevo mas tarde." },
+      { status: 429, headers: { "Retry-After": String(retryAfter) } }
+    );
+  }
+
+  if (now - entry.firstAttempt > windowMs) {
+    store.set(key, { attempts: 1, firstAttempt: now, blockedUntil: 0 });
+    return null;
+  }
+
+  entry.attempts++;
+
+  if (entry.attempts > maxAttempts) {
+    entry.blockedUntil = now + windowMs;
+    return NextResponse.json(
+      { error: "Demasiadas peticiones. Intenta de nuevo mas tarde." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(windowMs / 1000)) } }
+    );
+  }
+
+  return null;
+}
+
 export function getClientIp(request: NextRequest): string {
   return (
     request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||

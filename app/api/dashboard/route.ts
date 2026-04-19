@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { checkRouteRateLimit } from "@/lib/security";
 import {
   getLatestPositions,
   getPositionHistory,
@@ -22,6 +23,9 @@ import { cached } from "@/lib/cache";
  *   dateTo   - Fecha fin (YYYY-MM-DD)
  */
 export async function GET(req: NextRequest) {
+  const rl = checkRouteRateLimit(req, "dashboard", 100);
+  if (rl) return rl;
+
   const supabase = await createClient();
 
   // Verificar auth

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { checkRouteRateLimit } from "@/lib/security";
 import {
   getMessages,
   createMessage,
@@ -11,6 +12,9 @@ import { captureError } from "@/lib/error";
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function GET(req: NextRequest) {
+  const rl = checkRouteRateLimit(req, "messages", 100);
+  if (rl) return rl;
+
   const supabase = await createClient();
   const {
     data: { user },

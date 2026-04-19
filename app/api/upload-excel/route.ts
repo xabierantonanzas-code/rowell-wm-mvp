@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { checkRouteRateLimit } from "@/lib/security";
 import {
   parsePositions,
   parseOperations,
@@ -48,6 +49,10 @@ function formatDate(date: Date): string {
 // ===========================================================================
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  // Rate limit: 10 uploads per 15 min per IP
+  const rl = checkRouteRateLimit(request, "upload", 10);
+  if (rl) return rl;
+
   try {
     // --- Verificar autenticacion ---
     const supabase = await createClient();
