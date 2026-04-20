@@ -197,6 +197,46 @@ describe("computeEurCostByIsin", () => {
     expect(info.eurCostRemaining).toBeCloseTo(5000);
   });
 
+  it("internal transfers move lots between ISINs (SUSC.TRASPASO. INT. + REEMBOLSO POR TRASPASO INT.)", () => {
+    const ops = [
+      // Buy 100 units at 50€ in ISIN_A
+      makeOp({
+        isin: "ISIN_A",
+        operation_type: "SUSCRIPCIÓN FONDOS INVERSIÓN",
+        operation_date: "2023-01-01",
+        units: 100,
+        eur_amount: 5000,
+      }),
+      // Internal transfer OUT: all 100 units leave ISIN_A
+      makeOp({
+        isin: "ISIN_A",
+        operation_type: "REEMBOLSO POR TRASPASO INT.",
+        operation_date: "2024-06-01",
+        units: 100,
+        eur_amount: 5500,
+      }),
+      // Internal transfer IN: 120 units arrive in ISIN_B at market value 5200€
+      makeOp({
+        isin: "ISIN_B",
+        operation_type: "SUSC.TRASPASO. INT.",
+        operation_date: "2024-06-01",
+        units: 120,
+        eur_amount: 5200,
+      }),
+    ];
+
+    const result = computeEurCostByIsin(ops);
+
+    // ISIN_A: all lots consumed, should not be in result
+    expect(result.has("ISIN_A")).toBe(false);
+
+    // ISIN_B: 120 units with eurCostRemaining = 5200
+    expect(result.has("ISIN_B")).toBe(true);
+    const info = result.get("ISIN_B")!;
+    expect(info.unitsRemainingFifo).toBeCloseTo(120);
+    expect(info.eurCostRemaining).toBeCloseTo(5200);
+  });
+
   it("operations are sorted chronologically regardless of input order", () => {
     const ops = [
       // Sell first in array but later by date
@@ -232,11 +272,21 @@ describe("eurCostForPosition", () => {
     expect(eurCostForPosition("XX0000", 10, map)).toBeNull();
   });
 
-  it("scales proportionally when actual units differ from FIFO", () => {
+  it("scales proportionally when actual units are fewer than FIFO", () => {
     const map = new Map([
       ["LU0001", { unitsRemainingFifo: 100, eurCostRemaining: 5000, eurCostPerUnit: 50 }],
     ]);
-    // Actual units = 110 (e.g., from dividend reinvestment)
-    expect(eurCostForPosition("LU0001", 110, map)).toBeCloseTo(5500);
+    // Actual units = 80 (partial — fewer than FIFO tracked)
+    expect(eurCostForPosition("LU0001", 80, map)).toBeCloseTo(4000);
+  });
+
+  it("caps at eurCostRemaining when actual units exceed FIFO (splits)", () => {
+    const map = new Map([
+      ["LU0001", { unitsRemainingFifo: 100, eurCostRemaining: 5000, eurCostPerUnit: 50 }],
+    ]);
+    // After 2:1 split: 200 units but capital invested was still 5000
+    expect(eurCostForPosition("LU0001", 200, map)).toBeCloseTo(5000);
+    // Even 10x split: still capped at 5000
+    expect(eurCostForPosition("LU0001", 1000, map)).toBeCloseTo(5000);
   });
 });
