@@ -136,6 +136,26 @@ function formatDate(dateStr: string | null): string {
   });
 }
 
+/**
+ * MIN(operation_date) sobre las operaciones. Funcion pura, sin side
+ * effects. Si el array viene vacio o todas las dates son null, devuelve
+ * null — el consumidor decide el fallback (today, undefined, etc.).
+ *
+ * Usada en dos sitios dentro de ClientDashboard:
+ *   1. useState initializer de dateFrom (primer render, arranque en Origen).
+ *   2. useMemo de originDate (para el boton "Desde origen" de DateRangeBar).
+ * Mismo input (array completo de ops), mismo resultado, cero duplicacion.
+ */
+function computeOriginDate(ops: Operation[]): string | null {
+  let earliest: string | null = null;
+  for (const op of ops) {
+    const d = op.operation_date;
+    if (!d) continue;
+    if (!earliest || d < earliest) earliest = d;
+  }
+  return earliest;
+}
+
 // ===========================================================================
 // DateRangeBar - selector de fechas + botones de periodo (Edgard MVP6 #3+#4)
 // ===========================================================================
@@ -889,8 +909,17 @@ export default function ClientDashboard({
   const [selectedAccountId, setSelectedAccountId] = useState<string | "all">(
     accounts.length === 1 ? accounts[0].id : "all"
   );
-  const [dateFrom, setDateFrom] = useState<string | undefined>(initialData.dateFrom ?? undefined);
-  const [dateTo, setDateTo] = useState<string | undefined>(initialData.dateTo ?? undefined);
+  // MVP6 final #2: arrancar con Origen -> hoy para que el grafico no salga
+  // vacio en la primera carga. Si la URL trae dateFrom/dateTo, respetarlos.
+  // Si el cliente no tiene operaciones, fallback a hoy/hoy.
+  const [dateFrom, setDateFrom] = useState<string | undefined>(() => {
+    if (initialData.dateFrom) return initialData.dateFrom;
+    const origin = computeOriginDate(initialData.operations.operations);
+    return origin ?? new Date().toISOString().split("T")[0];
+  });
+  const [dateTo, setDateTo] = useState<string | undefined>(
+    () => initialData.dateTo ?? new Date().toISOString().split("T")[0]
+  );
   const [data, setData] = useState<DashboardData>(initialData);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"cartera" | "operaciones">("cartera");
@@ -989,15 +1018,11 @@ export default function ClientDashboard({
 
   // Fecha de la 1a operacion registrada para esta CV (Edgard MVP6 #4:
   // boton "Desde origen" = primera operacion de la cuenta).
-  const originDate = useMemo(() => {
-    let earliest: string | null = null;
-    for (const op of data.operations.operations) {
-      const d = op.operation_date;
-      if (!d) continue;
-      if (!earliest || d < earliest) earliest = d;
-    }
-    return earliest;
-  }, [data.operations.operations]);
+  // Usa el mismo helper que el useState initializer de dateFrom.
+  const originDate = useMemo(
+    () => computeOriginDate(data.operations.operations),
+    [data.operations.operations]
+  );
 
   // Aportaciones netas y comisiones (taxonomia oficial Edgard MVP6)
   // PLUS  = CONTRAVALOR EFECTIVO NETO (eur_amount)
@@ -1435,7 +1460,8 @@ export default function ClientDashboard({
       {/* Row 2: Rentabilidad + Costes + Concentración */}
       {(rentabilidadPeriods.length > 0 || totalCommissions > 0 || data.positions.length > 0) && (
         <div className="mt-2 grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-4">
-          {/* Rentabilidad por periodos */}
+          {/* TODO MVP6.1: TWR calculation broken — shows +128,69% on Aurum-077 when real return is 24,29%. Fix requires geometric TWR with subperiods cut by each cash flow. See docs/MVP6.1_TODO.md */}
+          {/*
           {rentabilidadPeriods.map((r) => (
             <div
               key={r.period}
@@ -1453,6 +1479,7 @@ export default function ClientDashboard({
               </p>
             </div>
           ))}
+          */}
           {/* Plusvalía total económica */}
           <div className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md sm:p-4">
             <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[var(--color-gold)] to-[var(--color-gold-soft)] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />

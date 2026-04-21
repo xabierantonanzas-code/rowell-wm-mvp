@@ -236,6 +236,8 @@ export default function CombinedChart({ data, flowEvents, kpis }: CombinedChartP
   const kpiCards: { label: string; rawValue: number; format: (v: number) => string; sub?: string; color?: string }[] = [
     { label: "Valor inicio", rawValue: kpis.valorInicio, format: formatEur },
     { label: "Valor fin", rawValue: kpis.valorFin, format: formatEur },
+    // TODO MVP6.1: TWR calculation broken — shows +128,69% on Aurum-077 when real return is 24,29%. Fix requires geometric TWR with subperiods cut by each cash flow. See docs/MVP6.1_TODO.md
+    /*
     {
       label: "Variacion",
       rawValue: kpis.variacionPct,
@@ -243,6 +245,7 @@ export default function CombinedChart({ data, flowEvents, kpis }: CombinedChartP
       sub: `${kpis.variacion >= 0 ? "+" : ""}${formatEur(kpis.variacion)}`,
       color: kpis.variacionPct >= 0 ? "text-green-600" : "text-red-600",
     },
+    */
     ...(kpis.mejorMes
       ? [{
           label: "Mejor mes",
@@ -261,12 +264,15 @@ export default function CombinedChart({ data, flowEvents, kpis }: CombinedChartP
           color: "text-red-600",
         }]
       : []),
+    // TODO MVP6.1: TWR calculation broken — shows +46,94% on Aurum-077 when real return is 24,29%. Fix requires geometric TWR with subperiods cut by each cash flow. See docs/MVP6.1_TODO.md
+    /*
     {
       label: "Rent. periodo",
       rawValue: kpis.rentabilidadPeriodo,
       format: (v) => `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`,
       color: kpis.rentabilidadPeriodo >= 0 ? "text-green-600" : "text-red-600",
     },
+    */
     { label: "Aportaciones netas", rawValue: kpis.aportacionesNetas, format: formatEur },
   ];
 
