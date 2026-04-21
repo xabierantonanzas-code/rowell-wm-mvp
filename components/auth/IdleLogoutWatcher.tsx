@@ -1,24 +1,29 @@
 "use client";
 
-// MVP6 punto 1 (Edgard): Logout automatico tras 10 minutos de inactividad.
+// MVP6 punto 11 (Edgard): Logout automatico tras inactividad.
 //
 // Detecta eventos de actividad del usuario (mouse, teclado, touch, scroll)
-// y resetea un temporizador. Si pasan IDLE_MS sin actividad, llama a
+// y resetea un temporizador. Si pasan IDLE_MS sin actividad, muestra un
+// modal de aviso. Si el usuario no responde en WARNING_MS, llama a
 // supabase.auth.signOut() y redirige a /login.
 //
 // Caracteristicas:
 // - Solo se activa si hay sesion (user != null).
-// - Avisa al usuario 60 segundos antes con un toast/banner.
+// - Avisa al usuario WARNING_MS antes con un modal.
+// - Botones "Si, seguir" (resetea timer) y "Cerrar sesion" (logout inmediato).
 // - Al recibir focus en otra pestana, si el reloj ya expiro, cierra sesion
 //   inmediatamente.
 // - Reset del temporizador escribe en localStorage para que TODAS las
 //   pestanas compartan el mismo timeout.
+//
+// Hypercare (MVP6): 30 min + 2 min warning.
+// Release: cambiar IDLE_MS a 20 * 60 * 1000.
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 
-const IDLE_MS = 10 * 60 * 1000; // 10 min
-const WARN_MS = 60 * 1000;       // aviso 60s antes
+const IDLE_MS = 30 * 60 * 1000;   // 30 min (hypercare); cambiar a 20 min en release
+const WARNING_MS = 2 * 60 * 1000; // 2 min de aviso antes de logout
 const STORAGE_KEY = "rowell:lastActivity";
 
 const ACTIVITY_EVENTS = [
@@ -62,7 +67,7 @@ export default function IdleLogoutWatcher() {
     if (typeof window !== "undefined") {
       window.localStorage.setItem(STORAGE_KEY, String(Date.now()));
     }
-    warnRef.current = setTimeout(() => setWarning(true), IDLE_MS - WARN_MS);
+    warnRef.current = setTimeout(() => setWarning(true), IDLE_MS - WARNING_MS);
     timeoutRef.current = setTimeout(doLogout, IDLE_MS);
   }, [doLogout]);
 
@@ -109,7 +114,7 @@ export default function IdleLogoutWatcher() {
       if (e.key === STORAGE_KEY && e.newValue) {
         // Otra pestana hizo reset -> alineamos
         clearTimers();
-        warnRef.current = setTimeout(() => setWarning(true), IDLE_MS - WARN_MS);
+        warnRef.current = setTimeout(() => setWarning(true), IDLE_MS - WARNING_MS);
         timeoutRef.current = setTimeout(doLogout, IDLE_MS);
         setWarning(false);
       }
@@ -140,20 +145,29 @@ export default function IdleLogoutWatcher() {
   if (!active || !warning) return null;
 
   return (
-    <div className="fixed bottom-4 right-4 z-[100] flex items-center gap-3 rounded-xl border border-[var(--color-gold)] bg-white px-4 py-3 shadow-2xl">
-      <div className="text-sm">
-        <p className="font-semibold text-[var(--color-primary)]">Sesion a punto de expirar</p>
-        <p className="text-xs text-gray-500">
-          Por inactividad, te desconectaras en menos de 1 minuto.
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40">
+      <div className="mx-4 w-full max-w-sm rounded-xl border border-[var(--color-gold)] bg-white p-6 shadow-2xl">
+        <p className="text-base font-semibold text-[var(--color-primary)]">Sesion a punto de expirar</p>
+        <p className="mt-2 text-sm text-gray-500">
+          Por inactividad, tu sesion se cerrara en menos de 2 minutos. ¿Deseas seguir conectado?
         </p>
+        <div className="mt-4 flex items-center justify-end gap-3">
+          <button
+            type="button"
+            onClick={doLogout}
+            className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            Cerrar sesion
+          </button>
+          <button
+            type="button"
+            onClick={reset}
+            className="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--color-primary-dark)]"
+          >
+            Si, seguir
+          </button>
+        </div>
       </div>
-      <button
-        type="button"
-        onClick={reset}
-        className="rounded-lg bg-[var(--color-primary)] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[var(--color-primary-dark)]"
-      >
-        Seguir
-      </button>
     </div>
   );
 }

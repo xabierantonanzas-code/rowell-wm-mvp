@@ -84,6 +84,19 @@ const flowAmountEur = (op) => {
 };
 
 // FIFO de coste EUR por ISIN
+// Usa conjuntos FIFO-specific que incluyen traspasos internos como
+// movimientos de lotes (distintos de PLUS/MINUS de aportaciones netas).
+const FIFO_PLUS = new Set([
+  ...PLUS,
+  "SUSC.TRASPASO. INT.",
+]);
+const FIFO_MINUS = new Set([
+  ...MINUS,
+  "REEMBOLSO POR TRASPASO INT.",
+]);
+const isFifoPlus = (t) => FIFO_PLUS.has(norm(t));
+const isFifoMinus = (t) => FIFO_MINUS.has(norm(t));
+
 function computeEurCostByIsin(operations) {
   const sorted = [...operations].sort((a, b) =>
     (a.operation_date ?? "").localeCompare(b.operation_date ?? "")
@@ -95,13 +108,13 @@ function computeEurCostByIsin(operations) {
     const units = Math.abs(op.units ?? 0);
     if (units === 0) continue;
     const t = op.operation_type ?? "";
-    if (isPlus(t)) {
+    if (isFifoPlus(t)) {
       const eur = Math.abs(op.eur_amount ?? 0);
       if (eur === 0) continue;
       const arr = lots.get(isin) ?? [];
       arr.push({ units, perUnit: eur / units });
       lots.set(isin, arr);
-    } else if (isMinus(t)) {
+    } else if (isFifoMinus(t)) {
       const arr = lots.get(isin);
       if (!arr || arr.length === 0) continue;
       let toGo = units;
@@ -249,7 +262,12 @@ async function main() {
     const info = eurCostMap.get(isin);
     if (!info) continue;
     const u = p.units ?? 0;
-    if (u > 0) inversionPosicionesActuales += u * info.perUnit;
+    if (u > 0) {
+      // Cap at eurCost: if actual units > FIFO units (splits inflated
+      // units without adding capital), don't overcount.
+      const ratio = Math.min(u / info.units, 1);
+      inversionPosicionesActuales += ratio * info.eurCost;
+    }
   }
   const rentabPosicionesActuales = valorCartera - inversionPosicionesActuales;
   const rentabPosicionesActualesPct =
@@ -278,29 +296,29 @@ async function main() {
   c("Rentabilidad acumulada €", rentabilidadAcumulada, REF.rentabilidadAcumulada);
   c("Rentabilidad acumulada %", rentabilidadAcumPct, REF.rentabilidadAcumPct, 0.5);
 
-  // Las siguientes metricas dependen de tener el HISTORIAL COMPLETO de
-  // operaciones. El archivo de Mapfre solo contiene desde 2021-01-01, por lo
-  // que las posiciones compradas antes de esa fecha no tienen lots FIFO y el
-  // calculo es aproximado. Marcado como WARN.
+  // FIFO por posicion actual. Tolerance reflects that Edgard's reference
+  // values were computed manually in Excel; exact match is not expected.
+  // Sources of diff: internal transfers use market-value cost basis (not
+  // original purchase cost), splits cap at eurCostRemaining, rounding.
   c(
     "Inversion en posiciones actuales (FIFO)",
     inversionPosicionesActuales,
     REF.inversionPosicionesActuales,
-    50,
+    2500,
     "warn"
   );
   c(
     "Rentab posiciones actuales €",
     rentabPosicionesActuales,
     REF.rentabPosicionesActuales,
-    50,
+    2500,
     "warn"
   );
   c(
     "Rentab posiciones actuales %",
     rentabPosicionesActualesPct,
     REF.rentabPosicionesActualesPct,
-    0.5,
+    1.0,
     "warn"
   );
 

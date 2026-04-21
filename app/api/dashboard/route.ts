@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { checkRouteRateLimit } from "@/lib/security";
 import {
   getLatestPositions,
   getPositionHistory,
@@ -8,7 +9,7 @@ import {
   getHistoryByAccount,
 } from "@/lib/queries/positions";
 import type { DateRange } from "@/lib/queries/positions";
-import { getOperations } from "@/lib/queries/operations";
+import { getAllOperationsForAccounts } from "@/lib/queries/operations";
 import { getCashBalances } from "@/lib/queries/balances";
 import { cached } from "@/lib/cache";
 
@@ -20,9 +21,11 @@ import { cached } from "@/lib/cache";
  *   accounts - JSON array de UUIDs (para multi-cuenta)
  *   dateFrom - Fecha inicio (YYYY-MM-DD)
  *   dateTo   - Fecha fin (YYYY-MM-DD)
- *   page     - Pagina de operaciones (default 1)
  */
 export async function GET(req: NextRequest) {
+  const rl = checkRouteRateLimit(req, "dashboard", 100);
+  if (rl) return rl;
+
   const supabase = await createClient();
 
   // Verificar auth
@@ -39,8 +42,6 @@ export async function GET(req: NextRequest) {
   const accountsParam = params.get("accounts");
   const rawDateFrom = params.get("dateFrom") ?? undefined;
   const rawDateTo = params.get("dateTo") ?? undefined;
-  const pageStr = params.get("page");
-
   // Validate date format (YYYY-MM-DD)
   const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
   const dateFrom = rawDateFrom && dateRegex.test(rawDateFrom) ? rawDateFrom : undefined;
@@ -48,16 +49,23 @@ export async function GET(req: NextRequest) {
 
   const dateRange: DateRange | undefined =
     dateFrom || dateTo ? { dateFrom, dateTo } : undefined;
-  const page = pageStr ? parseInt(pageStr, 10) : 1;
 
   // Determinar que cuentas usar
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   let accountIds: string[] = [];
 
   if (accountId) {
+    if (!uuidRegex.test(accountId)) {
+      return NextResponse.json({ error: "account ID invalido" }, { status: 400 });
+    }
     accountIds = [accountId];
   } else if (accountsParam) {
     try {
-      accountIds = JSON.parse(accountsParam);
+      const parsed = JSON.parse(accountsParam);
+      if (!Array.isArray(parsed) || !parsed.every((id: unknown) => typeof id === "string" && uuidRegex.test(id))) {
+        return NextResponse.json({ error: "accounts param invalido" }, { status: 400 });
+      }
+      accountIds = parsed;
     } catch {
       return NextResponse.json(
         { error: "accounts param invalido" },
@@ -109,10 +117,9 @@ export async function GET(req: NextRequest) {
       return { positions, history, cashBalance: cashResult, historyByAccount };
     });
 
-    // Operations: paginated per request (page can change), not cached
-    const opsResult = isSingle
-      ? await getOperations(primaryAccountId, { dateRange, page, pageSize: 25 })
-      : { operations: [], total: 0, page: 1, totalPages: 0, pageSize: 25 };
+    // All operations (no pagination) — needed for flow calculations,
+    // originDate, FIFO, productTypeMap. The UI paginates client-side.
+    const allOps = await getAllOperationsForAccounts(accountIds, dateRange);
 
     return NextResponse.json({
       accountId: isSingle ? primaryAccountId : "all",
@@ -122,10 +129,10 @@ export async function GET(req: NextRequest) {
       history: baseData.history,
       historyByAccount: baseData.historyByAccount,
       operations: {
-        operations: opsResult.operations,
-        total: opsResult.total,
-        page: opsResult.page,
-        totalPages: opsResult.totalPages,
+        operations: allOps,
+        total: allOps.length,
+        page: 1,
+        totalPages: Math.max(1, Math.ceil(allOps.length / 25)),
       },
       cashBalance: baseData.cashBalance,
     });
