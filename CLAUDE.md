@@ -415,3 +415,29 @@ multi-titular) por una decisión explícita del usuario ("haz todos los
 puntos") + esta nota es el recordatorio de que ese código existe pero
 está en modo "fallback graceful" y se activa cuando MVP7 cierre el
 círculo.
+
+---
+
+## Session logging (a partir de 26/04/2026)
+
+Tras cada tarea importante (commit, migración aplicada, decisión
+arquitectónica), añade una entrada a `docs/sessions/YYYY-MM-DD-resumen.md`
+con este formato:
+
+### [HH:MM] - [Tarea breve]
+- Comandos clave (resumen, no copy-paste literal)
+- Archivos tocados
+- Resultado: OK / warning / error con detalles
+- Decisiones tomadas + razón
+
+El propósito es trazabilidad y diario operativo. NO es para registrar cada
+bash ejecutado — solo hitos. Si no estás seguro de si algo merece entrada,
+NO la añadas.
+
+Ejemplo de entrada que SÍ merece:
+- "Aplicada migración 009_isin_chains, 6 backfills creados"
+- "Decisión: cast en boundary en lugar de tipar createServerClient"
+
+Ejemplo de entrada que NO merece:
+- "git status ejecutado"
+- "Leí ClientDashboard.tsx para entender estructura"
