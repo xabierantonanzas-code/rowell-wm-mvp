@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import type { DateRange } from "@/lib/queries/positions";
+import type { Operation } from "@/lib/types/database";
 import {
   classifyFlow,
   flowAmountEur,
@@ -25,7 +26,7 @@ import { cached } from "@/lib/cache";
 export async function getAllOperationsForAccounts(
   accountIds: string[],
   dateRange?: DateRange
-): Promise<any[]> {
+): Promise<Operation[]> {
   if (accountIds.length === 0) return [];
 
   const cacheKey = `all_ops_${accountIds.sort().join("_")}_${dateRange?.dateFrom ?? ""}_${dateRange?.dateTo ?? ""}`;
@@ -33,7 +34,7 @@ export async function getAllOperationsForAccounts(
   return cached(cacheKey, 300, async () => {
     const supabase = await createClient();
 
-    const all: any[] = [];
+    const all: Operation[] = [];
     let from = 0;
     const PAGE = 1000;
 
@@ -52,7 +53,10 @@ export async function getAllOperationsForAccounts(
       if (error) throw error;
       if (!data || data.length === 0) break;
 
-      all.push(...data);
+      // Cast en el boundary: el cliente Supabase esta tipado como <any>
+      // (lib/supabase/server.ts), pero el SELECT * sobre la tabla operations
+      // devuelve exactamente las columnas del Row, asi que el cast es seguro.
+      all.push(...(data as Operation[]));
       if (data.length < PAGE) break;
       from += PAGE;
     }
