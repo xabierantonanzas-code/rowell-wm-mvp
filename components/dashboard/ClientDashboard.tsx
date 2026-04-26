@@ -1397,8 +1397,26 @@ export default function ClientDashboard({
               maxDate={availableDateRange?.maxDate}
               originDate={originDate}
             />
-            {/* TWR / MWR toggle (Edgard MVP6 #11: todos los selectores
-                en la barra inicial) */}
+            {/* HIDDEN UNTIL MVP6.1: toggle TWR / MWR.
+
+                Politica: no mostrar TWR mientras no podamos garantizar
+                integridad del input (snapshots completos, operation_date
+                consistente, taxonomia de flujos validada). Es preferible
+                esconder el selector que arriesgar a que un cliente vea un
+                numero falso y lo confunda con su rentabilidad real. Esta
+                salvaguarda NO es deuda tecnica — es politica de confianza
+                del cliente.
+
+                Que sigue vivo (no tocar): el state `returnMethod`, los
+                useMemos `twrPeriods` y `mwrPeriods`, y la bifurcacion del
+                calculo en `chartData.map(...)` (~L1253). La linea de
+                rentabilidad del chart sigue mostrando TWR-subperiodo (default).
+                Solo se oculta este selector de UI.
+
+                Reactivar cuando se cumplan los criterios de aceptacion
+                listados en docs/MVP6.1_TODO.md (modelo geometrico +
+                validaciones de input + UI fallback "datos insuficientes"). */}
+            {/*
             <div className="flex items-center gap-1.5">
               <TrendingUp className={cn("h-4 w-4 flex-shrink-0", isModern ? "text-gray-400" : "text-white/40")} />
               <div className={cn("flex overflow-hidden rounded-lg border", isModern ? "border-gray-300" : "border-white/20")}>
@@ -1430,6 +1448,7 @@ export default function ClientDashboard({
                 </button>
               </div>
             </div>
+            */}
           </div>
         </div>
       </div>

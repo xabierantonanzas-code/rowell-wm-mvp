@@ -23,6 +23,32 @@ TWR calculation broken — needs geometric TWR with subperiod cuts at each flow.
 
 **Referencia para QA:** cliente `Aurum-077`, valor esperado del calculo arreglado = 24,29 % (± 0,05 pp).
 
+### TWR (criterios de aceptación MVP6.1)
+
+No basta con arreglar la fórmula. Para que TWR vuelva a ser visible:
+
+- [ ] Modelo matemático correcto (geométrico con cortes en cada flujo)
+- [ ] Definir y aplicar validaciones de input:
+  - Snapshots presentes en cada subperiodo
+  - `operation_date` no null y consistente con snapshots
+  - Flujos clasificados correctamente (taxonomía MVP6 T1)
+  - Sin gaps de NAV histórico que invaliden el cálculo
+- [ ] UI fallback "Datos insuficientes para TWR" cuando inputs no
+      cumplen validación (no mostrar número incorrecto)
+- [ ] Validación end-to-end contra Aurum-077 + al menos 2 clientes
+      más con perfiles distintos
+
+**Política:** TWR solo se muestra si los inputs garantizan integridad.
+Es preferible "datos insuficientes" que un número falso que el cliente
+confunda con su rentabilidad real.
+
+**Estado actual del UI:** el toggle TWR/MWR está oculto en
+`ClientDashboard.tsx` (bloque `HIDDEN UNTIL MVP6.1`). El state
+`returnMethod`, los useMemos `twrPeriods`/`mwrPeriods` y la bifurcación
+de `chartData.map(...)` siguen vivos. La línea de rentabilidad del chart
+muestra TWR-subperiodo (default `"twr"`). Reactivar el selector cuando
+los criterios de arriba estén cumplidos.
+
 ---
 
 ## Resolved in MVP6 final
