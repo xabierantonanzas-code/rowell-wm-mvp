@@ -32,6 +32,11 @@ Node está en `/opt/homebrew/bin/node` o vía `nvm`. El binario `node` no
 está en el PATH por defecto en algunas shells — usa la ruta completa si
 falla.
 
+**Tras `git clone`** (o tras pull si nunca corriste el setup): ejecutar
+`bash scripts/install-hooks.sh` una vez para activar el hook `pre-push`
+que valida `Aurum-077` antes de cada push. Bypass puntual con
+`git push --no-verify` (ej. WIP branch).
+
 ## Estructura
 
 ```

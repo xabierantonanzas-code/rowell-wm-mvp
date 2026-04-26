@@ -1,0 +1,11 @@
+#!/bin/bash
+set -e
+echo "→ Running Aurum-077 validation before push..."
+if ! node scripts/validate-aurum077.mjs; then
+  echo ""
+  echo "❌ Validation failed. Push blocked."
+  echo "   Run 'node scripts/validate-aurum077.mjs' for details."
+  echo "   If you really need to push (e.g. WIP branch), use --no-verify."
+  exit 1
+fi
+echo "✅ Aurum-077 validation passed (9/9 OK)."
