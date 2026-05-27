@@ -152,27 +152,6 @@ function SidebarContent({
         })}
       </nav>
 
-      {/* Theme toggle */}
-      <div
-        className={cn(
-          "px-4 py-2",
-          isModern ? "border-t border-gray-200" : "border-t border-white/10"
-        )}
-      >
-        <button
-          onClick={toggleTheme}
-          className={cn(
-            "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs transition-colors",
-            isModern
-              ? "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
-              : "text-white/40 hover:bg-white/10 hover:text-white/70"
-          )}
-        >
-          <Palette className="h-3.5 w-3.5" />
-          {isModern ? "Estilo Rowell" : "Modo moderno"}
-        </button>
-      </div>
-
       {/* User section */}
       <div
         className={cn(

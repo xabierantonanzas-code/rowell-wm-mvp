@@ -51,24 +51,26 @@ const STORAGE_KEY = "rowell-theme";
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [themeName, setThemeName] = useState<ThemeName>(() => {
-    if (typeof window === "undefined") return "rowell";
-    const stored = localStorage.getItem(STORAGE_KEY) as ThemeName | null;
-    return stored === "modern" ? "modern" : "rowell";
-  });
+  // Estilo "rowell" eliminado. La app usa siempre "modern" como tema fijo —
+  // el selector de visualizacion del sidebar se quito por decision de producto.
+  // Mantengo el ThemeContext para no romper consumidores (useTheme()), pero el
+  // tema esta fijado y toggleTheme es no-op.
+  const themeName: ThemeName = "modern";
 
-  // Toggle CSS class + persist. All CSS variables are defined in globals.css
-  // under :root (rowell default) and .theme-modern (modern override).
   useEffect(() => {
-    document.documentElement.classList.toggle("theme-modern", themeName === "modern");
-    localStorage.setItem(STORAGE_KEY, themeName);
-  }, [themeName]);
-
-  const toggleTheme = useCallback(() => {
-    setThemeName((prev) => (prev === "rowell" ? "modern" : "rowell"));
+    // Forzar la clase modern siempre y limpiar cualquier valor antiguo del
+    // localStorage para que no haya estado fantasma.
+    document.documentElement.classList.add("theme-modern");
+    if (typeof window !== "undefined") {
+      localStorage.removeItem(STORAGE_KEY);
+    }
   }, []);
 
-  const colors = themeName === "modern" ? MODERN_COLORS : ROWELL_COLORS;
+  const toggleTheme = useCallback(() => {
+    // no-op: el toggle se desactivo al eliminar el estilo rowell
+  }, []);
+
+  const colors = MODERN_COLORS;
 
   return (
     <ThemeContext.Provider value={{ themeName, colors, toggleTheme }}>
