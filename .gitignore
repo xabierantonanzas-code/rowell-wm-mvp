@@ -25,3 +25,19 @@ npm-debug.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# claude code local config
+.claude/
+
+# datos sensibles de clientes (NUNCA subir a GitHub)
+data/customer data/
+data/raw data folder/
+data/platform visualization /
+
+# artefactos generados por scripts ad-hoc (regenerables)
+data/Rowell_KPIs_Calculos.docx
+data/Rowell_KPIs_Calculos.xlsx
+data/Rowell_MVP6_Comparativa.docx
+data/create_kpi_docx.js
+data/create_kpi_excel.py
+data/create_mvp6_comparison.js
