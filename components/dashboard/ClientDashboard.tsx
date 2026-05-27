@@ -19,6 +19,20 @@ import {
   User,
 } from "lucide-react";
 import PositionsTable from "@/components/dashboard/PositionsTable";
+import dynamic from "next/dynamic";
+
+// X-Ray con dynamic import + ssr:false para evitar hydration mismatch causado
+// por toLocaleString("es-ES") (Node y browser formatean distinto cuando el ICU
+// del Node es minimal). El componente se carga al expandir la sección, sin
+// pérdida de UX.
+const XRayTab = dynamic(() => import("@/components/dashboard/XRayTab"), {
+  ssr: false,
+  loading: () => (
+    <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-400">
+      Cargando X-Ray…
+    </div>
+  ),
+});
 import CommunicationPanel from "@/components/dashboard/CommunicationPanel";
 import CombinedChart from "@/components/dashboard/CombinedChart";
 import StrategyChart from "@/components/dashboard/StrategyChart";
@@ -926,11 +940,14 @@ export default function ClientDashboard({
   const [opsPage, setOpsPage] = useState(1);
   const [returnMethod, setReturnMethod] = useState<"twr" | "mwr">("twr");
   const [sectionsOpen, setSectionsOpen] = useState<Record<string, boolean>>({
-    "2": true,  // Evolucion Patrimonial
-    "3": true,  // Distribucion de Activos
-    "4": false, // Posiciones (collapsed by default)
-    "5": true,  // Cartera / Operaciones
-    "6": true,  // Espacio Personal
+    // Por defecto solo Resumen de Cartera (no colapsable) queda visible.
+    // Las demas secciones se abren con el chevron del header.
+    "2": false,    // Evolucion Patrimonial
+    "3": false,    // Distribucion de Activos
+    "xray": false, // X-Ray
+    "4": false,    // Posiciones
+    "5": false,    // Operaciones
+    "6": false,    // Espacio Personal
   });
   const toggleSection = (key: string) =>
     setSectionsOpen((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -1564,10 +1581,17 @@ export default function ClientDashboard({
       )}
 
       {/* ================================================================= */}
-      {/* 4. POSICIONES (con tabs: resumen IIC/RV + detalle producto)       */}
+      {/* 4. X-RAY DE CARTERA (MVP7 — scaffold con datos de ejemplo)        */}
       {/* ================================================================= */}
       <SectionDivider />
-      <SectionHeader number="4" title={`Posiciones (${data.positions.length})`} collapsible open={sectionsOpen["4"]} onToggle={() => toggleSection("4")} />
+      <SectionHeader number="4" title="X-Ray de Cartera" collapsible open={sectionsOpen["xray"]} onToggle={() => toggleSection("xray")} />
+      {sectionsOpen["xray"] && <XRayTab />}
+
+      {/* ================================================================= */}
+      {/* 5. POSICIONES (con tabs: resumen IIC/RV + detalle producto)       */}
+      {/* ================================================================= */}
+      <SectionDivider />
+      <SectionHeader number="5" title="Posiciones" collapsible open={sectionsOpen["4"]} onToggle={() => toggleSection("4")} />
       {sectionsOpen["4"] && (
         <>
           <div className="mb-4 flex items-center gap-1 rounded-lg bg-gray-100 p-1">
@@ -1609,9 +1633,9 @@ export default function ClientDashboard({
       <SectionDivider />
 
       {/* ================================================================= */}
-      {/* 5. OPERACIONES                                                    */}
+      {/* 6. OPERACIONES                                                    */}
       {/* ================================================================= */}
-      <SectionHeader number="5" title={`Operaciones (${data.operations.total})`} collapsible open={sectionsOpen["5"]} onToggle={() => toggleSection("5")} />
+      <SectionHeader number="6" title="Operaciones" collapsible open={sectionsOpen["5"]} onToggle={() => toggleSection("5")} />
 
       {sectionsOpen["5"] && (
         <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
@@ -1686,12 +1710,12 @@ export default function ClientDashboard({
       )}
 
       {/* ================================================================= */}
-      {/* 6. ESPACIO PERSONAL – Comunicacion y Documentos                    */}
+      {/* 7. ESPACIO PERSONAL – Comunicacion y Documentos                    */}
       {/* ================================================================= */}
       {clientId && (
         <>
           <SectionDivider />
-          <SectionHeader number="6" title="Tu Espacio Personal" collapsible open={sectionsOpen["6"]} onToggle={() => toggleSection("6")} />
+          <SectionHeader number="7" title="Tu Espacio Personal" collapsible open={sectionsOpen["6"]} onToggle={() => toggleSection("6")} />
           {sectionsOpen["6"] && (
             <CommunicationPanel
               clientId={clientId}
