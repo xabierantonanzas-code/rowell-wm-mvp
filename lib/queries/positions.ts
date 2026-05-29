@@ -567,7 +567,37 @@ async function _getAllLatestPositions(dateRange?: DateRange): Promise<Position[]
 
 export async function getAllPositionHistory(dateRange?: DateRange) {
   const cacheKey = `all_history_${dateRange?.dateFrom ?? "x"}_${dateRange?.dateTo ?? "x"}`;
-  return cached(cacheKey, 300, () => _getAllPositionHistory(dateRange));
+  return cached(cacheKey, 300, () => _getAllPositionHistoryFast(dateRange));
+}
+
+/**
+ * Camino rápido: una sola query agregada contra la vista
+ * `v_position_history_totals` (migración 009). Reemplaza el bucle O(n²) + N
+ * queries en serie de `_getAllPositionHistory` (~20 s → ms). Si la vista no
+ * existe todavía (migración sin aplicar) o falla, cae al método antiguo.
+ */
+async function _getAllPositionHistoryFast(dateRange?: DateRange) {
+  const supabase = await createClient();
+
+  let query = supabase
+    .from("v_position_history_totals")
+    .select("snapshot_date, total_value")
+    .order("snapshot_date");
+
+  query = applyDateFilter(query, "snapshot_date", dateRange);
+
+  const { data, error } = await query;
+
+  if (error || !data) {
+    return _getAllPositionHistory(dateRange);
+  }
+
+  return data.map(
+    (row: { snapshot_date: string; total_value: number | string | null }) => ({
+      date: row.snapshot_date,
+      totalValue: Number(row.total_value) || 0,
+    })
+  );
 }
 
 async function _getAllPositionHistory(dateRange?: DateRange) {
