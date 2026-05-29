@@ -1581,17 +1581,11 @@ export default function ClientDashboard({
       )}
 
       {/* ================================================================= */}
-      {/* 4. X-RAY DE CARTERA (MVP7 — scaffold con datos de ejemplo)        */}
+      {/* 4. POSICIONES (con tabs: resumen IIC/RV + detalle producto)       */}
+      {/* R29-4: Posiciones debe ir antes del X-Ray (feedback Edgard 29 may) */}
       {/* ================================================================= */}
       <SectionDivider />
-      <SectionHeader number="4" title="X-Ray de Cartera" collapsible open={sectionsOpen["xray"]} onToggle={() => toggleSection("xray")} />
-      {sectionsOpen["xray"] && <XRayTab />}
-
-      {/* ================================================================= */}
-      {/* 5. POSICIONES (con tabs: resumen IIC/RV + detalle producto)       */}
-      {/* ================================================================= */}
-      <SectionDivider />
-      <SectionHeader number="5" title="Posiciones" collapsible open={sectionsOpen["4"]} onToggle={() => toggleSection("4")} />
+      <SectionHeader number="4" title="Posiciones" collapsible open={sectionsOpen["4"]} onToggle={() => toggleSection("4")} />
       {sectionsOpen["4"] && (
         <>
           <div className="mb-4 flex items-center gap-1 rounded-lg bg-gray-100 p-1">
@@ -1629,6 +1623,14 @@ export default function ClientDashboard({
           )}
         </>
       )}
+
+      {/* ================================================================= */}
+      {/* 5. X-RAY DE CARTERA (MVP7 — scaffold con datos de ejemplo)        */}
+      {/* R29-4: ahora despues de Posiciones (feedback Edgard 29 may)        */}
+      {/* ================================================================= */}
+      <SectionDivider />
+      <SectionHeader number="5" title="X-Ray de Cartera" collapsible open={sectionsOpen["xray"]} onToggle={() => toggleSection("xray")} />
+      {sectionsOpen["xray"] && <XRayTab />}
 
       <SectionDivider />
 
