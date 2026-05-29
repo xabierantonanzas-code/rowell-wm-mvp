@@ -1630,7 +1630,16 @@ export default function ClientDashboard({
       {/* ================================================================= */}
       <SectionDivider />
       <SectionHeader number="5" title="X-Ray de Cartera" collapsible open={sectionsOpen["xray"]} onToggle={() => toggleSection("xray")} />
-      {sectionsOpen["xray"] && <XRayTab />}
+      {sectionsOpen["xray"] && (
+        <XRayTab
+          positions={data.positions.map((p) => ({
+            isin: p.isin,
+            value: p.position_value ?? 0,
+            name: p.product_name,
+          }))}
+          cashBalance={cashBalance}
+        />
+      )}
 
       <SectionDivider />
 

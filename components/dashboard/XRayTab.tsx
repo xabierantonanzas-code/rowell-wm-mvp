@@ -22,6 +22,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type {
+  XRayAggregation,
+  XRayRegionRow,
+  XRaySectorRow,
+} from "@/lib/types/xray";
 
 // =============================================================================
 // Datos del Ejemplo 1 (placeholder — hardcoded de Ejemplo_XRay_1.pdf)
@@ -690,24 +695,165 @@ function TopHoldingsBlock({ holdings, animateIn = true }: { holdings: HoldingRow
 // Componente principal
 // =============================================================================
 
-export default function XRayTab() {
-  // Mount guard: server y client renderizan el mismo loading inicial.
-  // animateIn dispara las animaciones de entrada un frame despues del mount,
-  // para que las transiciones CSS partan desde el estado "vacio" (width 0,
-  // donut sin pintar, filas con opacity 0) y se animen hasta el valor final.
+// =============================================================================
+// Adaptadores: XRayAggregation (datos reales) → tipos del componente
+// =============================================================================
+
+const REGION_SUPER: Record<string, string> = {
+  "Reino Unido": "Europa / O. Medio / África",
+  "Europa Occidental": "Europa / O. Medio / África",
+  "Europa Emergente": "Europa / O. Medio / África",
+  "Oriente Medio / África": "Europa / O. Medio / África",
+  "Estados Unidos / Canadá": "América",
+  "América Latina": "América",
+  "Japón": "Asia",
+  "Australasia": "Asia",
+  "Asia Desarrollada": "Asia",
+  "Asia Emergente": "Asia",
+};
+
+const SECTOR_SUPER: Record<string, "Cíclico" | "Sensible al ciclo" | "Defensivo"> = {
+  "Materiales Básicos": "Cíclico",
+  "Consumo Cíclico": "Cíclico",
+  "Servicios Financieros": "Cíclico",
+  "Inmobiliario": "Cíclico",
+  "Servicios de Comunicación": "Sensible al ciclo",
+  "Energía": "Sensible al ciclo",
+  "Industria": "Sensible al ciclo",
+  "Tecnología": "Sensible al ciclo",
+  "Consumo Defensivo": "Defensivo",
+  "Salud": "Defensivo",
+  "Servicios Públicos": "Defensivo",
+};
+
+function adaptDistribucion(agg: XRayAggregation): DistribucionActivos[] {
+  // Nuestros datos no separan largo/corto → largo = patrimonio, corto = 0.
+  return agg.distribucion.map((d) => ({
+    categoria: d.categoria,
+    largo: d.patrimonio,
+    corto: 0,
+    patrimonio: d.patrimonio,
+  }));
+}
+
+function adaptRegiones(rows: XRayRegionRow[]): RegionGroup[] {
+  const grupos = new Map<string, RegionGroup>();
+  for (const r of rows) {
+    const titulo = REGION_SUPER[r.nombre] ?? "Otros";
+    if (!grupos.has(titulo)) grupos.set(titulo, { titulo, totalPct: 0, subregiones: [] });
+    const g = grupos.get(titulo)!;
+    g.totalPct += r.pct;
+    g.subregiones.push({ nombre: r.nombre, pct: r.pct });
+  }
+  return Array.from(grupos.values());
+}
+
+function adaptSectores(rows: XRaySectorRow[]): SectorGroup[] {
+  const orden: SectorGroup["super"][] = ["Cíclico", "Sensible al ciclo", "Defensivo"];
+  const grupos = new Map<SectorGroup["super"], SectorGroup>();
+  for (const s of rows) {
+    const sup = SECTOR_SUPER[s.nombre];
+    if (!sup) continue;
+    if (!grupos.has(sup)) grupos.set(sup, { super: sup, totalPct: 0, sectores: [] });
+    const g = grupos.get(sup)!;
+    g.totalPct += s.pct;
+    g.sectores.push({ nombre: s.nombre, pct: s.pct });
+  }
+  return orden.filter((s) => grupos.has(s)).map((s) => grupos.get(s)!);
+}
+
+// Banner de cobertura + avisos (R21-11).
+function AvisosBanner({ agg }: { agg: XRayAggregation }) {
+  const [open, setOpen] = useState(false);
+  const n = agg.cobertura.avisos.length;
+  const ok = n === 0;
+  return (
+    <div
+      className={`rounded-xl border p-4 text-sm ${
+        ok ? "border-green-200 bg-green-50" : "border-amber-200 bg-amber-50"
+      }`}
+    >
+      <button
+        type="button"
+        onClick={() => !ok && setOpen((v) => !v)}
+        className="flex w-full items-center justify-between text-left"
+      >
+        <span className={ok ? "text-green-800" : "text-amber-800"}>
+          {ok
+            ? `Cobertura X-Ray completa (${agg.cobertura.pct.toFixed(1)} %).`
+            : `Cobertura del X-Ray: ${agg.cobertura.pct.toFixed(1)} % del valor de cartera. ${n} ${
+                n === 1 ? "posición con aviso" : "posiciones con avisos"
+              }.`}
+        </span>
+        {!ok && <span className="text-amber-700">{open ? "▲" : "▼"}</span>}
+      </button>
+      {open && !ok && (
+        <ul className="mt-3 space-y-1 border-t border-amber-200 pt-3 text-amber-900">
+          {agg.cobertura.avisos.map((a) => (
+            <li key={a.isin}>
+              <span className="font-medium">{a.isin}</span> — {a.nombre}: {a.motivo}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+export interface XRayInputPosition {
+  isin: string | null;
+  value: number;
+  name: string | null;
+}
+
+export default function XRayTab({
+  positions = [],
+  cashBalance = 0,
+}: {
+  positions?: XRayInputPosition[];
+  cashBalance?: number;
+}) {
   const [mounted, setMounted] = useState(false);
   const [animateIn, setAnimateIn] = useState(false);
+  const [agg, setAgg] = useState<XRayAggregation | null>(null);
+  const [loaded, setLoaded] = useState(false);
+
   useEffect(() => {
     setMounted(true);
-    // doble RAF: garantiza que el browser pinta el estado inicial antes de
-    // disparar la transicion al estado final. Sin esto, algunos browsers
-    // saltan directos al final.
     requestAnimationFrame(() =>
       requestAnimationFrame(() => setAnimateIn(true))
     );
   }, []);
 
-  if (!mounted) {
+  // Carga lazy: al montar (= al expandir la sección) pedimos la agregación
+  // real al backend. Si falla o no hay cobertura, caemos al placeholder.
+  useEffect(() => {
+    let cancel = false;
+    if (positions.length === 0) {
+      setLoaded(true);
+      return;
+    }
+    fetch("/api/xray", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ positions, cashBalance }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: XRayAggregation | null) => {
+        if (!cancel) {
+          setAgg(data);
+          setLoaded(true);
+        }
+      })
+      .catch(() => {
+        if (!cancel) setLoaded(true);
+      });
+    return () => {
+      cancel = true;
+    };
+  }, [positions, cashBalance]);
+
+  if (!mounted || !loaded) {
     return (
       <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-400">
         Cargando X-Ray…
@@ -715,21 +861,36 @@ export default function XRayTab() {
     );
   }
 
+  // Usamos datos reales solo si hay cobertura (la tabla funds_universe está
+  // poblada y casan ISINs). Si no, placeholder del ejemplo.
+  const useReal = !!agg && !agg.vacio && agg.cobertura.pct > 0;
+
+  const funds = useReal ? (agg!.fondos as FundRow[]) : EJEMPLO_1_FUNDS;
+  const distribucion = useReal ? adaptDistribucion(agg!) : EJEMPLO_1_DISTRIBUCION;
+  const regiones = useReal ? adaptRegiones(agg!.regiones) : EJEMPLO_1_REGIONES;
+  const sectores = useReal ? adaptSectores(agg!.sectores) : EJEMPLO_1_SECTORES;
+  const holdings: HoldingRow[] = useReal
+    ? agg!.topHoldings.map((h) => ({
+        pctActivos: h.pctActivos,
+        nombre: h.nombre,
+        tipo: "—",
+        sector: "—",
+        pais: "—",
+      }))
+    : EJEMPLO_1_HOLDINGS;
+
   return (
     <div className="space-y-6">
-      <FundsHeader funds={EJEMPLO_1_FUNDS} animateIn={animateIn} />
+      {useReal && <AvisosBanner agg={agg!} />}
 
-      {/* Distribución de Activos a ancho completo.
-          Rango de vencimientos solo se muestra si la cartera tiene Renta Fija
-          (Obligaciones > 0). En el placeholder Ejemplo 1 la cartera es 100% RV
-          → ocultamos el bloque. Cuando entren datos reales con bonos, el flag
-          tieneRentaFija se activará y aparecerá la tabla de buckets. */}
-      <DistribucionActivosBlock rows={EJEMPLO_1_DISTRIBUCION} animateIn={animateIn} />
-      {tieneRentaFija(EJEMPLO_1_DISTRIBUCION) && <RangoVencimientosBlock />}
+      <FundsHeader funds={funds} animateIn={animateIn} />
 
-      <DesgloseRegionesBlock grupos={EJEMPLO_1_REGIONES} animateIn={animateIn} />
-      <SectoresRVBlock grupos={EJEMPLO_1_SECTORES} animateIn={animateIn} />
-      <TopHoldingsBlock holdings={EJEMPLO_1_HOLDINGS} animateIn={animateIn} />
+      <DistribucionActivosBlock rows={distribucion} animateIn={animateIn} />
+      {tieneRentaFija(distribucion) && <RangoVencimientosBlock />}
+
+      <DesgloseRegionesBlock grupos={regiones} animateIn={animateIn} />
+      <SectoresRVBlock grupos={sectores} animateIn={animateIn} />
+      <TopHoldingsBlock holdings={holdings} animateIn={animateIn} />
     </div>
   );
 }
