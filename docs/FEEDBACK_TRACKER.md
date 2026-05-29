@@ -27,29 +27,29 @@
 | M8-7 | 28 abr/8 may | Inputs RV adicionales (P/Bº, P/VC, P/Ventas, P/CF, div %, crecimientos) | ✅ | `procesar_fondo:545-556` |
 | R21-1 | 21 may | Explicar caída tiempo 2h30→1h | ✅ | Respondido 22 may (reuso de sesión anti-bot, mismos 454 fondos) |
 | R21-2 | 21 may | Resumen Claude confuso / cifras | ✅ | Aclarado 22 may (94,5% bruto vs 96,7% tras limpieza) |
-| R21-3 | 21 may | Reclasificación `_status` DENTRO del pipeline, no script aparte | 🔴 | **`clean_v6.py:42-71` sigue siendo script separado, ejecutado a mano. El pipeline NO lo invoca** |
+| R21-3 | 21 may | Reclasificación `_status` DENTRO del pipeline, no script aparte | ✅ | Nuevo `clasificacion.py` (`clasificar_fondo`) llamado desde `procesar_fondo`. `clean_v6.py` reducido a cosmético. Paridad 0 mismatches vs v6_clean (`verify_clasificacion_paridad.py`). Pendiente commit |
 | R21-4 | 21 may | Validación general v6 | ✅ | Edgard: CORRECTO |
 | R21-5 | 21 may | 13 `DATOS_VACIOS` recuperados | ✅ | Edgard: CORRECTO (ver M8-1) |
 | R21-6 | 21 may | 11 `NO_ENCONTRADO` justificados | ✅ | Edgard: CORRECTO |
-| R21-7 | 21 may | 3ª pasada para 2 ISINs (LU1883854199, LU1883314244) | 🟡 | `retry_regressions.py` los reprocesa, pero es **script separado** (no 3ª pasada integrada) y el OK no está garantizado en código |
-| R21-8 | 21 may | Nota Warning en `xray_nota` para los `PARTIAL` | 🟡 | `procesar_fondo:707-710` solo pone nota si faltan pct_Equity/FixedIncome; los PARTIAL por WARN de holdings caen sin nota (712-713) |
-| R21-9 | 21 may | Reintentar fondos que el mes anterior eran `OK` y cambian | 🔴 | **No hay comparación contra el Excel del mes anterior** (grep mes_anterior/prev_month = 0). `retry_regressions.py` usa lista hardcodeada |
-| R21-10 | 21 may | `_status` + `xray_disponible` + `xray_nota` desde una única función coherente | 🟡 | Se calculan en bloques separados (`:675-688` y `:690-713`) + la reclasificación final en `clean_v6.py` (3er sitio) |
+| R21-7 | 21 may | 3ª pasada para 2 ISINs (LU1883854199, LU1883314244) | 🟡 | Mecanismo listo: `retry_regressions.py` los detecta automáticamente (ver R21-9) y los persistentes van a `regresiones_persistentes.txt` (no se pierden). El OK final depende de una corrida live. Pendiente commit |
+| R21-8 | 21 may | Nota Warning en `xray_nota` para los `PARTIAL` | ✅ | `clasificacion.py`: todo PARTIAL recibe `xray_nota` con el detalle de `_errors`. Verificado (2/2 PARTIAL con nota). Pendiente commit |
+| R21-9 | 21 may | Reintentar fondos que el mes anterior eran `OK` y cambian | ✅ | Nuevo `detectar_regresiones.py` (comparación automática mes-a-mes) cableado en `retry_regressions.py` (sustituye lista hardcodeada). Verificado v5→v6: 12 regresiones detectadas. Pendiente commit |
+| R21-10 | 21 may | `_status` + `xray_disponible` + `xray_nota` desde una única función coherente | ✅ | Todo se decide en `clasificacion.clasificar_fondo` (una función). Pendiente commit |
 | R21-11 | 21 may | X-Ray: no descartar ISINs + WARNINGs al principio | 🔜 | No implementado en UI. `XRayTab.tsx` sin bloque de avisos; spec lo marca como fase F5 |
-| R21-12 | 21 may | 2 bugs `ISIN_match` (LU0076315455, LU2694991766) | 🔴 | **Ninguno de los 2 ISINs aparece en el repo** (grep = 0). Sin fix ni test |
-| R21-13 | 21 may | `ISIN_es_aproximacion`=SI → nota Warning en `xray_nota` | 🔴 | El bloque xray (`:690-713`) no consulta `ISIN_es_aproximacion` |
+| R21-12 | 21 may | 2 bugs `ISIN_match` (LU0076315455, LU2694991766) | 🔴 | Diagnosticado con datos v6: LU0076315455 → el probe extrajo `LU0173920264` del body (no el canónico) → falso MISMATCH; LU2694991766 → probe dio 404 pese a existir (header real LU1756522998). Ambos dependen del HTML real de Morningstar → fix + verificación requieren corrida live (no reproducible en sandbox sin red/mstarpy) |
+| R21-13 | 21 may | `ISIN_es_aproximacion`=SI → nota Warning en `xray_nota` | ✅ | `clasificacion.py` añade aviso de aproximación (con ISIN header). Verificado (16/16 aproximaciones con aviso). Pendiente commit |
 | R21-14 | 21 may | Integrar Universo en plataforma para X-Ray de clientes reales | 🔜 | `XRayTab.tsx:6-8` declara PLACEHOLDER hardcoded; sin queries a Supabase ni al Universo |
 | R29-1 | 29 may | Campos de rentabilidad de los últimos 10 años (por año) en el Universo | 🔴 | Solo agregados trailing (`mapeo_periodos:600-608`). No hay rentabilidad por año natural |
 | R29-2 | 29 may | 2ª página X-Ray Morningstar (rent. histórica) | 🔜 | No existe ruta/componente histórico. Depende de R29-1 |
 | R29-3 | 29 may | X-Ray por cliente (cartera real), no genérico | 🔜 | = R21-14. `ClientDashboard.tsx:1588` usa `<XRayTab />` sin props; mismo render para todos |
-| R29-4 | 29 may | POSICIONES antes del X-Ray | ✅ | Hecho 29 may: `ClientDashboard.tsx` reordenado → Posiciones = sección 4, X-Ray = sección 5. Typecheck sin errores nuevos. Pendiente commit |
+| R29-4 | 29 may | POSICIONES antes del X-Ray | ✅ | Commit `bdeec67` (dashboard): Posiciones = sección 4, X-Ray = sección 5. Pushed a main, validate-aurum077 9/9 OK |
 
 ---
 
 ## Lectura del estado (honesta)
 
-- **Captura de datos del Universo (8 may): cerrado, 6/6 en el flujo principal.** Es el bloque más sólido. Lo que Edgard validó como CORRECTO está realmente en el código.
-- **Reglas de proceso/clasificación del v6 (21 may): mayormente abiertas.** El punto de fondo (R21-3: la reclasificación tiene que vivir dentro del pipeline) **sigue en un script aparte**. No hay comparación mes-a-mes (R21-9), los 2 bugs de `ISIN_match` (R21-12) no se han tocado, y las notas de aviso (R21-8, R21-13) están a medias o sin hacer.
-- **X-Ray (29 may): placeholder.** Hoy es una maqueta visual con datos hardcoded del PDF de ejemplo, igual para todos los clientes. Esto es **por secuencia** (se pidió OK al *shape* antes de cablear datos reales), no descuido — pero conviene decirlo claro: nada del X-Ray refleja todavía cartera real ni rentabilidad histórica.
+- **Captura de datos del Universo (8 may): cerrado, 6/6 en el flujo principal.**
+- **Reglas de proceso/clasificación del v6 (21 may): mayormente cerradas (29 may).** Clasificación unificada dentro del pipeline (R21-3, R21-8, R21-10, R21-13 ✅, paridad verificada) y detección automática de regresiones mes-a-mes (R21-9 ✅). Queda abierto R21-12 (los 2 bugs de `ISIN_match` dependen del HTML real de Morningstar → fix + verificación en corrida live) y R21-7 a falta de confirmación en corrida live.
+- **X-Ray (29 may): placeholder + reorden hecho.** R29-4 (Posiciones antes del X-Ray) ✅. El resto (R21-11, R21-14, R29-1, R29-2, R29-3) sigue pendiente: el X-Ray no refleja todavía cartera real ni rentabilidad histórica.
 
-**Conclusión:** la percepción de Edgard tiene base real en el bloque de proceso (21 may): se respondió con compromisos pero varios puntos no se ejecutaron o quedaron fuera del flujo. La captura de datos sí está hecha. El X-Ray está pendiente por diseño.
+**Nota de método:** lo que toca lógica de datos pura se ha implementado y **verificado offline** (paridad de clasificación, detección de regresiones). Lo que depende de scraping live de Morningstar (R21-12, confirmación de R21-7, y la futura R29-1) requiere una corrida real en la máquina de Xabier; no se ha tocado código de scraping a ciegas.
