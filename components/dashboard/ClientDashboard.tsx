@@ -1637,7 +1637,7 @@ export default function ClientDashboard({
             value: p.position_value ?? 0,
             name: p.product_name,
           }))}
-          cashBalance={cashBalance}
+          cashBalance={data.cashBalance ?? 0}
         />
       )}
 
