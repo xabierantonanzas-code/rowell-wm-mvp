@@ -35,13 +35,13 @@
 | R21-8 | 21 may | Nota Warning en `xray_nota` para los `PARTIAL` | ✅ | `clasificacion.py`: todo PARTIAL recibe `xray_nota` con el detalle de `_errors`. Verificado (2/2 PARTIAL con nota). Pendiente commit |
 | R21-9 | 21 may | Reintentar fondos que el mes anterior eran `OK` y cambian | ✅ | Nuevo `detectar_regresiones.py` (comparación automática mes-a-mes) cableado en `retry_regressions.py` (sustituye lista hardcodeada). Verificado v5→v6: 12 regresiones detectadas. Pendiente commit |
 | R21-10 | 21 may | `_status` + `xray_disponible` + `xray_nota` desde una única función coherente | ✅ | Todo se decide en `clasificacion.clasificar_fondo` (una función). Pendiente commit |
-| R21-11 | 21 may | X-Ray: no descartar ISINs + WARNINGs al principio | 🔜 | No implementado en UI. `XRayTab.tsx` sin bloque de avisos; spec lo marca como fase F5 |
+| R21-11 | 21 may | X-Ray: no descartar ISINs + WARNINGs al principio | 🟡 | Implementado: `AvisosBanner` en `XRayTab.tsx` (cobertura % + lista de avisos por fondo). Visible cuando la tabla `funds_universe` esté poblada. Pendiente commit |
 | R21-12 | 21 may | 2 bugs `ISIN_match` (LU0076315455, LU2694991766) | 🔴 | Diagnosticado con datos v6: LU0076315455 → el probe extrajo `LU0173920264` del body (no el canónico) → falso MISMATCH; LU2694991766 → probe dio 404 pese a existir (header real LU1756522998). Ambos dependen del HTML real de Morningstar → fix + verificación requieren corrida live (no reproducible en sandbox sin red/mstarpy) |
 | R21-13 | 21 may | `ISIN_es_aproximacion`=SI → nota Warning en `xray_nota` | ✅ | `clasificacion.py` añade aviso de aproximación (con ISIN header). Verificado (16/16 aproximaciones con aviso). Pendiente commit |
-| R21-14 | 21 may | Integrar Universo en plataforma para X-Ray de clientes reales | 🔜 | `XRayTab.tsx:6-8` declara PLACEHOLDER hardcoded; sin queries a Supabase ni al Universo |
+| R21-14 | 21 may | Integrar Universo en plataforma para X-Ray de clientes reales | 🟡 | Cableado: `/api/xray` (clasifica IIC/RV + consulta `funds_universe` RLS + agrega) → `XRayTab` carga lazy datos reales con fallback. Falta poblar la tabla para verlo. Pendiente commit |
 | R29-1 | 29 may | Campos de rentabilidad de los últimos 10 años (por año) en el Universo | 🔴 | Solo agregados trailing (`mapeo_periodos:600-608`). No hay rentabilidad por año natural |
 | R29-2 | 29 may | 2ª página X-Ray Morningstar (rent. histórica) | 🔜 | No existe ruta/componente histórico. Depende de R29-1 |
-| R29-3 | 29 may | X-Ray por cliente (cartera real), no genérico | 🔜 | = R21-14. `ClientDashboard.tsx:1588` usa `<XRayTab />` sin props; mismo render para todos |
+| R29-3 | 29 may | X-Ray por cliente (cartera real), no genérico | 🟡 | Cableado (= R21-14): `ClientDashboard` pasa `positions`+`cashBalance` reales a `XRayTab`. Falta poblar `funds_universe` para verlo. Pendiente commit |
 | R29-4 | 29 may | POSICIONES antes del X-Ray | ✅ | Commit `bdeec67` (dashboard): Posiciones = sección 4, X-Ray = sección 5. Pushed a main, validate-aurum077 9/9 OK |
 
 ---
