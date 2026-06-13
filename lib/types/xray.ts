@@ -74,3 +74,37 @@ export interface XRayAggregation {
   topHoldings: XRayHoldingRow[];
   vacio: boolean;                // true si no hay posiciones IIC analizables
 }
+
+// ---- Rentabilidad histórica (R29-1 / R29-2, "2ª página" del X-Ray) ----
+//
+// El pipeline Python persiste en el JSONB `data` de funds_universe:
+//   - rent_YYYY     → rentabilidad del AÑO NATURAL (10 últimos años, rolling)
+//   - rent_YTD, rent_1Y, rent_3Y_anual, rent_5Y_anual, rent_10Y_anual → trailing
+// Todos en convención del pipeline (porcentaje, p. ej. 30.12 = 30,12 %). El
+// dashboard los renderiza tal cual, SIN transformar (igual que rent_3Y_anual en
+// la tabla de fondos del X-Ray). Si la escala cambiase, se ajusta en un solo
+// sitio: el formateo del componente.
+
+export interface FundYearReturn {
+  isin: string;
+  nombre: string;
+  pesoPct: number;                       // peso del fondo sobre el invertido
+  porAnyo: Record<number, number | null>; // año natural → rentabilidad %
+  rentYTD: number | null;
+  rent1Y: number | null;
+  rent3Yanual: number | null;
+  rent5Yanual: number | null;
+  rent10Yanual: number | null;
+}
+
+export interface HistoricalReturnsAggregation {
+  years: number[];                       // años con ≥1 fondo con dato, asc
+  fondos: FundYearReturn[];              // por fondo, ordenado por peso desc
+  // "Cartera teórica": qué habría rentado tu ASIGNACIÓN ACTUAL cada año
+  // natural (ponderada y renormalizada al subconjunto con dato ese año).
+  // Aproximación — la composición real de años pasados pudo ser distinta.
+  carteraPorAnyo: Record<number, number | null>;
+  coberturaPorAnyo: Record<number, number>; // % del invertido con dato, por año
+  cobertura: XRayCobertura;             // cobertura global + avisos
+  vacio: boolean;                        // true si ningún fondo aporta histórico
+}

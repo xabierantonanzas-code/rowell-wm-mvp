@@ -27,6 +27,7 @@ import type {
   XRayRegionRow,
   XRaySectorRow,
 } from "@/lib/types/xray";
+import XRayHistoricalReturns from "@/components/dashboard/XRayHistoricalReturns";
 
 // =============================================================================
 // Datos del Ejemplo 1 (placeholder — hardcoded de Ejemplo_XRay_1.pdf)
@@ -817,6 +818,7 @@ export default function XRayTab({
   const [animateIn, setAnimateIn] = useState(false);
   const [agg, setAgg] = useState<XRayAggregation | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [histOpen, setHistOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -891,6 +893,26 @@ export default function XRayTab({
       <DesgloseRegionesBlock grupos={regiones} animateIn={animateIn} />
       <SectoresRVBlock grupos={sectores} animateIn={animateIn} />
       <TopHoldingsBlock holdings={holdings} animateIn={animateIn} />
+
+      {/* 2ª página X-Ray: rentabilidad histórica por año (R29-2). Lazy:
+          solo monta (y hace fetch) al expandir. */}
+      <div className="rounded-xl border border-gray-200 bg-white">
+        <button
+          type="button"
+          onClick={() => setHistOpen((v) => !v)}
+          className="flex w-full items-center justify-between px-5 py-4 text-left"
+        >
+          <span className="font-semibold text-primary">
+            Rentabilidad histórica por año
+          </span>
+          <span className="text-gold">{histOpen ? "▲" : "▼"}</span>
+        </button>
+        {histOpen && (
+          <div className="border-t border-gray-100 p-5">
+            <XRayHistoricalReturns positions={positions} />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
