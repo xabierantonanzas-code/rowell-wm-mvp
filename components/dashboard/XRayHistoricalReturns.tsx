@@ -13,6 +13,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import {
+  Bar,
+  BarChart,
+  Cell,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import type { HistoricalReturnsAggregation } from "@/lib/types/xray";
 import type { XRayInputPosition } from "@/components/dashboard/XRayTab";
 
@@ -24,6 +34,25 @@ function fmtPct(v: number | null | undefined): string {
 function pctClass(v: number | null | undefined): string {
   if (v == null || Number.isNaN(v)) return "text-gray-400";
   return v >= 0 ? "text-green-700" : "text-red-600";
+}
+
+type YearDatum = { year: string; rent: number | null; cobertura: number };
+
+function ChartTooltip(props: {
+  active?: boolean;
+  label?: string | number;
+  payload?: Array<{ payload: YearDatum }>;
+}) {
+  const { active, payload, label } = props;
+  if (!active || !payload || payload.length === 0) return null;
+  const d = payload[0].payload;
+  return (
+    <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs shadow-md">
+      <div className="font-semibold text-gray-800">{label}</div>
+      <div className={pctClass(d.rent)}>{fmtPct(d.rent)}</div>
+      <div className="text-gray-400">Cobertura {Math.round(d.cobertura)} %</div>
+    </div>
+  );
 }
 
 export default function XRayHistoricalReturns({
@@ -82,6 +111,11 @@ export default function XRayHistoricalReturns({
 
   const a = agg!;
   const years = a.years;
+  const chartData: YearDatum[] = years.map((y) => ({
+    year: String(y),
+    rent: a.carteraPorAnyo[y],
+    cobertura: a.coberturaPorAnyo[y] ?? 0,
+  }));
 
   return (
     <div className="space-y-3">
@@ -90,6 +124,32 @@ export default function XRayHistoricalReturns({
         asignación actual cada año natural, ponderada por el peso de hoy. Es una
         aproximación: la composición real de años pasados pudo ser distinta.
         Cobertura global: {a.cobertura.pct.toFixed(1)} %.
+      </div>
+
+      {/* Gráfico: rentabilidad de la cartera teórica por año natural */}
+      <div className="rounded-xl border border-gray-200 bg-white p-4">
+        <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
+          Cartera (teórica) — rentabilidad por año natural
+        </h4>
+        <ResponsiveContainer width="100%" height={260}>
+          <BarChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+            <XAxis dataKey="year" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+            <YAxis
+              tickFormatter={(v) => `${v}%`}
+              tick={{ fontSize: 11 }}
+              axisLine={false}
+              tickLine={false}
+              width={44}
+            />
+            <ReferenceLine y={0} stroke="#9ca3af" />
+            <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(0,0,0,0.04)" }} />
+            <Bar dataKey="rent" radius={[3, 3, 0, 0]} maxBarSize={48}>
+              {chartData.map((d, i) => (
+                <Cell key={i} fill={(d.rent ?? 0) >= 0 ? "#15803d" : "#dc2626"} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">

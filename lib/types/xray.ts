@@ -63,6 +63,13 @@ export interface XRaySectorRow {
 export interface XRayHoldingRow {
   pctActivos: number;
   nombre: string;
+  // Clasificación por holding. `tipo` se deriva ya (topE=Acción / topB=Obligación).
+  // `sector`/`pais` se leen del Universo si existen (topX{k}_sector / _country);
+  // null mientras el Funds Pipeline no los publique → la UI muestra "—" y se
+  // rellenan solos cuando el dato aparezca.
+  tipo: string | null;
+  sector: string | null;
+  pais: string | null;
 }
 
 export interface XRayAggregation {

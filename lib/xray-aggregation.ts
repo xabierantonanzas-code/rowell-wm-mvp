@@ -27,6 +27,11 @@ function num(data: Record<string, unknown>, key: string): number | null {
   return null;
 }
 
+function str(data: Record<string, unknown>, key: string): string | null {
+  const v = data[key];
+  return typeof v === "string" && v.trim() !== "" ? v.trim() : null;
+}
+
 const REGION_MAP: Array<[string, string]> = [
   ["reg_NorthAmerica", "Estados Unidos / Canadá"],
   ["reg_UK", "Reino Unido"],
@@ -70,8 +75,22 @@ export function buildXRayAggregation(
   // Sectores / regiones (EUR sobre la parte de equity)
   const sectorEur = new Map<string, number>();
   const regionEur = new Map<string, number>();
-  // Holdings look-through (EUR por nombre)
-  const holdingEur = new Map<string, number>();
+  // Holdings look-through (EUR + clasificación por nombre).
+  // `sector`/`pais` salen del Universo si existen (topX{k}_sector / _country);
+  // null hasta que el Funds Pipeline los publique. `tipo` se deriva del prefijo.
+  type HoldingMeta = { eur: number; tipo: string | null; sector: string | null; pais: string | null };
+  const holdingMeta = new Map<string, HoldingMeta>();
+  const addHolding = (name: string, eur: number, tipo: string | null, sector: string | null, pais: string | null) => {
+    const cur = holdingMeta.get(name);
+    if (cur) {
+      cur.eur += eur;
+      cur.tipo = cur.tipo ?? tipo;
+      cur.sector = cur.sector ?? sector;
+      cur.pais = cur.pais ?? pais;
+    } else {
+      holdingMeta.set(name, { eur, tipo, sector, pais });
+    }
+  };
 
   const avisos: XRayAviso[] = [];
   let cubiertoEur = 0;
@@ -152,14 +171,18 @@ export function buildXRayAggregation(
       }
     }
 
-    // Holdings look-through (2.6/3.4): topE + topB, ponderado por peso del fondo
+    // Holdings look-through (2.6/3.4): topE + topB, ponderado por peso del fondo.
+    // tipo: topE → Acción, topB → Obligación. sector/país: del Universo si existen.
     for (const prefix of ["topE", "topB"]) {
+      const tipo = prefix === "topE" ? "Acción" : "Obligación";
       for (let k = 1; k <= 10; k++) {
         const name = d[`${prefix}${k}_name`];
         const pct = num(d, `${prefix}${k}_pct`);
         if (typeof name === "string" && name.trim() !== "" && pct != null) {
           const eur = p.value * (pct / 100);
-          holdingEur.set(name, (holdingEur.get(name) || 0) + eur);
+          const sector = str(d, `${prefix}${k}_sector`);
+          const pais = str(d, `${prefix}${k}_country`) ?? str(d, `${prefix}${k}_pais`);
+          addHolding(name.trim(), eur, tipo, sector, pais);
         }
       }
     }
@@ -170,8 +193,8 @@ export function buildXRayAggregation(
     eqEur += p.value;
     cubiertoEur += p.value;
     const nombre = p.nombre || p.isin;
-    holdingEur.set(nombre, (holdingEur.get(nombre) || 0) + p.value);
-    // contribuyen a "acciones" pero sin desglose sectorial/regional fiable
+    // RV directa = acción; sin desglose sectorial/regional fiable (sector/país null).
+    addHolding(nombre, p.value, "Acción", null, null);
   }
 
   // ---- Normalizaciones ----
@@ -197,8 +220,14 @@ export function buildXRayAggregation(
     pct: pct(regionEur.get(nombre) || 0, totalRegionEur),
   })).filter((r) => r.pct > 0).sort((a, b) => b.pct - a.pct);
 
-  const topHoldings: XRayHoldingRow[] = Array.from(holdingEur.entries())
-    .map(([nombre, eur]) => ({ nombre, pctActivos: pct(eur, investedTotal) }))
+  const topHoldings: XRayHoldingRow[] = Array.from(holdingMeta.entries())
+    .map(([nombre, m]) => ({
+      nombre,
+      pctActivos: pct(m.eur, investedTotal),
+      tipo: m.tipo,
+      sector: m.sector,
+      pais: m.pais,
+    }))
     .sort((a, b) => b.pctActivos - a.pctActivos)
     .slice(0, 10);
 

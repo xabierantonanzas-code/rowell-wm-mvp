@@ -875,9 +875,11 @@ export default function XRayTab({
     ? agg!.topHoldings.map((h) => ({
         pctActivos: h.pctActivos,
         nombre: h.nombre,
-        tipo: "—",
-        sector: "—",
-        pais: "—",
+        // tipo ya viene (Acción/Obligación); sector/país se rellenan cuando el
+        // Universo los publique, "—" mientras tanto.
+        tipo: h.tipo ?? "—",
+        sector: h.sector ?? "—",
+        pais: h.pais ?? "—",
       }))
     : EJEMPLO_1_HOLDINGS;
 
