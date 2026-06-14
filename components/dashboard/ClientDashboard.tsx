@@ -51,6 +51,7 @@ import {
   isMinus,
 } from "@/lib/operations-taxonomy";
 import { computeEurCostByIsin } from "@/lib/eur-cost-fifo";
+import { inceptionDate, irrFromSignedFlows } from "@/lib/returns";
 import { classifyProduct } from "@/lib/product-type";
 import { buildProductTypeMap, resolveProductType } from "@/lib/product-type-from-ops";
 import { useTheme } from "@/components/theme/ThemeContext";
@@ -436,6 +437,7 @@ function InvestorProfileCard({
   fundCount,
   cashBalance,
   netContributions,
+  mwrCumulative,
   latestDate,
   positions,
 }: {
@@ -451,6 +453,8 @@ function InvestorProfileCard({
   /** Aportaciones netas reales: SUM(PLUS) - SUM(MINUS) sobre operations.
    *  Es lo que Edgard llama "Patrimonio invertido". */
   netContributions: number;
+  /** MWR/TIR acumulada (FRM-006) como fracción, o null si no resoluble. */
+  mwrCumulative: number | null;
   latestDate: string;
   positions: Position[];
 }) {
@@ -507,10 +511,10 @@ function InvestorProfileCard({
       accent: false,
     },
     {
-      label: "Patrimonio invertido",
+      label: "Capital invertido",
       rawValue: netContributions,
       format: formatEur,
-      sub: "Aportaciones netas reales",
+      sub: "Inversiones − reembolsos",
       accent: false,
     },
     {
@@ -518,7 +522,11 @@ function InvestorProfileCard({
       rawValue: rentabilidadAcumEur,
       format: formatEur,
       prefix: rentabPositive ? "+" : "",
-      sub: `${rentabPositive ? "+" : ""}${rentabilidadAcumPct.toFixed(2)}% sobre invertido`,
+      // D20: Simple + MWR (TWR pendiente del material de Edgard).
+      sub:
+        mwrCumulative != null
+          ? `Simple ${rentabPositive ? "+" : ""}${rentabilidadAcumPct.toFixed(2)}% · MWR ${mwrCumulative >= 0 ? "+" : ""}${(mwrCumulative * 100).toFixed(2)}%`
+          : `${rentabPositive ? "+" : ""}${rentabilidadAcumPct.toFixed(2)}% sobre invertido`,
       accent: true,
       positive: rentabPositive,
     },
@@ -1066,6 +1074,23 @@ export default function ClientDashboard({
   // Plusvalía total económica = patrimonio actual - aportaciones netas
   const plusvaliaTotalEco = totalValue - netContributions;
 
+  // MWR / TIR real (FRM-006). Métrica EXACTA: solo necesita flujos + valor
+  // terminal (V^pos = totalValue, D27), no la serie de snapshots. Usa la
+  // convención de flujo actual (flowAmountEur) para ser consistente con la
+  // Simple mostrada; cuando A1 (MINUS = NETO+RETENCIÓN, D6) se valide, ambas
+  // cambian a la vez. Sustituye al antiguo "MWR" que era Modified Dietz (D29).
+  const mwrSI = useMemo(() => {
+    if (data.operations.operations.length === 0 || totalValue <= 0) return null;
+    const t0 = inceptionDate(data.operations.operations);
+    if (!t0 || data.positions.length === 0) return null;
+    const asOf = new Date(data.positions[0].snapshot_date);
+    const flows = data.operations.operations.map((op) => ({
+      amount: flowAmountEur(op),
+      date: op.operation_date,
+    }));
+    return irrFromSignedFlows(flows, totalValue, t0, asOf);
+  }, [data.operations.operations, data.positions, totalValue]);
+
   // Concentration top 5 / top 10
   const { concTop5, concTop10 } = useMemo(() => {
     if (data.positions.length === 0 || totalValue === 0) return { concTop5: 0, concTop10: 0 };
@@ -1489,6 +1514,7 @@ export default function ClientDashboard({
         fundCount={data.positions.length}
         cashBalance={data.cashBalance}
         netContributions={netContributions}
+        mwrCumulative={mwrSI?.cumulative ?? null}
         latestDate={latestDate}
         positions={data.positions}
       />
@@ -1523,7 +1549,7 @@ export default function ClientDashboard({
             <p className={`mt-0.5 text-base font-bold sm:mt-1 sm:text-lg ${plusvaliaTotalEco >= 0 ? "text-green-600" : "text-red-600"}`}>
               <AnimatedValue value={plusvaliaTotalEco} format={(v) => `${v >= 0 ? "+" : ""}${formatEur(v)}`} />
             </p>
-            <p className="text-[9px] text-gray-400 sm:text-[10px]">Patrimonio - aportaciones netas</p>
+            <p className="text-[9px] text-gray-400 sm:text-[10px]">Patrimonio − capital invertido</p>
           </div>
           {/* Concentración */}
           <div className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md sm:p-4">
@@ -1738,9 +1764,16 @@ export default function ClientDashboard({
       )}
 
       {/* ================================================================= */}
+      {/* Aviso permanente (D19 / PEND-001): rentabilidad sin dividendos      */}
+      {/* ================================================================= */}
+      <p className="mt-8 text-center text-[10px] text-gray-400">
+        La rentabilidad mostrada no incluye dividendos ni cupones cobrados.
+      </p>
+
+      {/* ================================================================= */}
       {/* Footer branding                                                    */}
       {/* ================================================================= */}
-      <div className="mt-8 flex items-center justify-center gap-2 pb-4 text-xs text-gray-400">
+      <div className="mt-3 flex items-center justify-center gap-2 pb-4 text-xs text-gray-400">
         <div className="h-px w-12 bg-[var(--color-gold-30)]" />
         <span className="font-display font-semibold text-[var(--color-gold)]/60">Rowell Patrimonios</span>
         <div className="h-px w-12 bg-[var(--color-gold-30)]" />

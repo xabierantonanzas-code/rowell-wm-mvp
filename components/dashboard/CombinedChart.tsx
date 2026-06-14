@@ -273,7 +273,7 @@ export default function CombinedChart({ data, flowEvents, kpis }: CombinedChartP
       color: kpis.rentabilidadPeriodo >= 0 ? "text-green-600" : "text-red-600",
     },
     */
-    { label: "Aportaciones netas", rawValue: kpis.aportacionesNetas, format: formatEur },
+    { label: "Capital invertido", rawValue: kpis.aportacionesNetas, format: formatEur },
   ];
 
   // Determine visible series based on view
@@ -585,7 +585,7 @@ export default function CombinedChart({ data, flowEvents, kpis }: CombinedChartP
                     yAxisId="eur"
                     type="stepAfter"
                     dataKey="netContrib"
-                    name="Aportaciones netas"
+                    name="Capital invertido"
                     stroke="#10b981"
                     strokeWidth={2}
                     dot={false}
