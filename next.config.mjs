@@ -1,4 +1,8 @@
 import { withSentryConfig } from "@sentry/nextjs";
+import { createRequire } from "module";
+
+const require = createRequire(import.meta.url);
+const pkg = require("./package.json");
 
 const isDev = process.env.NODE_ENV === "development";
 
@@ -10,6 +14,15 @@ const scriptSrc = isDev
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Versión visible en la app (footer). Inyectadas en build:
+  // - APP_VERSION: package.json (fuente única)
+  // - COMMIT_SHA: commit corto de Vercel (vacío en local)
+  // - BUILD_DATE: fecha del build
+  env: {
+    NEXT_PUBLIC_APP_VERSION: pkg.version,
+    NEXT_PUBLIC_COMMIT_SHA: (process.env.VERCEL_GIT_COMMIT_SHA || "").slice(0, 7),
+    NEXT_PUBLIC_BUILD_DATE: new Date().toISOString().slice(0, 10),
+  },
   async headers() {
     return [
       {
