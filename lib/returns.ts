@@ -236,8 +236,175 @@ export function mwrIrr(
 }
 
 // ---------------------------------------------------------------------------
-// FRM-007 / FRM-008 — TWR encadenado / Modified Dietz.
-// PENDIENTE: Edgard tiene material adicional de TWR por enviar (gap-aware,
-// liquidación diferida PEND-013, etc.). No implementar hasta recibirlo.
-// Ver docs/PREGUNTAS_edgard_TWR_2026-06-14.md.
+// FRM-008 — Modified Dietz de un sub-periodo. Motor interno del TWR (D29: no se
+// expone como métrica al cliente). Port fiel de metrics.py `md(...)`.
+//   T = días(t_fin − t_ini);  F = Σ flujos;  cap = V_B + Σ (w_i · CF_i)
+//   w_i = (T − días(t_i − t_ini)) / T
+//   R = (V_E − V_B − F) / cap        (cap ≤ 0 o T ≤ 0 → null)
+// Los flujos llevan el signo de FRM-002 (PLUS +, MINUS −).
 // ---------------------------------------------------------------------------
+export interface DatedAmount {
+  amount: number;
+  date: Date;
+}
+
+export function modifiedDietz(
+  vB: number,
+  vE: number,
+  flows: ReadonlyArray<DatedAmount>,
+  tIni: Date,
+  tFin: Date
+): number | null {
+  const T = (tFin.getTime() - tIni.getTime()) / MS_PER_DAY;
+  if (T <= 0) return null;
+  let F = 0;
+  let cap = vB;
+  for (const f of flows) {
+    F += f.amount;
+    const w = (T - (f.date.getTime() - tIni.getTime()) / MS_PER_DAY) / T;
+    cap += w * f.amount;
+  }
+  if (cap <= 0) return null;
+  return (vE - vB - F) / cap;
+}
+
+// ---------------------------------------------------------------------------
+// FRM-007 — TWR encadenado (gap-aware, ruta robusta). Port fiel de metrics.py.
+//
+// Encadena Modified Dietz por sub-periodo entre snapshots consecutivos de
+// V^pos. Arranca en el PRIMER snapshot disponible (`twrStart`), no en t_0
+// (D28/PEND-013): si hay hueco grande cerca de inception (> ~1,6 cadencias),
+// `sinceInception=false` (V-010) y para el tramo completo se usa el MWR.
+// Los flujos del primer sub-periodo solo se incluyen si arranca en t_0.
+//
+// `series`: snapshots {date, vPos} (se filtran a ≥ t_0 y se ordenan).
+// `flows`:  flujos externos firmados (FRM-002) con fecha.
+// Devuelve null si no hay ≥ 2 snapshots o si algún sub-periodo es indefinido
+// (política de integridad: mejor "datos insuficientes" que un número falso).
+// ---------------------------------------------------------------------------
+export interface TwrResult {
+  /** Rentabilidad TWR acumulada (encadenada). */
+  cumulative: number;
+  /** TWR anualizada desde twrStart (null si < 1 año). */
+  annual: number | null;
+  /** Fecha de arranque efectivo del TWR (primer snapshot ≥ t_0). */
+  twrStart: Date;
+  /** false si hubo hueco de snapshots cerca de inception (V-010). */
+  sinceInception: boolean;
+}
+
+export function chainedTwr(
+  series: ReadonlyArray<{ date: string | Date | null; vPos: number }>,
+  flows: ReadonlyArray<SignedFlow>,
+  t0: Date,
+  asOf?: Date
+): TwrResult | null {
+  const ser = series
+    .map((s) => ({ date: toDate(s.date), vPos: s.vPos }))
+    .filter((s): s is { date: Date; vPos: number } => s.date !== null && s.date >= t0)
+    .sort((a, b) => a.date.getTime() - b.date.getTime());
+  if (ser.length < 2) return null;
+
+  const fl: DatedAmount[] = [];
+  for (const f of flows) {
+    const d = toDate(f.date);
+    if (d && f.amount !== 0) fl.push({ amount: f.amount, date: d });
+  }
+
+  const first = ser[0].date;
+  const GAP_DAYS = 31 * 1.6; // V-010: hueco tolerado ≈ 1,6 cadencias mensuales
+  const sinceInception = (first.getTime() - t0.getTime()) / MS_PER_DAY <= GAP_DAYS;
+  const twrStart = first;
+
+  let factor = 1.0;
+  for (let i = 1; i < ser.length; i++) {
+    const a = ser[i - 1].date;
+    const b = ser[i].date;
+    const vB = ser[i - 1].vPos;
+    const vE = ser[i].vPos;
+    const aIsT0 = a.getTime() === t0.getTime();
+    const segFlows = fl.filter((x) =>
+      aIsT0 ? x.date >= a && x.date <= b : x.date > a && x.date <= b
+    );
+    const r = modifiedDietz(vB, vE, segFlows, a, b);
+    if (r === null) return null;
+    factor *= 1 + r;
+  }
+
+  const cumulative = factor - 1;
+  const end = asOf ?? ser[ser.length - 1].date;
+  return {
+    cumulative,
+    annual: annualize(cumulative, twrStart, end),
+    twrStart,
+    sinceInception,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Serie temporal de rentabilidad acumulada (Simple / MWR / TWR) por snapshot.
+// Para el gráfico de evolución de rentabilidad. Devuelve % (0.10 = 10%).
+//   - Simple_t = (V^pos_t − CI_t) / CI_t          (CI_t = Σ flujos ≤ t)
+//   - TWR_t    = Π(1 + Dietz_subperiodo) − 1      (producto acumulado, gap-aware)
+//   - MWR_t    = TIR de los flujos ≤ t + valor terminal V^pos_t
+// ---------------------------------------------------------------------------
+export interface ReturnsPoint {
+  date: string; // YYYY-MM-DD
+  simple: number | null;
+  mwr: number | null;
+  twr: number | null;
+}
+
+export function returnsTimeSeries(
+  series: ReadonlyArray<{ date: string | Date | null; vPos: number }>,
+  flows: ReadonlyArray<SignedFlow>,
+  t0: Date
+): ReturnsPoint[] {
+  const ser = series
+    .map((s) => ({ date: toDate(s.date), vPos: s.vPos }))
+    .filter((s): s is { date: Date; vPos: number } => s.date !== null && s.date >= t0)
+    .sort((a, b) => a.date.getTime() - b.date.getTime());
+  if (ser.length === 0) return [];
+
+  const fl: DatedAmount[] = [];
+  for (const f of flows) {
+    const d = toDate(f.date);
+    if (d && f.amount !== 0) fl.push({ amount: f.amount, date: d });
+  }
+
+  const out: ReturnsPoint[] = [];
+  let twrFactor = 1.0;
+  let twrOk = true;
+  for (let i = 0; i < ser.length; i++) {
+    const d = ser[i].date;
+    const vPos = ser[i].vPos;
+
+    let ci = 0;
+    for (const f of fl) if (f.date <= d) ci += f.amount;
+    const simple = ci > 0 ? (vPos - ci) / ci : null;
+
+    if (i > 0 && twrOk) {
+      const a = ser[i - 1].date;
+      const vB = ser[i - 1].vPos;
+      const aIsT0 = a.getTime() === t0.getTime();
+      const segFlows = fl.filter((x) =>
+        aIsT0 ? x.date >= a && x.date <= d : x.date > a && x.date <= d
+      );
+      const r = modifiedDietz(vB, vPos, segFlows, a, d);
+      if (r === null) twrOk = false;
+      else twrFactor *= 1 + r;
+    }
+    const twr = i === 0 ? 0 : twrOk ? twrFactor - 1 : null;
+
+    const flowsToD = fl.filter((f) => f.date <= d).map((f) => ({ amount: f.amount, date: f.date }));
+    const mwrRes = irrFromSignedFlows(flowsToD, vPos, t0, d);
+
+    out.push({
+      date: d.toISOString().slice(0, 10),
+      simple,
+      mwr: mwrRes ? mwrRes.cumulative : null,
+      twr,
+    });
+  }
+  return out;
+}

@@ -8,6 +8,8 @@ import {
   annualize,
   mwrIrr,
   yearsBetween,
+  modifiedDietz,
+  chainedTwr,
   type DatedCashFlowOp,
 } from "../returns";
 
@@ -196,5 +198,59 @@ describe("mwrIrr — FRM-006 (solver TIR)", () => {
     ];
     // Solo un MINUS (salida del inversor = +1000 en NPV) + terminal +500 → todo positivo
     expect(mwrIrr(ops, 500, t0, asOf)).toBeNull();
+  });
+});
+
+describe("modifiedDietz — FRM-008", () => {
+  const a = new Date("2024-01-01");
+  const b = new Date("2025-01-01"); // T = 366 días (2024 bisiesto)
+
+  it("sin flujos: (V_E − V_B) / V_B", () => {
+    expect(modifiedDietz(100, 121, [], a, b)).toBeCloseTo(0.21, 6);
+  });
+
+  it("flujo a mitad de periodo pondera el capital", () => {
+    const mid = new Date("2024-07-02"); // ~día 183 de 366 → w ≈ 0.5
+    // F=100, cap=100 + 0.5·100 = 150, R=(210−100−100)/150 = 0.0667
+    const r = modifiedDietz(100, 210, [{ amount: 100, date: mid }], a, b);
+    expect(r as number).toBeCloseTo(0.0667, 3);
+  });
+
+  it("capital ponderado ≤ 0 → null", () => {
+    expect(modifiedDietz(0, 10, [{ amount: -100, date: a }], a, b)).toBeNull();
+  });
+
+  it("T ≤ 0 → null", () => {
+    expect(modifiedDietz(100, 110, [], b, a)).toBeNull();
+  });
+});
+
+describe("chainedTwr — FRM-007 (gap-aware)", () => {
+  it("encadena sub-periodos sin flujos: 100→110→121 ⇒ 21%", () => {
+    const t0 = new Date("2024-01-01");
+    const series = [
+      { date: "2024-01-01", vPos: 100 },
+      { date: "2024-07-01", vPos: 110 },
+      { date: "2025-01-01", vPos: 121 },
+    ];
+    const res = chainedTwr(series, [], t0);
+    expect(res).not.toBeNull();
+    expect((res as { cumulative: number }).cumulative).toBeCloseTo(0.21, 6);
+    expect((res as { sinceInception: boolean }).sinceInception).toBe(true);
+  });
+
+  it("hueco grande cerca de inception → sinceInception=false (V-010)", () => {
+    const t0 = new Date("2021-09-27");
+    const series = [
+      { date: "2023-01-31", vPos: 100 }, // primer snapshot 491 días después de t0
+      { date: "2023-12-31", vPos: 110 },
+    ];
+    const res = chainedTwr(series, [], t0);
+    expect(res).not.toBeNull();
+    expect((res as { sinceInception: boolean }).sinceInception).toBe(false);
+  });
+
+  it("menos de 2 snapshots → null (datos insuficientes)", () => {
+    expect(chainedTwr([{ date: "2024-01-01", vPos: 100 }], [], new Date("2024-01-01"))).toBeNull();
   });
 });
