@@ -51,7 +51,9 @@ import {
   isMinus,
 } from "@/lib/operations-taxonomy";
 import { computeEurCostByIsin } from "@/lib/eur-cost-fifo";
-import { inceptionDate, irrFromSignedFlows } from "@/lib/returns";
+import { inceptionDate, irrFromSignedFlows, chainedTwr, simpleReturn, returnsTimeSeries } from "@/lib/returns";
+import ReturnsChart from "@/components/dashboard/ReturnsChart";
+import { VERSION_LABEL } from "@/lib/version";
 import { classifyProduct } from "@/lib/product-type";
 import { buildProductTypeMap, resolveProductType } from "@/lib/product-type-from-ops";
 import { useTheme } from "@/components/theme/ThemeContext";
@@ -1091,6 +1093,36 @@ export default function ClientDashboard({
     return irrFromSignedFlows(flows, totalValue, t0, asOf);
   }, [data.operations.operations, data.positions, totalValue]);
 
+  // TWR encadenado desde inception (FRM-007, gap-aware). La serie data.history
+  // es valor de POSICIONES por snapshot (suma position_value, sin efectivo) =
+  // V^pos, justo lo que pide D27. Usa flowAmountEur por consistencia con el MWR
+  // mostrado (cambia a cfExtEur cuando A1/MINUS D6 esté validado).
+  const twrSI = useMemo(() => {
+    if (data.history.length < 2 || data.positions.length === 0) return null;
+    const t0 = inceptionDate(data.operations.operations);
+    if (!t0) return null;
+    const asOf = new Date(data.positions[0].snapshot_date);
+    const flows = data.operations.operations.map((op) => ({
+      amount: flowAmountEur(op),
+      date: op.operation_date,
+    }));
+    const series = data.history.map((h) => ({ date: h.date, vPos: h.totalValue }));
+    return chainedTwr(series, flows, t0, asOf);
+  }, [data.history, data.operations.operations, data.positions]);
+
+  // Serie temporal de rentabilidad (Simple/MWR/TWR) para el gráfico interactivo.
+  const returnsSeries = useMemo(() => {
+    if (data.history.length < 2 || data.positions.length === 0) return [];
+    const t0 = inceptionDate(data.operations.operations);
+    if (!t0) return [];
+    const flows = data.operations.operations.map((op) => ({
+      amount: flowAmountEur(op),
+      date: op.operation_date,
+    }));
+    const series = data.history.map((h) => ({ date: h.date, vPos: h.totalValue }));
+    return returnsTimeSeries(series, flows, t0);
+  }, [data.history, data.operations.operations, data.positions]);
+
   // Concentration top 5 / top 10
   const { concTop5, concTop10 } = useMemo(() => {
     if (data.positions.length === 0 || totalValue === 0) return { concTop5: 0, concTop10: 0 };
@@ -1571,6 +1603,66 @@ export default function ClientDashboard({
       )}
 
       {/* ================================================================= */}
+      {/* RENTABILIDAD — panel destacado (Simple / MWR / TWR)              */}
+      {/* ================================================================= */}
+      {(mwrSI || twrSI) && (
+        <div className="mt-4 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+          <div className="flex items-center justify-between bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] px-5 py-3">
+            <h2 className="font-display text-base font-bold text-white sm:text-lg">Rentabilidad</h2>
+            <span className="text-[10px] text-white/70">Datos a {latestDate}</span>
+          </div>
+          <div className="grid grid-cols-1 gap-px bg-gray-100 sm:grid-cols-3">
+            {/* Simple */}
+            <div className="bg-white p-5 text-center">
+              <p className="text-[11px] font-medium uppercase tracking-wider text-gray-400">Simple</p>
+              {(() => {
+                const s = simpleReturn(totalValue, netContributions);
+                const cls = s == null ? "text-gray-400" : s >= 0 ? "text-green-600" : "text-red-600";
+                return (
+                  <p className={`mt-1 text-2xl font-bold sm:text-3xl ${cls}`}>
+                    {s == null ? "—" : `${s >= 0 ? "+" : ""}${(s * 100).toFixed(2)}%`}
+                  </p>
+                );
+              })()}
+              <p className="mt-1 text-[11px] text-gray-400">Sobre capital invertido</p>
+            </div>
+            {/* MWR */}
+            <div className="bg-white p-5 text-center">
+              <p className="text-[11px] font-medium uppercase tracking-wider text-gray-400">MWR</p>
+              <p className={`mt-1 text-2xl font-bold sm:text-3xl ${mwrSI ? (mwrSI.cumulative >= 0 ? "text-green-600" : "text-red-600") : "text-gray-400"}`}>
+                {mwrSI ? `${mwrSI.cumulative >= 0 ? "+" : ""}${(mwrSI.cumulative * 100).toFixed(2)}%` : "—"}
+              </p>
+              <p className="mt-1 text-[11px] text-gray-400">{mwrSI ? `${(mwrSI.annual * 100).toFixed(2)}% anual` : "tu experiencia real"}</p>
+            </div>
+            {/* TWR */}
+            <div className="bg-white p-5 text-center">
+              <p className="text-[11px] font-medium uppercase tracking-wider text-gray-400">TWR{twrSI && !twrSI.sinceInception ? " *" : ""}</p>
+              <p className={`mt-1 text-2xl font-bold sm:text-3xl ${twrSI ? (twrSI.cumulative >= 0 ? "text-green-600" : "text-red-600") : "text-gray-400"}`}>
+                {twrSI ? `${twrSI.cumulative >= 0 ? "+" : ""}${(twrSI.cumulative * 100).toFixed(2)}%` : "—"}
+              </p>
+              <p className="mt-1 text-[11px] text-gray-400">
+                {twrSI ? `${twrSI.annual != null ? (twrSI.annual * 100).toFixed(2) + "% anual · " : ""}aprox.` : "gestión"}
+              </p>
+            </div>
+          </div>
+          {returnsSeries.length >= 2 && (
+            <div className="border-t border-gray-100">
+              <p className="px-5 pt-3 text-[11px] font-medium uppercase tracking-wider text-gray-400">
+                Evolución de la rentabilidad
+              </p>
+              <ReturnsChart data={returnsSeries} />
+            </div>
+          )}
+          <div className="border-t border-gray-100 px-5 py-2 text-[10px] leading-relaxed text-gray-400">
+            Neta de comisiones · no incluye dividendos · TWR aproximado (snapshots semanales).
+            {twrSI && !twrSI.sinceInception
+              ? ` * TWR desde ${new Date(twrSI.twrStart).toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" })} (sin datos cerca del inicio; para el periodo completo, el MWR es la referencia).`
+              : ""}
+          </div>
+        </div>
+      )}
+
+      {/* ================================================================= */}
       {/* 2. EVOLUCION PATRIMONIAL — Gráfico combinado                      */}
       {/* ================================================================= */}
       <SectionDivider />
@@ -1773,11 +1865,12 @@ export default function ClientDashboard({
       {/* ================================================================= */}
       {/* Footer branding                                                    */}
       {/* ================================================================= */}
-      <div className="mt-3 flex items-center justify-center gap-2 pb-4 text-xs text-gray-400">
+      <div className="mt-3 flex items-center justify-center gap-2 text-xs text-gray-400">
         <div className="h-px w-12 bg-[var(--color-gold-30)]" />
         <span className="font-display font-semibold text-[var(--color-gold)]/60">Rowell Patrimonios</span>
         <div className="h-px w-12 bg-[var(--color-gold-30)]" />
       </div>
+      <p className="pb-4 pt-1 text-center text-[10px] text-gray-300">{VERSION_LABEL}</p>
     </div>
   );
 }
