@@ -8,7 +8,7 @@ import {
 } from "../operations-taxonomy";
 
 describe("classifyFlow", () => {
-  it("classifies all 5 PLUS types", () => {
+  it("classifies all 6 PLUS types", () => {
     Array.from(PLUS_TYPES).forEach((t) => {
       expect(classifyFlow(t)).toBe("plus");
     });
@@ -20,7 +20,7 @@ describe("classifyFlow", () => {
     });
   });
 
-  it("classifies all 11 NEUTRO types", () => {
+  it("classifies all 13 NEUTRO types", () => {
     Array.from(NEUTRO_TYPES).forEach((t) => {
       expect(classifyFlow(t)).toBe("neutro");
     });
@@ -36,10 +36,16 @@ describe("classifyFlow", () => {
     expect(classifyFlow("Venta RV Contado")).toBe("minus");
   });
 
-  it("has exactly 22 explicitly listed types (5+6+11)", () => {
-    expect(PLUS_TYPES.size).toBe(5);
+  it("has exactly 25 explicitly listed types (6+6+13)", () => {
+    expect(PLUS_TYPES.size).toBe(6);
     expect(MINUS_TYPES.size).toBe(6);
-    expect(NEUTRO_TYPES.size).toBe(11);
+    expect(NEUTRO_TYPES.size).toBe(13);
+  });
+
+  it("clasifica los 3 tipos nuevos PEND-017 (Edgard 2026-06-15)", () => {
+    expect(classifyFlow("RECEPCION IIC LIBRE PAGO")).toBe("plus");
+    expect(classifyFlow("SUSCRIPCION FUSION CON IMPACTO FISCAL")).toBe("neutro");
+    expect(classifyFlow("REEMBOLSO FUSION CON IMPACTO FISCAL")).toBe("neutro");
   });
 });
 
