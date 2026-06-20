@@ -42,6 +42,8 @@ export interface XRayFundRow {
   nombre: string;
   pesoPct: number;
   rent3yAnual: number | null;
+  rent5yAnual: number | null;
+  rent10yAnual: number | null;
   vol: number | null;
 }
 

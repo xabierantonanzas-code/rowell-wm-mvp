@@ -118,6 +118,8 @@ export function buildXRayAggregation(
       nombre: fund.nombre || p.nombre || p.isin,
       pesoPct: investedTotal > 0 ? (p.value / investedTotal) * 100 : 0,
       rent3yAnual: num(d, "rent_3Y_anual"),
+      rent5yAnual: num(d, "rent_5Y_anual"),
+      rent10yAnual: num(d, "rent_10Y_anual"),
       vol: num(d, "vol_3Y"),
     });
 

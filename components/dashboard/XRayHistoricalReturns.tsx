@@ -167,6 +167,7 @@ export default function XRayHistoricalReturns({
               ))}
               <th className="px-3 py-2 text-right font-semibold">3A an.</th>
               <th className="px-3 py-2 text-right font-semibold">5A an.</th>
+              <th className="px-3 py-2 text-right font-semibold">10A an.</th>
             </tr>
           </thead>
           <tbody>
@@ -194,6 +195,9 @@ export default function XRayHistoricalReturns({
                 <td className={`px-3 py-2 text-right tabular-nums ${pctClass(f.rent5Yanual)}`}>
                   {fmtPct(f.rent5Yanual)}
                 </td>
+                <td className={`px-3 py-2 text-right tabular-nums ${pctClass(f.rent10Yanual)}`}>
+                  {fmtPct(f.rent10Yanual)}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -214,6 +218,7 @@ export default function XRayHistoricalReturns({
                   {fmtPct(a.carteraPorAnyo[y])}
                 </td>
               ))}
+              <td className="px-3 py-2 text-right text-gray-400">—</td>
               <td className="px-3 py-2 text-right text-gray-400">—</td>
               <td className="px-3 py-2 text-right text-gray-400">—</td>
             </tr>

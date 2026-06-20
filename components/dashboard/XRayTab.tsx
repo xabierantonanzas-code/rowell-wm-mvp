@@ -38,6 +38,8 @@ type FundRow = {
   nombre: string;
   pesoPct: number;
   rent3yAnual: number;
+  rent5yAnual?: number | null;
+  rent10yAnual?: number | null;
   vol: number;
 };
 
@@ -79,11 +81,11 @@ type HoldingRow = {
 };
 
 const EJEMPLO_1_FUNDS: FundRow[] = [
-  { nombre: "BGF World Technology A2 EUR", pesoPct: 20.0, rent3yAnual: 30.12, vol: 26.08 },
-  { nombre: "Brandes US Value A Euro", pesoPct: 20.0, rent3yAnual: 13.04, vol: 12.82 },
-  { nombre: "Eleva European Selection A2 EUR acc", pesoPct: 20.0, rent3yAnual: 11.84, vol: 12.0 },
-  { nombre: "GS US CORE Equity E Acc EUR", pesoPct: 20.0, rent3yAnual: 17.14, vol: 14.99 },
-  { nombre: "T. Rowe Price US Smlr Cm Eq A (EUR)", pesoPct: 20.0, rent3yAnual: 9.03, vol: 16.45 },
+  { nombre: "BGF World Technology A2 EUR", pesoPct: 20.0, rent3yAnual: 30.12, rent5yAnual: 18.45, rent10yAnual: 15.20, vol: 26.08 },
+  { nombre: "Brandes US Value A Euro", pesoPct: 20.0, rent3yAnual: 13.04, rent5yAnual: 11.02, rent10yAnual: 9.81, vol: 12.82 },
+  { nombre: "Eleva European Selection A2 EUR acc", pesoPct: 20.0, rent3yAnual: 11.84, rent5yAnual: 8.90, rent10yAnual: 7.55, vol: 12.0 },
+  { nombre: "GS US CORE Equity E Acc EUR", pesoPct: 20.0, rent3yAnual: 17.14, rent5yAnual: 14.20, rent10yAnual: 13.10, vol: 14.99 },
+  { nombre: "T. Rowe Price US Smlr Cm Eq A (EUR)", pesoPct: 20.0, rent3yAnual: 9.03, rent5yAnual: 7.80, rent10yAnual: 10.40, vol: 16.45 },
 ];
 
 const EJEMPLO_1_DISTRIBUCION: DistribucionActivos[] = [
@@ -404,6 +406,8 @@ function FundsHeader({ funds, animateIn = true }: { funds: FundRow[]; animateIn?
             <th className="px-3 py-2.5 font-medium">Nombre</th>
             <th className="px-3 py-2.5 text-right font-medium">Peso (%)</th>
             <th className="px-3 py-2.5 text-right font-medium">3 Años Anualizado</th>
+            <th className="px-3 py-2.5 text-right font-medium">5 Años Anualizado</th>
+            <th className="px-3 py-2.5 text-right font-medium">10 Años Anualizado</th>
             <th className="px-3 py-2.5 text-right font-medium">Vol.</th>
           </tr>
         </thead>
@@ -423,6 +427,8 @@ function FundsHeader({ funds, animateIn = true }: { funds: FundRow[]; animateIn?
               <td className="px-3 py-2 text-xs font-medium">{f.nombre}</td>
               <td className="px-3 py-2 text-right text-xs tabular-nums">{num(f.pesoPct)}</td>
               <td className="px-3 py-2 text-right text-xs tabular-nums">{num(f.rent3yAnual)}</td>
+              <td className="px-3 py-2 text-right text-xs tabular-nums">{f.rent5yAnual != null ? num(f.rent5yAnual) : "—"}</td>
+              <td className="px-3 py-2 text-right text-xs tabular-nums">{f.rent10yAnual != null ? num(f.rent10yAnual) : "—"}</td>
               <td className="px-3 py-2 text-right text-xs tabular-nums">{num(f.vol)}</td>
             </tr>
           ))}
