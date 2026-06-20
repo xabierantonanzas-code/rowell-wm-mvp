@@ -1,0 +1,8 @@
+node_modules/
+.next/
+docs/
+data/
+public/
+*.test.ts
+*.test.tsx
+coverage/

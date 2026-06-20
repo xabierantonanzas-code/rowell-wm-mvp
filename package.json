@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "next lint",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "verify": "bash scripts/verify-mvp6.1.sh",
+    "scan": "bash scripts/semgrep-scan.sh"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.80.0",
