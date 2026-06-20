@@ -202,8 +202,9 @@ export default async function AyudaPage() {
           • <strong>Peso (%)</strong>: que porcentaje de tu patrimonio invertido representa
           el fondo.
           <br />
-          • <strong>3 Anos Anualizado</strong>: rentabilidad anualizada del fondo a 3 anos
-          (no de tu inversion, sino del fondo). Indica como ha rendido historicamente.
+          • <strong>3 / 5 / 10 Anos Anualizado</strong>: rentabilidad anualizada del fondo a
+          3, 5 y 10 anos (no de tu inversion, sino del fondo). Indica como ha rendido
+          historicamente. Si un fondo no tiene tanto historico, aparece &quot;—&quot;.
           <br />
           • <strong>Vol.</strong>: volatilidad anualizada a 3 anos. Mide cuanto fluctua el
           precio del fondo. Cuanto mas alta, mas riesgo / mas oscilaciones.
@@ -397,9 +398,21 @@ export default async function AyudaPage() {
       {/* ================================================================== */}
       <Section id="rentabilidad" number="7" title="Rentabilidad: TWR vs MWR">
         <P>
-          El dashboard ofrece dos formas de medir la rentabilidad. Puedes alternar
-          entre ambas con el selector TWR / MWR (cuando este activo en la cabecera).
+          El bloque <strong>Rentabilidad</strong> (entre el Resumen y la Evolucion
+          Patrimonial) muestra tres formas complementarias de medir tu rentabilidad
+          acumulada: <strong>Simple</strong>, <strong>MWR</strong> y <strong>TWR</strong>.
+          Debajo, un grafico interactivo con la evolucion de las tres en el tiempo.
         </P>
+        <Term term="Panel de Rentabilidad (Simple / MWR / TWR)">
+          Tres tarjetas con la rentabilidad acumulada desde el inicio. MWR y TWR
+          muestran ademas su equivalente <strong>anualizado</strong>. Todas son netas
+          de comisiones del broker y en euros.
+        </Term>
+        <Term term="Simple">
+          Rentabilidad sobre el <strong>capital invertido</strong>: cuanto vale tu
+          cartera hoy frente a lo que aportaste neto (aportaciones menos retiradas).
+          Es la mas intuitiva, pero no tiene en cuenta <em>cuando</em> aportaste.
+        </Term>
         <Term term="TWR (Time Weighted Return)">
           Mide la rentabilidad de la cartera <strong>independientemente de las aportaciones
           o retiradas</strong>. Es la metrica estandar de la industria para comparar
@@ -418,11 +431,55 @@ export default async function AyudaPage() {
           <em>Ejemplo: si aportaste mucho justo antes de una subida, tu MWR sera mayor
           que el TWR. Si aportaste antes de una bajada, sera menor.</em>
         </Term>
+        <Term term="Grafico de evolucion de la rentabilidad">
+          Linea interactiva con la rentabilidad acumulada (Simple, MWR y TWR) a lo
+          largo del tiempo. Pulsa los <strong>chips</strong> de arriba para mostrar u
+          ocultar cada linea, y pasa el raton por encima para ver las tres cifras en
+          cualquier fecha. La separacion entre TWR y MWR refleja el efecto del
+          <em>momento</em> de tus aportaciones.
+        </Term>
         <Term term="Periodos de rentabilidad">
           Se calculan para 5 periodos: <strong>1M</strong> (ultimo mes),
           <strong> 3M</strong> (3 meses), <strong>YTD</strong> (desde 1 enero),
           <strong> 1A</strong> (12 meses) y <strong>ALL</strong> (desde el inicio).
         </Term>
+
+        {/* Notas y limitaciones del calculo (D19 / PEND-001 / PEND-003 / V-010) */}
+        <div className="rounded-lg border border-[var(--color-gold)] bg-gray-50 p-4">
+          <p className="text-sm font-semibold text-[var(--color-primary)]">
+            Notas y limitaciones del calculo
+          </p>
+          <ul className="mt-2 list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-gray-600">
+            <li>
+              <strong>Version beta.</strong> El modelo de rentabilidades esta en
+              validacion. Algunas cifras pueden ajustarse mientras se contrastan
+              con los datos del broker.
+            </li>
+            <li>
+              <strong>Sin dividendos.</strong> La rentabilidad no incluye
+              dividendos ni cupones cobrados, por lo que puede estar ligeramente
+              subestimada en activos que los reparten.
+            </li>
+            <li>
+              <strong>TWR aproximado.</strong> El TWR se calcula sobre fotos
+              semanales de la cartera (mas el cierre de cada mes), no diarias. Por
+              eso es una aproximacion: no se valora la cartera el dia exacto de
+              cada aportacion o retirada.
+            </li>
+            <li>
+              <strong>TWR &quot;desde&quot; una fecha.</strong> Si faltan fotos de
+              la cartera cerca del inicio, el TWR se calcula desde la primera fecha
+              con datos fiables (se etiqueta &quot;desde DD/MM/AAAA&quot;); para el
+              periodo completo, el MWR es la referencia mas robusta.
+            </li>
+            <li>
+              <strong>Fondos sin histórico completo.</strong> En las medias de
+              rentabilidad de los fondos (3, 5 y 10 anos), algun fondo puede no
+              tener todo el historico; en ese caso la cifra se calcula con los
+              anos disponibles.
+            </li>
+          </ul>
+        </div>
       </Section>
 
       {/* ================================================================== */}
@@ -478,7 +535,7 @@ export default async function AyudaPage() {
           ¿Tienes dudas? Contacta con tu asesor en Rowell Patrimonios.
         </p>
         <p className="mt-1 text-xs text-gray-400">
-          Ultima actualizacion: Mayo 2026
+          Ultima actualizacion: Junio 2026
         </p>
       </div>
     </div>
