@@ -1,0 +1,53 @@
+# Verificación del modelo sobre la data completa de Edgard (260619)
+# Generado 2026-06-19 con metrics.py (verificador oficial) + 3 tipos PEND-017.
+# Fuente: docs/260619_input_Edgard/Raw data semanal (ops 11.535 + 411 Pos + 411 Saldo).
+# as_of = último snapshot disponible (2026-06-12).
+
+
+FX-001 CV…630252 t0=2026-02-11 as_of=2026-06-12 (0.331a) snaps=22 flows=4
+  CI=3,149.83  Vpos(ΣPOS13)=3,290.22  Vt_total=3,290.39  P&L=140.39
+  Simple=4.46% (ann n/d) | MWR ann=14.09% cum=4.46% | TWR cum=5.30% ann=n/d SI=True start=2026-02-13
+
+FX-002 CV…588288 t0=2025-03-10 as_of=2026-06-12 (1.257a) snaps=80 flows=2
+  CI=56,146.21  Vpos(ΣPOS13)=58,086.82  Vt_total=58,086.82  P&L=1,940.61
+  Simple=3.46% (ann 2.74%) | MWR ann=2.74% cum=3.46% | TWR cum=3.42% ann=2.74% SI=True start=2025-03-14
+
+FX-003 CV…592271 t0=2025-05-15 as_of=2026-06-12 (1.076a) snaps=69 flows=5
+  CI=39,992.91  Vpos(ΣPOS13)=41,857.42  Vt_total=41,857.60  P&L=1,864.51
+  Simple=4.66% (ann 4.33%) | MWR ann=3.94% cum=4.25% | TWR cum=3.87% ann=3.61% SI=True start=2025-05-16
+
+FX-004 CV…583036 t0=2025-01-30 as_of=2026-06-12 (1.363a) snaps=86 flows=16
+  CI=2,003.94  Vpos(ΣPOS13)=0.00  Vt_total=-6.05  P&L=-2,003.94
+  Simple=-100.00% (ann n/d) | MWR ann=-6.69% cum=-9.01% | TWR cum=n/d ann=n/d SI=True start=2025-01-31
+
+FX-005 CV…513206 t0=2023-06-14 as_of=2026-06-12 (2.995a) snaps=188 flows=47
+  CI=-40,535.94  Vpos(ΣPOS13)=4,481.95  Vt_total=4,614.29  P&L=45,017.89
+  Simple=n/d (ann n/d) | MWR ann=7.12% cum=22.88% | TWR cum=-76.15% ann=-38.09% SI=True start=2023-06-16
+
+FX-006 CV…200215 t0=2020-11-05 as_of=2026-06-12 (5.599a) snaps=350 flows=15
+  CI=433.66  Vpos(ΣPOS13)=0.00  Vt_total=0.00  P&L=-433.66
+  Simple=-100.00% (ann n/d) | MWR ann=-0.93% cum=-5.09% | TWR cum=n/d ann=n/d SI=True start=2020-11-06
+
+FX-007 CV…197825 t0=2021-02-15 as_of=2026-06-12 (5.32a) snaps=333 flows=22
+  CI=4,447.30  Vpos(ΣPOS13)=0.00  Vt_total=0.00  P&L=-4,447.30
+  Simple=-100.00% (ann n/d) | MWR ann=-10.07% cum=-43.16% | TWR cum=n/d ann=n/d SI=True start=2021-02-19
+
+FX-008 CV…251099 t0=2022-05-16 as_of=2026-06-12 (4.074a) snaps=255 flows=9
+  CI=901.04  Vpos(ΣPOS13)=1,725.59  Vt_total=1,725.59  P&L=824.55
+  Simple=91.51% (ann 17.29%) | MWR ann=2.02% cum=8.50% | TWR cum=9.49% ann=2.26% SI=True start=2022-05-20
+
+FX-010 CV…228979 t0=2021-10-07 as_of=2026-06-12 (4.679a) snaps=293 flows=131
+  CI=114,373.39  Vpos(ΣPOS13)=156,505.51  Vt_total=156,771.33  P&L=42,132.12
+  Simple=36.84% (ann 6.93%) | MWR ann=12.09% cum=70.61% | TWR cum=103.32% ann=16.39% SI=True start=2021-10-08
+
+FX-009out CV…627909 t0=2026-02-04 as_of=2026-06-12 (0.35a) snaps=23 flows=170
+  CI=191,224.27  Vpos(ΣPOS13)=210,589.44  Vt_total=210,589.44  P&L=19,365.17
+  Simple=10.13% (ann n/d) | MWR ann=25.89% cum=8.40% | TWR cum=10.30% ann=n/d SI=True start=2026-02-06
+
+FX-009in CV…627907 t0=2026-03-11 as_of=2026-06-12 (0.255a) snaps=17 flows=94
+  CI=194,470.32  Vpos(ΣPOS13)=199,907.24  Vt_total=199,907.24  P&L=5,436.92
+  Simple=2.80% (ann n/d) | MWR ann=11.44% cum=2.80% | TWR cum=2.60% ann=n/d SI=True start=2026-03-13
+
+AURUM CV…226249 t0=2021-09-27 as_of=2026-06-12 (4.706a) snaps=295 flows=72
+  CI=294,722.47  Vpos(ΣPOS13)=394,734.48  Vt_total=394,890.16  P&L=100,012.01
+  Simple=33.93% (ann 6.40%) | MWR ann=8.29% cum=45.49% | TWR cum=29.66% ann=5.68% SI=True start=2021-09-30
