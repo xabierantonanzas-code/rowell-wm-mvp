@@ -51,8 +51,9 @@ import {
   isMinus,
 } from "@/lib/operations-taxonomy";
 import { computeEurCostByIsin } from "@/lib/eur-cost-fifo";
-import { inceptionDate, irrFromSignedFlows, chainedTwr, simpleReturn, returnsTimeSeries } from "@/lib/returns";
+import { inceptionDate, irrFromSignedFlows, chainedTwr, simpleReturn, returnsTimeSeries, periodReturns } from "@/lib/returns";
 import ReturnsChart from "@/components/dashboard/ReturnsChart";
+import PeriodReturnsChart from "@/components/dashboard/PeriodReturnsChart";
 import { VERSION_LABEL } from "@/lib/version";
 import { classifyProduct } from "@/lib/product-type";
 import { buildProductTypeMap, resolveProductType } from "@/lib/product-type-from-ops";
@@ -1123,6 +1124,20 @@ export default function ClientDashboard({
     return returnsTimeSeries(series, flows, t0);
   }, [data.history, data.operations.operations, data.positions]);
 
+  // Rentabilidad por periodo (FRM-014) para el gráfico de barras.
+  const periodSeries = useMemo(() => {
+    if (data.history.length < 2 || data.positions.length === 0) return [];
+    const t0 = inceptionDate(data.operations.operations);
+    if (!t0) return [];
+    const asOf = new Date(data.positions[0].snapshot_date);
+    const flows = data.operations.operations.map((op) => ({
+      amount: flowAmountEur(op),
+      date: op.operation_date,
+    }));
+    const series = data.history.map((h) => ({ date: h.date, vPos: h.totalValue }));
+    return periodReturns(series, flows, t0, asOf);
+  }, [data.history, data.operations.operations, data.positions]);
+
   // Concentration top 5 / top 10
   const { concTop5, concTop10 } = useMemo(() => {
     if (data.positions.length === 0 || totalValue === 0) return { concTop5: 0, concTop10: 0 };
@@ -1651,6 +1666,14 @@ export default function ClientDashboard({
                 Evolución de la rentabilidad
               </p>
               <ReturnsChart data={returnsSeries} />
+            </div>
+          )}
+          {periodSeries.length > 0 && (
+            <div className="border-t border-gray-100">
+              <p className="px-5 pt-3 text-[11px] font-medium uppercase tracking-wider text-gray-400">
+                Rentabilidad por periodo
+              </p>
+              <PeriodReturnsChart data={periodSeries} />
             </div>
           )}
           <div className="border-t border-gray-100 px-5 py-2 text-[10px] leading-relaxed text-gray-400">

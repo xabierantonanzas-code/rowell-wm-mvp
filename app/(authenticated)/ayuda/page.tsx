@@ -438,10 +438,13 @@ export default async function AyudaPage() {
           cualquier fecha. La separacion entre TWR y MWR refleja el efecto del
           <em>momento</em> de tus aportaciones.
         </Term>
-        <Term term="Periodos de rentabilidad">
-          Se calculan para 5 periodos: <strong>1M</strong> (ultimo mes),
-          <strong> 3M</strong> (3 meses), <strong>YTD</strong> (desde 1 enero),
-          <strong> 1A</strong> (12 meses) y <strong>ALL</strong> (desde el inicio).
+        <Term term="Rentabilidad por periodo (barras)">
+          Grafico de barras con la rentabilidad en 5 horizontes: <strong>YTD</strong>
+          (desde 1 enero), <strong>1 año</strong>, <strong>3 años</strong>,
+          <strong> 5 años</strong> y <strong>Desde inicio</strong>. Selecciona la
+          metrica (Simple / MWR / TWR) con los botones y activa
+          <strong> &quot;Anualizada&quot;</strong> para ver el equivalente por año
+          (solo en periodos de 1 año o mas). Verde = positivo, rojo = negativo.
         </Term>
 
         {/* Notas y limitaciones del calculo (D19 / PEND-001 / PEND-003 / V-010) */}

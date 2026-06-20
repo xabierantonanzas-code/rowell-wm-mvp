@@ -10,6 +10,7 @@ import {
   yearsBetween,
   modifiedDietz,
   chainedTwr,
+  periodReturns,
   type DatedCashFlowOp,
 } from "../returns";
 
@@ -252,5 +253,25 @@ describe("chainedTwr — FRM-007 (gap-aware)", () => {
 
   it("menos de 2 snapshots → null (datos insuficientes)", () => {
     expect(chainedTwr([{ date: "2024-01-01", vPos: 100 }], [], new Date("2024-01-01"))).toBeNull();
+  });
+});
+
+describe("periodReturns — FRM-014", () => {
+  const t0 = new Date("2024-01-01");
+  const series = [
+    { date: "2024-01-01", vPos: 1000 },
+    { date: "2025-01-01", vPos: 1100 },
+  ];
+  const flows = [{ amount: 1000, date: "2024-01-01" }]; // CI = 1000
+
+  it("devuelve los 5 horizontes", () => {
+    const r = periodReturns(series, flows, t0, new Date("2025-01-01"));
+    expect(r.map((x) => x.period)).toEqual(["YTD", "1A", "3A", "5A", "SI"]);
+  });
+
+  it("SI Simple = (V_E − CI) / CI = 10%", () => {
+    const r = periodReturns(series, flows, t0, new Date("2025-01-01"));
+    const si = r.find((x) => x.period === "SI")!;
+    expect((si.simple as number) * 100).toBeCloseTo(10, 1);
   });
 });

@@ -408,3 +408,156 @@ export function returnsTimeSeries(
   }
   return out;
 }
+
+// ---------------------------------------------------------------------------
+// FRM-014 — Rentabilidad por horizonte (YTD / 1A / 3A / 5A / SI). Mecánica de
+// ventana D30 + Simple por periodo D31. Aproximacion (snapshots semanales).
+//   - Inicio teorico por periodo -> ultimo snapshot <= teorico (sin look-ahead).
+//   - Si t_0 > teorico -> la ventana ES SI (V_B = 0 en t_0).
+//   - Simple_H = (V_E − V_B − F_H) / (V_B + F_H)              (D31; SI = FRM-004)
+//   - MWR_H    = TIR(−V_B en inicio, flujos de la ventana, +V_E terminal)
+//   - TWR_H    = chained Dietz sobre los snapshots de la ventana
+//   - Anualizada solo para ventanas >= 1 año.
+// ---------------------------------------------------------------------------
+export type Horizon = "YTD" | "1A" | "3A" | "5A" | "SI";
+
+export interface PeriodReturn {
+  period: Horizon;
+  windowStart: string | null;
+  simple: number | null;
+  mwr: number | null;
+  twr: number | null;
+  simpleAnn: number | null;
+  mwrAnn: number | null;
+  twrAnn: number | null;
+}
+
+function subYears(d: Date, n: number): Date {
+  const x = new Date(d);
+  x.setFullYear(x.getFullYear() - n);
+  return x;
+}
+
+function theoreticalStart(p: Horizon, asOf: Date, t0: Date): Date {
+  switch (p) {
+    case "YTD":
+      return new Date(asOf.getFullYear(), 0, 1);
+    case "1A":
+      return subYears(asOf, 1);
+    case "3A":
+      return subYears(asOf, 3);
+    case "5A":
+      return subYears(asOf, 5);
+    default:
+      return t0;
+  }
+}
+
+export function periodReturns(
+  series: ReadonlyArray<{ date: string | Date | null; vPos: number }>,
+  flows: ReadonlyArray<SignedFlow>,
+  t0: Date,
+  asOf?: Date
+): PeriodReturn[] {
+  const ser = series
+    .map((s) => ({ date: toDate(s.date), vPos: s.vPos }))
+    .filter((s): s is { date: Date; vPos: number } => s.date !== null && s.date >= t0)
+    .sort((a, b) => a.date.getTime() - b.date.getTime());
+  if (ser.length < 2) return [];
+
+  const end = asOf ?? ser[ser.length - 1].date;
+  const vE = ser[ser.length - 1].vPos;
+  const fl: DatedAmount[] = [];
+  for (const f of flows) {
+    const d = toDate(f.date);
+    if (d && f.amount !== 0) fl.push({ amount: f.amount, date: d });
+  }
+  const ci = fl.reduce((s, f) => (f.date <= end ? s + f.amount : s), 0);
+
+  const periods: Horizon[] = ["YTD", "1A", "3A", "5A", "SI"];
+  const out: PeriodReturn[] = [];
+
+  for (const p of periods) {
+    let windowStart: Date;
+    let vB: number;
+    let isSI = false;
+
+    if (p === "SI") {
+      isSI = true;
+      windowStart = t0;
+      vB = 0;
+    } else {
+      const theo = theoreticalStart(p, end, t0);
+      if (theo <= t0) {
+        isSI = true;
+        windowStart = t0;
+        vB = 0;
+      } else {
+        let idx = -1;
+        for (let i = 0; i < ser.length; i++) {
+          if (ser[i].date <= theo) idx = i;
+          else break;
+        }
+        if (idx < 0) {
+          windowStart = ser[0].date;
+          vB = ser[0].vPos;
+        } else {
+          windowStart = ser[idx].date;
+          vB = ser[idx].vPos;
+        }
+      }
+    }
+
+    const winFlows = fl.filter((f) =>
+      isSI ? f.date <= end : f.date > windowStart && f.date <= end
+    );
+    const fH = winFlows.reduce((s, f) => s + f.amount, 0);
+
+    let simple: number | null;
+    if (isSI) simple = ci > 0 ? (vE - ci) / ci : null;
+    else {
+      const den = vB + fH;
+      simple = den > 0 ? (vE - vB - fH) / den : null;
+    }
+
+    let mwr: number | null;
+    if (isSI) {
+      const r = irrFromSignedFlows(
+        fl.filter((f) => f.date <= end).map((f) => ({ amount: f.amount, date: f.date })),
+        vE,
+        t0,
+        end
+      );
+      mwr = r ? r.cumulative : null;
+    } else {
+      const r = irrFromSignedFlows(
+        [{ amount: vB, date: windowStart }, ...winFlows.map((f) => ({ amount: f.amount, date: f.date }))],
+        vE,
+        windowStart,
+        end
+      );
+      mwr = r ? r.cumulative : null;
+    }
+
+    const twrRes = chainedTwr(
+      ser.filter((s) => s.date >= windowStart),
+      fl,
+      windowStart,
+      end
+    );
+    const twr = twrRes ? twrRes.cumulative : null;
+
+    const ann = yearsBetween(windowStart, end) >= 1;
+    out.push({
+      period: p,
+      windowStart: windowStart.toISOString().slice(0, 10),
+      simple,
+      mwr,
+      twr,
+      simpleAnn: ann ? annualize(simple, windowStart, end) : null,
+      mwrAnn: ann ? annualize(mwr, windowStart, end) : null,
+      twrAnn: ann ? annualize(twr, windowStart, end) : null,
+    });
+  }
+  return out;
+}
