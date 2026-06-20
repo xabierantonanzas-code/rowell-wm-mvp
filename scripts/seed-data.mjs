@@ -1,9 +1,22 @@
 import { createClient } from '@supabase/supabase-js';
+import fs from 'fs';
+import path from 'path';
 
-const supabase = createClient(
-  'https://vnxmtjzzrbnmmmqhyhpv.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZueG10anp6cmJubW1tcWh5aHB2Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTU5NzIxOSwiZXhwIjoyMDg3MTczMjE5fQ.nid55WrlAQ58qFqaav4lcKdy6nMoiCgQ73cAb8InbeA'
-);
+// Credenciales solo desde .env.local (nunca hardcodeadas).
+const envPath = path.join(process.cwd(), '.env.local');
+if (fs.existsSync(envPath)) {
+  for (const l of fs.readFileSync(envPath, 'utf8').split('\n')) {
+    const m = l.match(/^([A-Z_]+)=(.*)$/);
+    if (m) process.env[m[1]] = m[2].replace(/^['"]|['"]$/g, '');
+  }
+}
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SERVICE_KEY;
+if (!SUPABASE_URL || !SUPABASE_KEY) {
+  console.error('Faltan SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY en .env.local');
+  process.exit(1);
+}
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 async function seed() {
   console.log('=== SEEDING DATA ===');
