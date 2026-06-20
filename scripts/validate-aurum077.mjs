@@ -144,17 +144,26 @@ function computeEurCostByIsin(operations) {
   return out;
 }
 
-// ----- Reference (de Edgard) -----
+// ----- Reference -----
+// Referencia para el snapshot ~2026-06-11 (serie completa de Pos/Saldo cargada)
+// con el Registro_Operaciones COMPLETO (11.535 ops). KPIs (saldo, valor,
+// patrimonio, invertido, rentabilidad) CONFIRMADOS por metrics.py (script de
+// verificacion de Edgard, as_of 2026-06-12): invertido 294.722,47 ·
+// valor 394.734,48 · ganancia 100.012,01 (33,93%) · saldo 155,68.
+// Los 3 ultimos campos (FIFO) son la salida de la logica eur-cost-fifo del
+// dashboard a junio = baseline de regresion (no hand-calc de Edgard).
+// Historico previo: marzo daba invertido 290.922,76 (data incompleta) ->
+// 294.722,47 al unificar ops (4 ops historicas legitimas, 0 duplicados).
 const REF = {
-  saldo: 2522.18,
-  valorCartera: 361598.11,
-  patrimonioTotal: 364120.29,
-  patrimonioInvertido: 290922.76,
-  rentabilidadAcumulada: 70675.35,
-  rentabilidadAcumPct: 24.29,
-  inversionPosicionesActuales: 294068.51,
-  rentabPosicionesActuales: 67529.6,
-  rentabPosicionesActualesPct: 22.96,
+  saldo: 155.68,
+  valorCartera: 394734.48,
+  patrimonioTotal: 394890.16,
+  patrimonioInvertido: 294722.47,
+  rentabilidadAcumulada: 100012.01,
+  rentabilidadAcumPct: 33.93,
+  inversionPosicionesActuales: 295564.49,
+  rentabPosicionesActuales: 99169.99,
+  rentabPosicionesActualesPct: 33.55,
 };
 
 const fmt = (n) =>
