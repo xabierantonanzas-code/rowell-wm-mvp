@@ -72,22 +72,26 @@ export async function getPositionHistory(accountId: string, dateRange?: DateRang
   return cached(cacheKey, 300, async () => {
     const supabase = await createClient();
 
-    let query = supabase
-      .from("positions")
-      .select("snapshot_date, position_value")
-      .eq("account_id", accountId)
-      .order("snapshot_date");
-
-    query = applyDateFilter(query, "snapshot_date", dateRange);
-
-    const { data, error } = await query;
-
-    if (error) throw error;
-
+    // Paginar: Supabase corta a 1000 filas por defecto. Con la serie historica
+    // completa hay miles de filas de positions -> sin paginar el grafico se
+    // truncaba (~2023) y disparaba la alerta de integridad.
     const grouped = new Map<string, number>();
-    for (const row of data ?? []) {
-      const current = grouped.get(row.snapshot_date) ?? 0;
-      grouped.set(row.snapshot_date, current + (row.position_value ?? 0));
+    const PAGE = 1000;
+    for (let from = 0; ; from += PAGE) {
+      let query = supabase
+        .from("positions")
+        .select("snapshot_date, position_value")
+        .eq("account_id", accountId)
+        .order("snapshot_date");
+      query = applyDateFilter(query, "snapshot_date", dateRange);
+      query = query.range(from, from + PAGE - 1);
+      const { data, error } = await query;
+      if (error) throw error;
+      for (const row of data ?? []) {
+        const current = grouped.get(row.snapshot_date) ?? 0;
+        grouped.set(row.snapshot_date, current + (row.position_value ?? 0));
+      }
+      if (!data || data.length < PAGE) break;
     }
 
     return Array.from(grouped.entries()).map(([date, total]) => ({
@@ -138,22 +142,24 @@ export async function getAggregatedPositions(
 export async function getAggregatedHistory(accountIds: string[], dateRange?: DateRange) {
   const supabase = await createClient();
 
-  let query = supabase
-    .from("positions")
-    .select("snapshot_date, position_value")
-    .in("account_id", accountIds)
-    .order("snapshot_date");
-
-  query = applyDateFilter(query, "snapshot_date", dateRange);
-
-  const { data, error } = await query;
-
-  if (error) throw error;
-
+  // Paginar (mismo motivo que getPositionHistory: limite de 1000 filas).
   const grouped = new Map<string, number>();
-  for (const row of data ?? []) {
-    const current = grouped.get(row.snapshot_date) ?? 0;
-    grouped.set(row.snapshot_date, current + (row.position_value ?? 0));
+  const PAGE = 1000;
+  for (let from = 0; ; from += PAGE) {
+    let query = supabase
+      .from("positions")
+      .select("snapshot_date, position_value")
+      .in("account_id", accountIds)
+      .order("snapshot_date");
+    query = applyDateFilter(query, "snapshot_date", dateRange);
+    query = query.range(from, from + PAGE - 1);
+    const { data, error } = await query;
+    if (error) throw error;
+    for (const row of data ?? []) {
+      const current = grouped.get(row.snapshot_date) ?? 0;
+      grouped.set(row.snapshot_date, current + (row.position_value ?? 0));
+    }
+    if (!data || data.length < PAGE) break;
   }
 
   return Array.from(grouped.entries()).map(([date, total]) => ({
