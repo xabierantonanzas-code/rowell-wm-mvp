@@ -291,6 +291,8 @@ export interface TwrResult {
   twrStart: Date;
   /** false si hubo hueco de snapshots cerca de inception (V-010). */
   sinceInception: boolean;
+  /** Máximo |R^MD| entre los sub-periodos (señal del artefacto PEND-018/V-012). */
+  maxAbsSubperiodReturn: number;
 }
 
 export function chainedTwr(
@@ -317,6 +319,7 @@ export function chainedTwr(
   const twrStart = first;
 
   let factor = 1.0;
+  let maxAbsSubperiodReturn = 0;
   for (let i = 1; i < ser.length; i++) {
     const a = ser[i - 1].date;
     const b = ser[i].date;
@@ -328,6 +331,7 @@ export function chainedTwr(
     );
     const r = modifiedDietz(vB, vE, segFlows, a, b);
     if (r === null) return null;
+    if (Math.abs(r) > maxAbsSubperiodReturn) maxAbsSubperiodReturn = Math.abs(r);
     factor *= 1 + r;
   }
 
@@ -338,7 +342,53 @@ export function chainedTwr(
     annual: annualize(cumulative, twrStart, end),
     twrStart,
     sinceInception,
+    maxAbsSubperiodReturn,
   };
+}
+
+// ---------------------------------------------------------------------------
+// PEND-018 / V-012 — Fiabilidad del TWR encadenado.
+//
+// Con snapshots semanales + liquidación diferida (la orden aparece en
+// Operaciones días antes que su valor en Posiciones) el Modified Dietz de un
+// sub-periodo puede dispararse, explotando el TWR encadenado (ej. M-02: +743%,
+// M-10: −287%). El MWR (FRM-006) NO se ve afectado y es la métrica de
+// referencia. Criterio del manual de rentabilidades v1.1 §1.4:
+//   no fiable si  TWR indefinido (null)
+//             o   algún |R^MD| de sub-periodo ≥ 100%
+//             o   |TWR_anual − MWR_anual| > 20 pp/año
+// Mientras no se porte el stub-MW de inception (engine de Edgard pendiente),
+// este criterio es CONSERVADOR: marca también los casos que el stub-MW
+// rescataría (M-02, M-07). Nunca deja sin marcar un caso que el manual marca.
+// ---------------------------------------------------------------------------
+export const TWR_SUBPERIOD_ABS_LIMIT = 1.0; // 100 %
+export const TWR_MWR_DIVERGENCE_LIMIT = 0.2; // 20 pp anual
+
+export interface TwrReliability {
+  reliable: boolean;
+  /** Motivos por los que se marca no fiable (vacío si es fiable). */
+  reasons: string[];
+}
+
+export function assessTwrReliability(
+  twr: TwrResult | null,
+  mwrAnnual: number | null
+): TwrReliability {
+  const reasons: string[] = [];
+  if (twr === null) {
+    return { reliable: false, reasons: ["twr_indefinido"] };
+  }
+  if (twr.maxAbsSubperiodReturn >= TWR_SUBPERIOD_ABS_LIMIT) {
+    reasons.push("subperiodo_>=100%");
+  }
+  if (
+    twr.annual !== null &&
+    mwrAnnual !== null &&
+    Math.abs(twr.annual - mwrAnnual) > TWR_MWR_DIVERGENCE_LIMIT
+  ) {
+    reasons.push("divergencia_mwr_>20pp");
+  }
+  return { reliable: reasons.length === 0, reasons };
 }
 
 // ---------------------------------------------------------------------------
@@ -419,7 +469,7 @@ export function returnsTimeSeries(
 //   - TWR_H    = chained Dietz sobre los snapshots de la ventana
 //   - Anualizada solo para ventanas >= 1 año.
 // ---------------------------------------------------------------------------
-export type Horizon = "YTD" | "1A" | "3A" | "5A" | "SI";
+export type Horizon = "MTD" | "QTD" | "YTD" | "1A" | "3A" | "5A" | "SI";
 
 export interface PeriodReturn {
   period: Horizon;
@@ -440,6 +490,10 @@ function subYears(d: Date, n: number): Date {
 
 function theoreticalStart(p: Horizon, asOf: Date, t0: Date): Date {
   switch (p) {
+    case "MTD":
+      return new Date(asOf.getFullYear(), asOf.getMonth(), 0);
+    case "QTD":
+      return new Date(asOf.getFullYear(), Math.floor(asOf.getMonth() / 3) * 3, 0);
     case "YTD":
       return new Date(asOf.getFullYear(), 0, 1);
     case "1A":
@@ -457,7 +511,8 @@ export function periodReturns(
   series: ReadonlyArray<{ date: string | Date | null; vPos: number }>,
   flows: ReadonlyArray<SignedFlow>,
   t0: Date,
-  asOf?: Date
+  asOf?: Date,
+  periods?: Horizon[]
 ): PeriodReturn[] {
   const ser = series
     .map((s) => ({ date: toDate(s.date), vPos: s.vPos }))
@@ -474,10 +529,10 @@ export function periodReturns(
   }
   const ci = fl.reduce((s, f) => (f.date <= end ? s + f.amount : s), 0);
 
-  const periods: Horizon[] = ["YTD", "1A", "3A", "5A", "SI"];
+  const periodsList: Horizon[] = periods ?? ["YTD", "1A", "3A", "5A", "SI"];
   const out: PeriodReturn[] = [];
 
-  for (const p of periods) {
+  for (const p of periodsList) {
     let windowStart: Date;
     let vB: number;
     let isSI = false;
