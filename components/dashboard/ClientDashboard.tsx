@@ -51,7 +51,7 @@ import {
   isMinus,
 } from "@/lib/operations-taxonomy";
 import { computeEurCostByIsin } from "@/lib/eur-cost-fifo";
-import { inceptionDate, irrFromSignedFlows, chainedTwr, simpleReturn, returnsTimeSeries, periodReturns } from "@/lib/returns";
+import { inceptionDate, irrFromSignedFlows, chainedTwr, simpleReturn, simpleReturnAnnualized, returnsTimeSeries, periodReturns, assessTwrReliability } from "@/lib/returns";
 import ReturnsChart from "@/components/dashboard/ReturnsChart";
 import PeriodReturnsChart from "@/components/dashboard/PeriodReturnsChart";
 import { VERSION_LABEL } from "@/lib/version";
@@ -1111,6 +1111,14 @@ export default function ClientDashboard({
     return chainedTwr(series, flows, t0, asOf);
   }, [data.history, data.operations.operations, data.positions]);
 
+  // Fiabilidad del TWR (PEND-018 / V-012). Con snapshots semanales + liquidación
+  // diferida el TWR puede dispararse; el manual v1.1 marca esos casos como no
+  // fiables y usa el MWR como referencia. Criterio en assessTwrReliability.
+  const twrReliability = useMemo(
+    () => assessTwrReliability(twrSI, mwrSI?.annual ?? null),
+    [twrSI, mwrSI]
+  );
+
   // Serie temporal de rentabilidad (Simple/MWR/TWR) para el gráfico interactivo.
   const returnsSeries = useMemo(() => {
     if (data.history.length < 2 || data.positions.length === 0) return [];
@@ -1626,40 +1634,85 @@ export default function ClientDashboard({
             <h2 className="font-display text-base font-bold text-white sm:text-lg">Rentabilidad</h2>
             <span className="text-[10px] text-white/70">Datos a {latestDate}</span>
           </div>
-          <div className="grid grid-cols-1 gap-px bg-gray-100 sm:grid-cols-3">
-            {/* Simple */}
-            <div className="bg-white p-5 text-center">
-              <p className="text-[11px] font-medium uppercase tracking-wider text-gray-400">Simple</p>
-              {(() => {
-                const s = simpleReturn(totalValue, netContributions);
-                const cls = s == null ? "text-gray-400" : s >= 0 ? "text-green-600" : "text-red-600";
-                return (
-                  <p className={`mt-1 text-2xl font-bold sm:text-3xl ${cls}`}>
-                    {s == null ? "—" : `${s >= 0 ? "+" : ""}${(s * 100).toFixed(2)}%`}
-                  </p>
-                );
-              })()}
-              <p className="mt-1 text-[11px] text-gray-400">Sobre capital invertido</p>
-            </div>
-            {/* MWR */}
-            <div className="bg-white p-5 text-center">
-              <p className="text-[11px] font-medium uppercase tracking-wider text-gray-400">MWR</p>
-              <p className={`mt-1 text-2xl font-bold sm:text-3xl ${mwrSI ? (mwrSI.cumulative >= 0 ? "text-green-600" : "text-red-600") : "text-gray-400"}`}>
-                {mwrSI ? `${mwrSI.cumulative >= 0 ? "+" : ""}${(mwrSI.cumulative * 100).toFixed(2)}%` : "—"}
-              </p>
-              <p className="mt-1 text-[11px] text-gray-400">{mwrSI ? `${(mwrSI.annual * 100).toFixed(2)}% anual` : "tu experiencia real"}</p>
-            </div>
-            {/* TWR */}
-            <div className="bg-white p-5 text-center">
-              <p className="text-[11px] font-medium uppercase tracking-wider text-gray-400">TWR{twrSI && !twrSI.sinceInception ? " *" : ""}</p>
-              <p className={`mt-1 text-2xl font-bold sm:text-3xl ${twrSI ? (twrSI.cumulative >= 0 ? "text-green-600" : "text-red-600") : "text-gray-400"}`}>
-                {twrSI ? `${twrSI.cumulative >= 0 ? "+" : ""}${(twrSI.cumulative * 100).toFixed(2)}%` : "—"}
-              </p>
-              <p className="mt-1 text-[11px] text-gray-400">
-                {twrSI ? `${twrSI.annual != null ? (twrSI.annual * 100).toFixed(2) + "% anual · " : ""}aprox.` : "gestión"}
-              </p>
-            </div>
-          </div>
+          {(() => {
+            // Bloque de rentabilidades como propone Edgard (wm_cartera, 05_outputs OUT-003):
+            // lista vertical Capital invertido → Simple / MWR / TWR≈ → Inversión / Rentab. posiciones.
+            const t0 = inceptionDate(data.operations.operations);
+            const asOf = data.positions.length ? new Date(data.positions[0].snapshot_date) : null;
+            const simpleCum = simpleReturn(totalValue, netContributions);
+            const simpleEur = totalValue - netContributions;
+            const simpleAnn = t0 && asOf ? simpleReturnAnnualized(totalValue, netContributions, t0, asOf) : null;
+            const posEur = totalValue - totalCost;
+            const posPct = totalCost > 0 ? posEur / totalCost : null;
+            const eur = (v: number | null) =>
+              v == null ? "—" : v.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
+            const spct = (v: number | null) =>
+              v == null ? "—" : (v >= 0 ? "+" : "") + (v * 100).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " %";
+            const boxCls = (v: number | null) => (v == null || v >= 0 ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700");
+            const pcCls = (v: number | null) => (v == null || v >= 0 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700");
+            const labelCell = (label: string, note?: string) => (
+              <div className="text-sm text-gray-700">
+                {label}
+                {note ? <span className="block text-[10px] leading-tight text-gray-400">{note}</span> : null}
+              </div>
+            );
+            return (
+              <div className="px-3 py-2">
+                <div className="flex items-start justify-between gap-3 rounded-lg bg-gray-50 px-4 py-2">
+                  {labelCell("Capital invertido", "Base de cálculo · inversiones menos reembolsos")}
+                  <span className="font-semibold text-gray-600">{eur(netContributions)}</span>
+                </div>
+                <div className="flex items-start justify-between gap-3 border-b border-dashed border-gray-100 px-4 py-2">
+                  {labelCell("Rentabilidad simple", "Valor de cartera vs. capital invertido")}
+                  <div className="flex flex-wrap items-center justify-end gap-1.5">
+                    <span className={`rounded-md px-2 py-0.5 text-sm font-medium ${boxCls(simpleEur)}`}>{eur(simpleEur)}</span>
+                    <span className={`rounded px-1.5 py-0.5 text-xs font-semibold ${pcCls(simpleCum)}`}>{spct(simpleCum)}</span>
+                    {simpleAnn != null && <span className="text-[11px] text-gray-400">anual {spct(simpleAnn)}</span>}
+                  </div>
+                </div>
+                <div className="flex items-start justify-between gap-3 border-b border-dashed border-gray-100 px-4 py-2">
+                  {labelCell("Rentabilidad MWR", "Money-weighted (TIR de flujos) · referencia")}
+                  <div className="flex flex-wrap items-center justify-end gap-1.5">
+                    <span className={`rounded px-1.5 py-0.5 text-xs font-semibold ${pcCls(mwrSI ? mwrSI.cumulative : null)}`}>
+                      {mwrSI ? spct(mwrSI.cumulative) : "—"}
+                    </span>
+                    {mwrSI && <span className="text-[11px] text-gray-400">anual {spct(mwrSI.annual)}</span>}
+                  </div>
+                </div>
+                <div className="flex items-start justify-between gap-3 border-b border-dashed border-gray-100 px-4 py-2">
+                  {labelCell(
+                    "Rentabilidad TWR≈",
+                    twrSI && twrReliability.reliable && !twrSI.sinceInception
+                      ? `Time-weighted · desde ${new Date(twrSI.twrStart).toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" })} (no since-inception, D9)`
+                      : "Time-weighted · aprox. (snapshots semanales)"
+                  )}
+                  <div className="flex flex-wrap items-center justify-end gap-1.5">
+                    {!twrSI ? (
+                      <span className="text-sm text-gray-400">—</span>
+                    ) : twrReliability.reliable ? (
+                      <>
+                        <span className={`rounded px-1.5 py-0.5 text-xs font-semibold ${pcCls(twrSI.cumulative)}`}>{spct(twrSI.cumulative)}</span>
+                        {twrSI.annual != null && <span className="text-[11px] text-gray-400">anual {spct(twrSI.annual)}</span>}
+                      </>
+                    ) : (
+                      <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-700">no fiable · usa MWR</span>
+                    )}
+                  </div>
+                </div>
+                <div className="mt-1 flex items-start justify-between gap-3 rounded-lg bg-red-50 px-4 py-2">
+                  {labelCell("Inversión en posiciones actuales", "Base de cálculo · usa el tipo de cambio actual, no el de compra")}
+                  <span className="font-semibold text-red-700">{eur(totalCost)}</span>
+                </div>
+                <div className="flex items-start justify-between gap-3 px-4 py-2">
+                  {labelCell("Rentab. posiciones actuales", "Valor vs. coste (FX actual)")}
+                  <div className="flex flex-wrap items-center justify-end gap-1.5">
+                    <span className={`rounded-md px-2 py-0.5 text-sm font-medium ${boxCls(posEur)}`}>{eur(posEur)}</span>
+                    <span className={`rounded px-1.5 py-0.5 text-xs font-semibold ${pcCls(posPct)}`}>{spct(posPct)}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
           {returnsSeries.length >= 2 && (
             <div className="border-t border-gray-100">
               <p className="px-5 pt-3 text-[11px] font-medium uppercase tracking-wider text-gray-400">
@@ -1678,7 +1731,9 @@ export default function ClientDashboard({
           )}
           <div className="border-t border-gray-100 px-5 py-2 text-[10px] leading-relaxed text-gray-400">
             Neta de comisiones · no incluye dividendos · TWR aproximado (snapshots semanales).
-            {twrSI && !twrSI.sinceInception
+            {twrSI && !twrReliability.reliable
+              ? " El TWR no es fiable para esta cartera (efecto de cálculo por liquidación diferida, PEND-018); usa el MWR como referencia."
+              : twrSI && !twrSI.sinceInception
               ? ` * TWR desde ${new Date(twrSI.twrStart).toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" })} (sin datos cerca del inicio; para el periodo completo, el MWR es la referencia).`
               : ""}
           </div>
