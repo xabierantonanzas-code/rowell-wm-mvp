@@ -28,6 +28,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { label: "Evolución de cartera", href: "/cartera-v2", icon: TrendingUp },
   { label: "Clientes", href: "/admin", icon: Users, adminOnly: true },
   { label: "Upload", href: "/upload", icon: Upload, adminOnly: true },
   { label: "Ayuda", href: "/ayuda", icon: HelpCircle },
