@@ -93,3 +93,52 @@ html, body {
 /* Las clases legacy [#3D4F63] y [#B8965A] que aparecen hardcoded en
  * componentes existentes se quedan por compatibilidad. Para nuevas
  * UI usar primary-* / gold-* / bg-* / ink-*. */
+
+/* ---------------------------------------------------------------------------
+ * PortfolioLoader — indicador de carga "barras de cartera".
+ * Cuatro barras que crecen como un grafico (primary + gold alternos).
+ * Usado por components/ui/PortfolioLoader.tsx en la carga inicial
+ * (dashboard/loading.tsx) y en el refetch (ClientDashboard).
+ * ------------------------------------------------------------------------- */
+.rowell-loader {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 0.22em;
+  height: 1em;
+}
+.rowell-loader > span {
+  display: block;
+  width: 0.18em;
+  border-radius: 1px;
+  background: var(--color-primary);
+  animation: rowell-bar-grow 1.1s ease-in-out infinite;
+}
+.rowell-loader > span:nth-child(2) {
+  animation-delay: 0.15s;
+  background: var(--color-gold);
+}
+.rowell-loader > span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+.rowell-loader > span:nth-child(4) {
+  animation-delay: 0.45s;
+  background: var(--color-gold);
+}
+@keyframes rowell-bar-grow {
+  0%,
+  100% {
+    height: 0.3em;
+    opacity: 0.5;
+  }
+  50% {
+    height: 1em;
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rowell-loader > span {
+    animation: none;
+    height: 0.6em;
+    opacity: 0.8;
+  }
+}

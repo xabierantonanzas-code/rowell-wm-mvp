@@ -59,6 +59,7 @@ import { classifyProduct } from "@/lib/product-type";
 import { buildProductTypeMap, resolveProductType } from "@/lib/product-type-from-ops";
 import { useTheme } from "@/components/theme/ThemeContext";
 import { AnimatedValue } from "@/components/ui/AnimatedValue";
+import PortfolioLoader from "@/components/ui/PortfolioLoader";
 import { cn } from "@/lib/utils";
 
 // ===========================================================================
@@ -1422,7 +1423,21 @@ export default function ClientDashboard({
   }, [data.history, data.positions, data.cashBalance, data.operations.operations, returnMethod, productTypeMap]);
 
   return (
-    <div className={`space-y-1 ${loading ? "opacity-50 pointer-events-none" : ""}`}>
+    <>
+      {/* Indicador flotante de carga durante el refetch (cambio de cuenta,
+          fecha o pagina). Fuera del contenedor atenuado para que no herede su
+          opacity-50; fixed para seguir visible aunque la vista este scrolleada. */}
+      {loading && (
+        <div
+          className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 rounded-full bg-white px-4 py-2.5 text-sm font-medium text-[var(--color-primary)] shadow-lg ring-1 ring-black/5"
+          role="status"
+          aria-live="polite"
+        >
+          <PortfolioLoader size={18} label="Actualizando datos" />
+          Actualizando datos…
+        </div>
+      )}
+      <div className={`space-y-1 ${loading ? "opacity-50 pointer-events-none" : ""}`}>
       {/* ================================================================= */}
       {/* PORTADA / HEADER - estilo informe Rowell                          */}
       {/* ================================================================= */}
@@ -1949,6 +1964,7 @@ export default function ClientDashboard({
         <div className="h-px w-12 bg-[var(--color-gold-30)]" />
       </div>
       <p className="pb-4 pt-1 text-center text-[10px] text-gray-300">{VERSION_LABEL}</p>
-    </div>
+      </div>
+    </>
   );
 }
